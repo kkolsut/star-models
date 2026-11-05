@@ -13,6 +13,7 @@ use crate::theme;
 use crate::views::compare::{CompareAction, CompareState};
 use crate::views::cross_section::CrossSectionState;
 use crate::views::hr::ZamsLine;
+use crate::views::model3d::Model3dState;
 use crate::views::{PinnedModel, ViewCtx, XAxis, model_label, swatch};
 use crate::worker::{Msg, Worker, ZamsKey};
 
@@ -21,18 +22,20 @@ enum Tab {
     Profiles,
     Extra,
     CrossSection,
+    Model3d,
     Hr,
     Compare,
 }
 
 impl Tab {
-    const ALL: [Tab; 5] = [Tab::Profiles, Tab::Extra, Tab::CrossSection, Tab::Hr, Tab::Compare];
+    const ALL: [Tab; 6] = [Tab::Profiles, Tab::Extra, Tab::CrossSection, Tab::Model3d, Tab::Hr, Tab::Compare];
 
     fn title(self) -> &'static str {
         match self {
             Tab::Profiles => "Profiles (P, T, ρ)",
             Tab::Extra => "More profiles",
             Tab::CrossSection => "Cross-section",
+            Tab::Model3d => "3D model",
             Tab::Hr => "HR diagram",
             Tab::Compare => "Compare",
         }
@@ -43,6 +46,7 @@ impl Tab {
             Tab::Profiles => "profiles",
             Tab::Extra => "extra",
             Tab::CrossSection => "cross_section",
+            Tab::Model3d => "model3d",
             Tab::Hr => "hr",
             Tab::Compare => "compare",
         }
@@ -53,6 +57,7 @@ impl Tab {
 /// saves a PNG of each, then quits. Used to check the rendering.
 struct Capture {
     dir: PathBuf,
+    tabs: Vec<Tab>,
     step: usize,
     frames: u32,
     requested: bool,
@@ -90,6 +95,7 @@ pub struct StarApp {
     /// x axis of the detail and compare tabs (radius, mass or log P).
     detail_axis: XAxis,
     cross: CrossSectionState,
+    model3d: Model3dState,
     compare: CompareState,
     zams: ZamsLine,
     notice: Option<String>,
@@ -126,8 +132,13 @@ impl StarApp {
             }
         }
 
+        let tabs: Vec<Tab> = match std::env::var("STAR_MODELS_TABS") {
+            Ok(list) => Tab::ALL.into_iter().filter(|t| list.split(',').any(|s| s.trim() == t.slug())).collect(),
+            Err(_) => Tab::ALL.to_vec(),
+        };
         let capture = std::env::var("STAR_MODELS_CAPTURE").ok().map(|d| Capture {
             dir: PathBuf::from(d),
+            tabs,
             step: 0,
             frames: 0,
             requested: false,
@@ -158,11 +169,15 @@ impl StarApp {
             profile_axis: XAxis::Radius,
             detail_axis,
             cross: CrossSectionState::default(),
+            model3d: Model3dState::default(),
             compare: CompareState::default(),
             zams: ZamsLine::default(),
             notice: None,
             capture,
         };
+        if std::env::var("STAR_MODELS_3D_ZOOM").as_deref() == Ok("surface") {
+            app.model3d.zoom_to_surface();
+        }
         app.solve();
         app
     }
@@ -512,6 +527,7 @@ impl StarApp {
             Tab::Profiles => crate::views::profiles::show(ui, &v),
             Tab::Extra => crate::views::extra::show(ui, &v),
             Tab::CrossSection => crate::views::cross_section::show(ui, &v, &mut self.cross),
+            Tab::Model3d => crate::views::model3d::show(ui, &v, &mut self.model3d),
             Tab::Hr => crate::views::hr::show(ui, &v, &self.zams),
             Tab::Compare => {
                 if let Some(action) = crate::views::compare::show(ui, &v, &mut self.compare) {
@@ -537,11 +553,11 @@ impl StarApp {
         if !ready {
             return;
         }
-        if cap.step >= Tab::ALL.len() {
+        if cap.step >= cap.tabs.len() {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             return;
         }
-        let tab = Tab::ALL[cap.step];
+        let tab = cap.tabs[cap.step];
         self.tab = tab;
         cap.frames += 1;
         if cap.frames == 6 && !cap.requested {

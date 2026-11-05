@@ -21,7 +21,7 @@ impl Default for CrossSectionState {
 }
 
 /// Interpolate `ys` at normalised radius `s` (profile radii normalised to R).
-fn interp(rn: &[f64], ys: &[f64], s: f64) -> f64 {
+pub(super) fn interp(rn: &[f64], ys: &[f64], s: f64) -> f64 {
     if s <= rn[0] {
         return ys[0];
     }
@@ -30,7 +30,7 @@ fn interp(rn: &[f64], ys: &[f64], s: f64) -> f64 {
     ys[i - 1] + w * (ys[i] - ys[i - 1])
 }
 
-struct Field {
+pub(super) struct Field {
     log: Vec<f64>,
     lo: f64,
     hi: f64,
@@ -38,13 +38,13 @@ struct Field {
 }
 
 impl Field {
-    fn new(values: &[f64], ramp: Ramp) -> Self {
+    pub(super) fn new(values: &[f64], ramp: Ramp) -> Self {
         let log: Vec<f64> = values.iter().map(|v| v.max(1e-300).log10()).collect();
         let lo = log.iter().cloned().fold(f64::INFINITY, f64::min);
         let hi = log.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
         Self { log, lo, hi, ramp }
     }
-    fn color_at(&self, rn: &[f64], s: f64) -> Color32 {
+    pub(super) fn color_at(&self, rn: &[f64], s: f64) -> Color32 {
         let v = interp(rn, &self.log, s);
         self.ramp.sample((v - self.lo) / (self.hi - self.lo).max(1e-12))
     }
@@ -105,7 +105,15 @@ fn cell(shapes: &mut Vec<Shape>, c: Pos2, radius: f32, phase: f32, clockwise: bo
     shapes.push(Shape::convex_polygon(head, stroke.color, Stroke::NONE));
 }
 
-fn colorbar(painter: &egui::Painter, rect: Rect, field: &Field, title: &str, unit: &str, label_left: bool, dark: bool) {
+pub(super) fn colorbar(
+    painter: &egui::Painter,
+    rect: Rect,
+    field: &Field,
+    title: &str,
+    unit: &str,
+    label_left: bool,
+    dark: bool,
+) {
     let (ink, muted) = (theme::primary(dark), theme::muted(dark));
     const N: usize = 64;
     let mut mesh = Mesh::default();

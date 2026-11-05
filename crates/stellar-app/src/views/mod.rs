@@ -4,6 +4,7 @@ pub mod compare;
 pub mod cross_section;
 pub mod extra;
 pub mod hr;
+pub mod model3d;
 pub mod profiles;
 
 use std::sync::Arc;

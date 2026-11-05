@@ -37,6 +37,7 @@ on standard GNOME/KDE desktops).
 | **Profiles (P, T, ρ)** | log P, log T, log ρ against r/R or m/M, with linked axes and a shared cursor. Convective zones are shaded. Pinned models are overlaid. |
 | **More profiles** | L/L_s and m/M, opacity κ, ε split into pp, CNO and 3α, ∇_rad vs ∇_ad vs ∇ (shows *why* a layer is convective), convective velocity, F_conv/F and β = P_gas/P. The x axis can be r/R, m/M or **log P**; log P spreads out the thin outer envelope. |
 | **Cross-section** | Split disc with temperature on the left and density on the right (log color scales). Convective zones are outlined and carry animated convection cells. Hover to read the local state. |
+| **3D model** | A cut-away sphere: one octant removed, cut faces coloured by T or ρ, and the energy-generating (or convective) core as a ball in the corner. The surface has the black-body colour at T_eff. Animated transport: photon sparks random-walk outward through radiative zones, convection cells carry rising hot (amber) and sinking cool (blue) gas, the surface shows granulation for a convective envelope, and a convective core "boils". Drag to rotate, scroll or pinch to zoom at the cursor (up to 400×, e.g. **Zoom to surface layers** for the Sun's thin envelope), right- or shift-drag to pan, double-click to reset. Hover to read the local state. |
 | **HR diagram** | The current model on a ZAMS line computed for the current composition, alongside the present-day Sun and the pinned models. |
 | **Compare** | Table of global properties for the current and pinned models, plus an overlay of any profile quantity. |
 
@@ -122,6 +123,12 @@ Also, a ZAMS model is the *young* Sun; the present Sun has evolved for 4.6 Gyr.
   * `STAR_MODELS_MASS=<M☉>`
   * `STAR_MODELS_PIN=0.5,3` (pre-pinned models)
   * `STAR_MODELS_AXIS=radius|mass|pressure`
+  * `STAR_MODELS_TABS=model3d,hr` (only capture these tabs)
+  * `STAR_MODELS_3D_ZOOM=surface` (start the 3D view zoomed on the envelope)
+* The 3D view is rendered on the CPU: rotation, shading and a depth sort (painter's algorithm) of about
+  40k triangles per frame (~2 ms), handed to egui as one mesh with 4× MSAA. Overlays use an exact
+  ray test against the cut-away geometry for occlusion. It needs no GPU-specific code, so it carries
+  over to a WASM build.
 * Chart colors use a validated colorblind-safe categorical palette (`crates/stellar-app/src/theme.rs`).
   The current model is always slot 1, and each pinned model keeps its slot. Sequential color
   scales are single-hue ramps.
