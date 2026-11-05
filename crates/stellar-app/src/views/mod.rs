@@ -14,6 +14,7 @@ use egui::{Color32, Id};
 use egui_plot::{Corner, GridInput, GridMark, HoverPosition, Legend, Line, Plot, PlotPoints, PlotUi, Span};
 use stellar_core::{Profile, StarModel};
 
+use crate::evolution::{Range, RunRanges};
 use crate::theme;
 
 /// Which coordinate the profile plots use on the x axis.
@@ -90,17 +91,17 @@ impl XAxis {
     /// Apply axis-specific settings (orientation, ticks, full centre-to-surface
     /// extent of `model`) to a plot. A fixed extent keeps linked plots aligned,
     /// even when a series covers only part of the star.
-    pub fn configure<'a>(self, plot: Plot<'a>, model: &StarModel) -> Plot<'a> {
+    pub fn configure<'a>(self, plot: Plot<'a>, model: &StarModel, fixed: Option<&RunRanges>) -> Plot<'a> {
         let plot = plot.x_axis_label(self.label());
         match self {
             XAxis::Radius | XAxis::Mass => plot.include_x(0.0).include_x(1.0),
             XAxis::Pressure => {
                 let p = &model.profile.p;
-                plot.invert_x(true)
-                    .x_grid_spacer(log_spacer)
-                    .x_axis_formatter(log_tick)
-                    .include_x(p[0].log10())
-                    .include_x(p[p.len() - 1].log10())
+                let (lo, hi) = match fixed {
+                    Some(r) if r.log_p.is_valid() => (r.log_p.lo, r.log_p.hi),
+                    _ => (p[p.len() - 1].log10(), p[0].log10()),
+                };
+                plot.invert_x(true).x_grid_spacer(log_spacer).x_axis_formatter(log_tick).include_x(lo).include_x(hi)
             }
         }
     }
@@ -123,9 +124,32 @@ pub struct ViewCtx<'a> {
     pub dark: bool,
     /// Evolutionary track of the current run (empty without a run).
     pub track: &'a [crate::evolution::TrackPoint],
+    /// Run-wide ranges when the scale is fixed for an evolution run.
+    pub fixed: Option<&'a RunRanges>,
+    /// Run-wide ranges of the current evolution run, whatever the scale mode.
+    pub run: Option<&'a RunRanges>,
+    /// Adaptive scale during a run: the HR diagram zooms in on the track.
+    pub zoom_track: bool,
+    /// The scale mode changed this frame: plots drop any manual zoom.
+    pub reset_plots: bool,
 }
 
 impl ViewCtx<'_> {
+    /// With a fixed scale, extend the y axis to the run-wide range; reset any
+    /// manual zoom when the mode just changed.
+    pub fn apply_scale<'p>(&self, mut plot: Plot<'p>, range: impl Fn(&RunRanges) -> Range) -> Plot<'p> {
+        if let Some(r) = self.fixed {
+            let r = range(r);
+            if r.is_valid() {
+                plot = plot.include_y(r.lo).include_y(r.hi);
+            }
+        }
+        if self.reset_plots {
+            plot = plot.reset();
+        }
+        plot
+    }
+
     /// Short label for the current model.
     pub fn current_label(&self) -> String {
         model_label(self.model)
@@ -151,18 +175,37 @@ pub struct Quantity {
     pub get: fn(&Profile) -> &Vec<f64>,
     /// Legend corner that the curves usually leave empty.
     pub legend: Corner,
+    /// Range of this quantity over an evolution run (for fixed scales).
+    pub range: fn(&RunRanges) -> Range,
 }
 
-pub const PRESSURE: Quantity =
-    Quantity {
-        title: "Pressure", symbol: "P", unit: "dyn cm⁻²", log: true, get: |p| &p.p, legend: Corner::LeftBottom
-    };
-pub const TEMPERATURE: Quantity =
-    Quantity { title: "Temperature", symbol: "T", unit: "K", log: true, get: |p| &p.t, legend: Corner::LeftBottom };
-pub const DENSITY: Quantity =
-    Quantity {
-        title: "Density", symbol: "ρ", unit: "g cm⁻³", log: true, get: |p| &p.rho, legend: Corner::LeftBottom
-    };
+pub const PRESSURE: Quantity = Quantity {
+    title: "Pressure",
+    symbol: "P",
+    unit: "dyn cm⁻²",
+    log: true,
+    get: |p| &p.p,
+    legend: Corner::LeftBottom,
+    range: |r| r.log_p,
+};
+pub const TEMPERATURE: Quantity = Quantity {
+    title: "Temperature",
+    symbol: "T",
+    unit: "K",
+    log: true,
+    get: |p| &p.t,
+    legend: Corner::LeftBottom,
+    range: |r| r.log_t,
+};
+pub const DENSITY: Quantity = Quantity {
+    title: "Density",
+    symbol: "ρ",
+    unit: "g cm⁻³",
+    log: true,
+    get: |p| &p.rho,
+    legend: Corner::LeftBottom,
+    range: |r| r.log_rho,
+};
 pub const LUMINOSITY: Quantity = Quantity {
     title: "Luminosity",
     symbol: "L",
@@ -170,11 +213,17 @@ pub const LUMINOSITY: Quantity = Quantity {
     log: false,
     get: |p| &p.l,
     legend: Corner::RightBottom,
+    range: |r| r.lum,
 };
-pub const OPACITY: Quantity =
-    Quantity {
-        title: "Opacity", symbol: "κ", unit: "cm² g⁻¹", log: true, get: |p| &p.kappa, legend: Corner::LeftTop
-    };
+pub const OPACITY: Quantity = Quantity {
+    title: "Opacity",
+    symbol: "κ",
+    unit: "cm² g⁻¹",
+    log: true,
+    get: |p| &p.kappa,
+    legend: Corner::LeftTop,
+    range: |r| r.log_kappa,
+};
 pub const EPSILON: Quantity = Quantity {
     title: "Energy generation",
     symbol: "ε",
@@ -182,6 +231,7 @@ pub const EPSILON: Quantity = Quantity {
     log: true,
     get: |p| &p.eps,
     legend: Corner::RightTop,
+    range: |r| r.log_eps,
 };
 pub const NABLA: Quantity = Quantity {
     title: "Temperature gradient ∇",
@@ -190,6 +240,7 @@ pub const NABLA: Quantity = Quantity {
     log: true,
     get: |p| &p.nabla,
     legend: Corner::LeftTop,
+    range: |r| r.log_nabla,
 };
 pub const V_CONV: Quantity = Quantity {
     title: "Convective velocity",
@@ -198,6 +249,7 @@ pub const V_CONV: Quantity = Quantity {
     log: true,
     get: |p| &p.v_conv,
     legend: Corner::LeftTop,
+    range: |r| r.log_vconv,
 };
 
 pub const COMPARABLE: &[Quantity] = &[TEMPERATURE, PRESSURE, DENSITY, LUMINOSITY, OPACITY, EPSILON, NABLA, V_CONV];
@@ -350,7 +402,8 @@ pub fn quantity_plot(
         .y_axis_label(if q.unit.is_empty() { q.symbol.to_string() } else { format!("{} [{}]", q.symbol, q.unit) })
         .label_formatter(hover_formatter(v.x_axis, q.symbol.to_string(), q.unit, q.log))
         .allow_scroll(false);
-    plot = v.x_axis.configure(plot, v.model);
+    plot = v.x_axis.configure(plot, v.model, v.fixed);
+    plot = v.apply_scale(plot, q.range);
     if legend {
         plot = plot.legend(Legend::default().position(q.legend));
     }

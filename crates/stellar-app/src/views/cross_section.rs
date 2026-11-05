@@ -12,11 +12,13 @@ use crate::theme::{self, Ramp};
 
 pub struct CrossSectionState {
     pub animate: bool,
+    /// During an evolution run: draw the star to scale, relative to its largest radius in the run.
+    pub true_size: bool,
 }
 
 impl Default for CrossSectionState {
     fn default() -> Self {
-        Self { animate: true }
+        Self { animate: true, true_size: false }
     }
 }
 
@@ -46,6 +48,15 @@ impl Field {
         let lo = log.iter().cloned().fold(f64::INFINITY, f64::min);
         let hi = log.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
         Self { log, lo, hi, ramp, linear: false }
+    }
+
+    /// Override the colour range (in scale units: log₁₀, or linear values).
+    pub(super) fn with_range(mut self, lo: f64, hi: f64) -> Self {
+        if lo < hi {
+            self.lo = lo;
+            self.hi = hi;
+        }
+        self
     }
 
     /// Linear colour scale from 0 to `max` (e.g. mass fractions).
@@ -174,12 +185,16 @@ pub(super) fn colorbar(
 pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut CrossSectionState) {
     let dark = v.dark;
     let ink = theme::primary(dark);
+    let muted = theme::muted(dark);
     let p = &v.model.profile;
     let r_surf = *p.r.last().unwrap();
     let rn: Vec<f64> = p.r.iter().map(|r| r / r_surf).collect();
 
     ui.horizontal(|ui| {
         ui.checkbox(&mut state.animate, "Animate convection cells");
+        ui.checkbox(&mut state.true_size, "true size").on_hover_text(
+            "during an evolution run: draw the star to scale, relative to its largest radius in the run",
+        );
         ui.label(
             egui::RichText::new(
                 "Left half: temperature · right half: density · both on log scales · hover to read values",
@@ -191,11 +206,29 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut CrossSectionState) {
     let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::hover());
     let area = resp.rect;
     let margin_x = 210.0_f32.min(area.width() * 0.25);
-    let r_px = ((area.width() - 2.0 * margin_x).min(area.height() - 70.0) / 2.0).max(40.0);
+    // Largest disc that fits; labels and colour bars are laid out around it.
+    let r_full = ((area.width() - 2.0 * margin_x).min(area.height() - 70.0) / 2.0).max(40.0);
     let c = pos2(area.center().x, area.center().y + 12.0);
 
-    let t_field = Field::new(&p.t, Ramp::orange(dark));
-    let rho_field = Field::new(&p.rho, Ramp::blue(dark));
+    // Fixed scale for an evolution run: colours span every model of the run.
+    let mut t_field = Field::new(&p.t, Ramp::orange(dark));
+    let mut rho_field = Field::new(&p.rho, Ramp::blue(dark));
+    if let Some(rr) = v.fixed {
+        t_field = t_field.with_range(rr.log_t.lo, rr.log_t.hi);
+        rho_field = rho_field.with_range(rr.log_rho.lo, rr.log_rho.hi);
+    }
+    // True size: the disc is drawn to scale relative to the largest radius in the run.
+    let mut size = 1.0_f32;
+    let mut r_max = v.model.globals.radius;
+    if let Some(rr) = v.run.filter(|r| state.true_size && r.radius.is_valid() && r.radius.hi > 0.0) {
+        r_max = rr.radius.hi;
+        size = (v.model.globals.radius / r_max).clamp(0.0, 1.0) as f32;
+    }
+    let r_px = (r_full * size).max(1.0);
+    if size < 0.995 {
+        // Faint outline of the largest size the star reaches in this run.
+        painter.circle_stroke(c, r_full, Stroke::new(1.0, muted.gamma_multiply(0.6)));
+    }
 
     let mut mesh = Mesh::default();
     half_disc(&mut mesh, c, r_px, &rn, &t_field, true);
@@ -236,13 +269,19 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut CrossSectionState) {
 
     // Half titles.
     painter.text(
-        c + vec2(-r_px * 0.5, -r_px - 10.0),
+        c + vec2(-r_full * 0.5, -r_full - 10.0),
         Align2::CENTER_BOTTOM,
         "Temperature",
         FontId::proportional(15.0),
         ink,
     );
-    painter.text(c + vec2(r_px * 0.5, -r_px - 10.0), Align2::CENTER_BOTTOM, "Density", FontId::proportional(15.0), ink);
+    painter.text(
+        c + vec2(r_full * 0.5, -r_full - 10.0),
+        Align2::CENTER_BOTTOM,
+        "Density",
+        FontId::proportional(15.0),
+        ink,
+    );
 
     // Region labels below the disc.
     let mut regions: Vec<String> = Vec::new();
@@ -268,9 +307,16 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut CrossSectionState) {
         "Radiative zones: plain (no cells)".to_string()
     };
     regions.push(radiative);
+    if size < 0.995 {
+        regions.push(format!(
+            "true size: R = {} R☉, outline = largest radius in run ({} R☉)",
+            crate::views::fmt_value(v.model.globals.radius),
+            crate::views::fmt_value(r_max)
+        ));
+    }
     let text = regions.join("   ·   ");
     painter.text(
-        pos2(c.x, (c.y + r_px + 14.0).min(area.bottom() - 4.0)),
+        pos2(c.x, (c.y + r_full + 14.0).min(area.bottom() - 4.0)),
         Align2::CENTER_TOP,
         text,
         FontId::proportional(13.0),
@@ -278,10 +324,10 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut CrossSectionState) {
     );
 
     // Colorbars: T on the left, ρ on the right.
-    let bar_h = r_px * 1.5;
+    let bar_h = r_full * 1.5;
     let bar_w = 14.0;
-    let left_bar = Rect::from_min_size(pos2(c.x - r_px - 70.0, c.y - bar_h / 2.0), vec2(bar_w, bar_h));
-    let right_bar = Rect::from_min_size(pos2(c.x + r_px + 56.0, c.y - bar_h / 2.0), vec2(bar_w, bar_h));
+    let left_bar = Rect::from_min_size(pos2(c.x - r_full - 70.0, c.y - bar_h / 2.0), vec2(bar_w, bar_h));
+    let right_bar = Rect::from_min_size(pos2(c.x + r_full + 56.0, c.y - bar_h / 2.0), vec2(bar_w, bar_h));
     colorbar(&painter, left_bar, &t_field, "T", "K", true, dark);
     colorbar(&painter, right_bar, &rho_field, "ρ", "g cm⁻³", false, dark);
 

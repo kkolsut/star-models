@@ -6,6 +6,8 @@
 use egui::{Id, RichText};
 use egui_plot::{Corner, Legend, Line, Plot, PlotPoints};
 
+use crate::evolution::{Range, RunRanges};
+
 use super::{ViewCtx, convective_caption, hover_formatter, log_spacer, log_tick, points, segments, shade_convective};
 use crate::theme;
 
@@ -26,6 +28,7 @@ fn panel(
     height: f32,
     link: Id,
     legend: Corner,
+    range: fn(&RunRanges) -> Range,
 ) {
     ui.label(RichText::new(title).strong());
     let mut plot = Plot::new(("extra", title))
@@ -36,7 +39,8 @@ fn panel(
         .link_axis(link, [true, false])
         .link_cursor(link, [true, false])
         .label_formatter(hover_formatter(v.x_axis, "value".to_string(), "", log));
-    plot = v.x_axis.configure(plot, v.model);
+    plot = v.x_axis.configure(plot, v.model, v.fixed);
+    plot = v.apply_scale(plot, range);
     if log {
         plot = plot.y_grid_spacer(log_spacer).y_axis_formatter(log_tick);
     } else {
@@ -95,6 +99,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 h,
                 link,
                 Corner::RightBottom,
+                |_| Range::UNIT,
             );
             panel(
                 &mut cols[1],
@@ -106,6 +111,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 h,
                 link,
                 Corner::LeftTop,
+                |r| r.log_kappa,
             );
             panel(
                 &mut cols[0],
@@ -127,6 +133,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 h,
                 link,
                 Corner::RightTop,
+                |r| r.log_eps,
             );
             panel(
                 &mut cols[1],
@@ -142,6 +149,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 h,
                 link,
                 Corner::LeftTop,
+                |r| r.log_nabla,
             );
             panel(
                 &mut cols[0],
@@ -157,6 +165,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 h,
                 link,
                 Corner::RightBottom,
+                |_| Range::UNIT,
             );
             panel(
                 &mut cols[1],
@@ -168,6 +177,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 h,
                 link,
                 Corner::RightTop,
+                |r| r.eps_grav,
             );
             panel(
                 &mut cols[0],
@@ -179,6 +189,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 h,
                 link,
                 Corner::LeftTop,
+                |r| r.log_vconv,
             );
             panel(
                 &mut cols[1],
@@ -193,6 +204,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 h,
                 link,
                 Corner::LeftBottom,
+                |_| Range::UNIT,
             );
         });
     });

@@ -9,7 +9,7 @@ use egui::{Color32, RichText};
 use stellar_core::output::{profile_csv, summary_json};
 use stellar_core::{NoControl, Physics, SolveError, SolveEvent, StarModel, StarParams, solve_model};
 
-use crate::evolution::{EvoAction, EvolutionRun, EvolutionSettings, StopChoice};
+use crate::evolution::{EvoAction, EvolutionRun, EvolutionSettings, ScaleMode, StopChoice};
 use crate::theme;
 use crate::views::about::AboutState;
 use crate::views::compare::{CompareAction, CompareState};
@@ -110,6 +110,10 @@ pub struct StarApp {
     /// Current evolution run (track and timeline), if any.
     evolution: Option<EvolutionRun>,
     evo_settings: EvolutionSettings,
+    /// How views scale while an evolution run is shown.
+    scale_mode: ScaleMode,
+    /// Scale mode of the previous frame (a change resets manual plot zoom).
+    last_scale_mode: ScaleMode,
     /// Capture mode: evolution to run before taking screenshots, and which model to show.
     capture_evolve: Option<(StopChoice, f64, String)>,
     capture_evolve_started: bool,
@@ -167,6 +171,12 @@ impl StarApp {
             _ => XAxis::Radius,
         };
 
+        let scale_mode = if std::env::var("STAR_MODELS_SCALE").as_deref() == Ok("adapt") {
+            ScaleMode::AdaptToModel
+        } else {
+            ScaleMode::FixedForRun
+        };
+
         let mut app = Self {
             params,
             model: None,
@@ -196,6 +206,8 @@ impl StarApp {
             capture,
             evolution: None,
             evo_settings: EvolutionSettings::default(),
+            scale_mode,
+            last_scale_mode: scale_mode,
             capture_evolve: std::env::var("STAR_MODELS_EVOLVE").ok().map(|v| {
                 let select = std::env::var("STAR_MODELS_EVO_SELECT").unwrap_or_else(|_| "latest".into());
                 match v.split_once(':') {
@@ -210,6 +222,10 @@ impl StarApp {
             Ok("hydrogen") => app.model3d.quantity = crate::views::model3d::FaceQuantity::Hydrogen,
             Ok("density") => app.model3d.quantity = crate::views::model3d::FaceQuantity::Density,
             _ => {}
+        }
+        if std::env::var("STAR_MODELS_TRUE_SIZE").is_ok() {
+            app.cross.true_size = true;
+            app.model3d.true_size = true;
         }
         if let Some(t) = std::env::var("STAR_MODELS_3D_TIME").ok().and_then(|v| v.parse().ok()) {
             app.model3d.freeze_at(t);
@@ -466,7 +482,12 @@ impl StarApp {
         }
 
         ui.separator();
-        if let Some(action) = crate::evolution::controls(ui, &mut self.evo_settings, self.evolution.as_ref()) {
+        let prefs = crate::evolution::DisplayPrefs {
+            scale: &mut self.scale_mode,
+            true_size_cross: &mut self.cross.true_size,
+            true_size_3d: &mut self.model3d.true_size,
+        };
+        if let Some(action) = crate::evolution::controls(ui, &mut self.evo_settings, self.evolution.as_ref(), prefs) {
             self.evo_action(action);
         }
         ui.separator();
@@ -660,9 +681,12 @@ impl StarApp {
             return;
         }
         if let Some(run) = &mut self.evolution {
-            crate::evolution::timeline(ui, run);
+            crate::evolution::timeline(ui, run, &mut self.scale_mode);
             ui.separator();
         }
+        // The switch lives in the left panel and in the timeline; either may change it.
+        let scale_changed = self.scale_mode != self.last_scale_mode;
+        self.last_scale_mode = self.scale_mode;
         let Some(model) = self.shown_model() else {
             ui.centered_and_justified(|ui| {
                 if let Some(e) = &self.last_error {
@@ -675,7 +699,19 @@ impl StarApp {
         };
         let x_axis = if self.tab == Tab::Profiles { self.profile_axis } else { self.detail_axis };
         let track = self.evolution.as_ref().map(|r| r.track.as_slice()).unwrap_or(&[]);
-        let v = ViewCtx { model: &model, pinned: &self.pinned, x_axis, dark: ui.visuals().dark_mode, track };
+        let fixed_mode = self.scale_mode == ScaleMode::FixedForRun;
+        let fixed = self.evolution.as_ref().filter(|_| fixed_mode).map(|r| &r.ranges);
+        let v = ViewCtx {
+            model: &model,
+            pinned: &self.pinned,
+            x_axis,
+            dark: ui.visuals().dark_mode,
+            track,
+            fixed,
+            run: self.evolution.as_ref().map(|r| &r.ranges),
+            zoom_track: self.evolution.is_some() && !fixed_mode,
+            reset_plots: scale_changed,
+        };
         match self.tab {
             Tab::Profiles => crate::views::profiles::show(ui, &v),
             Tab::Extra => crate::views::extra::show(ui, &v),

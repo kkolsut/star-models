@@ -58,12 +58,18 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, zams: &ZamsLine) {
         });
     }
 
-    // Explicit bounds that contain every point, so the view fits the data even
-    // while the ZAMS line is still arriving.
-    let mut xs: Vec<f64> = zams.points.iter().map(|p| p.teff.log10()).collect();
-    let mut ys: Vec<f64> = zams.points.iter().map(|p| p.luminosity.log10()).collect();
-    xs.push(TEFF_SUN.log10());
-    ys.push(0.0);
+    // Explicit bounds. Normally they contain every point (the whole diagram),
+    // so the view fits the data even while the ZAMS line is still arriving.
+    // With the adaptive scale during a run, they zoom in on the track.
+    let (mut xs, mut ys): (Vec<f64>, Vec<f64>) = if v.zoom_track && !v.track.is_empty() {
+        (Vec::new(), Vec::new())
+    } else {
+        let mut xs: Vec<f64> = zams.points.iter().map(|p| p.teff.log10()).collect();
+        let mut ys: Vec<f64> = zams.points.iter().map(|p| p.luminosity.log10()).collect();
+        xs.push(TEFF_SUN.log10());
+        ys.push(0.0);
+        (xs, ys)
+    };
     for m in std::iter::once(&**v.model).chain(v.visible_pinned().map(|p| &*p.model)) {
         xs.push(m.globals.teff.log10());
         ys.push(m.globals.luminosity.log10());
@@ -76,10 +82,41 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, zams: &ZamsLine) {
         (xs.iter().cloned().fold(f64::INFINITY, f64::min), xs.iter().cloned().fold(f64::NEG_INFINITY, f64::max));
     let (y0, y1) =
         (ys.iter().cloned().fold(f64::INFINITY, f64::min), ys.iter().cloned().fold(f64::NEG_INFINITY, f64::max));
+    // Keep a sensible minimum extent when zoomed on a short track.
+    let (x0, x1) = ((x0.min(0.5 * (x0 + x1) - 0.03)), x1.max(0.5 * (x0 + x1) + 0.03));
+    let (y0, y1) = ((y0.min(0.5 * (y0 + y1) - 0.15)), y1.max(0.5 * (y0 + y1) + 0.15));
+    let zoom = v.zoom_track && !v.track.is_empty();
+    let pad_x = if zoom { 0.1 * (x1 - x0) } else { 0.04 };
+    let pad_y = if zoom { 0.1 * (y1 - y0) } else { 0.3 };
+    let target = [x0 - pad_x, x1 + pad_x, y0 - pad_y, y1 + pad_y];
 
-    Plot::new("hr_diagram")
-        .invert_x(true)
-        .legend(Legend::default().position(egui_plot::Corner::LeftTop))
+    let mut plot = Plot::new("hr_diagram");
+    if zoom {
+        // Zoomed on the track: explicit default bounds (other items, such as
+        // the full ZAMS line, do not widen the view). Reset whenever the track's
+        // extent changes, so the view follows a run that is still computing.
+        let key = egui::Id::unique("hr_zoom_target");
+        let changed = ui.data_mut(|d| {
+            let prev: Option<[f64; 4]> = d.get_temp(key);
+            d.insert_temp(key, target);
+            prev != Some(target)
+        });
+        plot = plot.default_x_bounds(target[0], target[1]).default_y_bounds(target[2], target[3]);
+        if changed {
+            plot = plot.reset();
+        }
+    } else {
+        plot = plot.include_x(target[0]).include_x(target[1]).include_y(target[2]).include_y(target[3]);
+    }
+    if v.reset_plots {
+        plot = plot.reset();
+    }
+    plot.invert_x(true)
+        .legend(Legend::default().position(if zoom {
+            egui_plot::Corner::LeftBottom
+        } else {
+            egui_plot::Corner::LeftTop
+        }))
         .x_axis_label("effective temperature T_eff [K]")
         .y_axis_label("luminosity L [L☉]")
         .x_grid_spacer(teff_spacer)
@@ -114,10 +151,6 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, zams: &ZamsLine) {
             let head = if name.is_empty() { String::new() } else { format!("{name}\n") };
             Some(format!("{head}T_eff = {:.0} K\nL = {} L☉", 10f64.powf(p.x), super::fmt_value(10f64.powf(p.y))))
         })
-        .include_x(x0 - 0.04)
-        .include_x(x1 + 0.04)
-        .include_y(y0 - 0.3)
-        .include_y(y1 + 0.3)
         .show(ui, |pu| {
             let muted = theme::muted(dark);
             let ink = theme::primary(dark);

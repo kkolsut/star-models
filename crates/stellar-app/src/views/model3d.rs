@@ -23,6 +23,7 @@ use stellar_core::StarModel;
 
 use super::cross_section::{Field, colorbar, interp};
 use super::{ViewCtx, fmt_value};
+use crate::evolution::RunRanges;
 use crate::theme::{self, Ramp};
 
 type V3 = [f32; 3];
@@ -118,7 +119,8 @@ struct Vert {
 }
 
 struct Scene {
-    key: (usize, FaceQuantity, bool),
+    /// (model, colouring, core as sphere, colour range bits): rebuilt when any changes.
+    key: SceneKey,
     verts: Vec<Vert>,
     tris: Vec<[u32; 3]>,
     field: Field,
@@ -151,6 +153,8 @@ pub struct Model3dState {
     pub pulsate: bool,
     /// Displayed relative radius amplitude of the pulsation (exaggerated).
     pub amplitude: f32,
+    /// During an evolution run: draw the star to scale, relative to its largest radius in the run.
+    pub true_size: bool,
     sim_time: f64,
     /// Zoom onto the envelope on the next frame (needs the canvas size).
     pending_surface_zoom: bool,
@@ -174,6 +178,7 @@ impl Default for Model3dState {
             core_sphere: true,
             pulsate: true,
             amplitude: 0.06,
+            true_size: false,
             sim_time: 0.0,
             pending_surface_zoom: false,
             scene: None,
@@ -261,7 +266,25 @@ fn granulation(p: V3, t: f32, freq: f32) -> f32 {
 // ---------------------------------------------------------------------------
 // Scene construction (model space, cached per model)
 
-fn build_scene(model: &Arc<StarModel>, quantity: FaceQuantity, core_sphere: bool) -> Scene {
+type SceneKey = (usize, FaceQuantity, bool, (u64, u64));
+
+/// Colour range for the cut faces with a fixed (run-wide) scale, in scale units.
+fn fixed_face_range(quantity: FaceQuantity, fixed: Option<&RunRanges>) -> Option<(f64, f64)> {
+    let r = fixed?;
+    let range = match quantity {
+        FaceQuantity::Temperature => r.log_t,
+        FaceQuantity::Density => r.log_rho,
+        FaceQuantity::Hydrogen => crate::evolution::Range { lo: 0.0, hi: r.x_max },
+    };
+    range.is_valid().then_some((range.lo, range.hi))
+}
+
+fn scene_key(model: &Arc<StarModel>, quantity: FaceQuantity, core_sphere: bool, fixed: Option<&RunRanges>) -> SceneKey {
+    let bits = fixed_face_range(quantity, fixed).map(|(lo, hi)| (lo.to_bits(), hi.to_bits())).unwrap_or((0, 0));
+    (Arc::as_ptr(model) as usize, quantity, core_sphere, bits)
+}
+
+fn build_scene(model: &Arc<StarModel>, quantity: FaceQuantity, core_sphere: bool, fixed: Option<&RunRanges>) -> Scene {
     let p = &model.profile;
     let r_surf = *p.r.last().unwrap();
     let rn: Vec<f64> = p.r.iter().map(|r| r / r_surf).collect();
@@ -275,6 +298,10 @@ fn build_scene(model: &Arc<StarModel>, quantity: FaceQuantity, core_sphere: bool
             // stands out and the overlays keep their contrast.
             Field::linear(&p.x, Ramp::aqua(false), x_max)
         }
+    };
+    let field = match fixed_face_range(quantity, fixed) {
+        Some((lo, hi)) => field.with_range(lo, hi),
+        None => field,
     };
     let g = &model.globals;
 
@@ -384,7 +411,7 @@ fn build_scene(model: &Arc<StarModel>, quantity: FaceQuantity, core_sphere: bool
     });
 
     Scene {
-        key: (Arc::as_ptr(model) as usize, quantity, core_sphere),
+        key: scene_key(model, quantity, core_sphere, fixed),
         verts,
         tris,
         field,
@@ -522,9 +549,9 @@ fn photon(painter: &egui::Painter, p: Pos2, r: f32, alpha: f32) {
 pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
     let dark = v.dark;
 
-    let key = (Arc::as_ptr(v.model) as usize, state.quantity, state.core_sphere);
+    let key = scene_key(v.model, state.quantity, state.core_sphere, v.fixed);
     if state.scene.as_ref().is_none_or(|s| s.key != key) {
-        state.scene = Some(build_scene(v.model, state.quantity, state.core_sphere));
+        state.scene = Some(build_scene(v.model, state.quantity, state.core_sphere, v.fixed));
     }
     let pulsating = state.scene.as_ref().is_some_and(|s| s.pulsation.is_some());
 
@@ -542,6 +569,10 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
         ui.add(egui::Slider::new(&mut state.speed, 0.1..=5.0).logarithmic(true).text("speed").max_decimals(1));
         ui.checkbox(&mut state.auto_rotate, "auto-rotate");
         ui.separator();
+        ui.checkbox(&mut state.true_size, "true size").on_hover_text(
+            "during an evolution run: draw the star to scale, relative to its largest radius in the run \
+             (zoom in to see small stages)",
+        );
         ui.add_enabled(pulsating, egui::Checkbox::new(&mut state.pulsate, "pulsation"))
             .on_hover_text("radial pulsation, shown when the star lies in the instability strip")
             .on_disabled_hover_text("this model is outside the instability strip: no classical pulsation");
@@ -602,6 +633,14 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
     }
 
     let scene = state.scene.as_ref().unwrap();
+    // True size: the star is drawn to scale relative to its largest radius in
+    // the run (with a faint outline of that size).
+    let (size, r_max) = match v.run.filter(|_| state.true_size) {
+        Some(rr) if rr.radius.is_valid() && rr.radius.hi > 0.0 => {
+            ((v.model.globals.radius / rr.radius.hi).clamp(1e-3, 1.0) as f32, rr.radius.hi)
+        }
+        _ => (1.0, v.model.globals.radius),
+    };
     let rot = Rot::new(state.yaw, state.pitch);
 
     // "Zoom to surface layers": centre on the middle of the envelope at the cut.
@@ -611,10 +650,10 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
         state.zoom = (0.45 / depth).clamp(1.0, 400.0);
         let target = face_point(0, 0.5 * (base + 1.0), std::f32::consts::FRAC_PI_4);
         let q = rot.apply(target);
-        state.pan = -vec2(q[0], -q[1]) * base_px * state.zoom;
+        state.pan = -vec2(q[0], -q[1]) * base_px * state.zoom * size;
     }
 
-    let scale_px = base_px * state.zoom;
+    let scale_px = base_px * state.zoom * size;
     let origin = center + state.pan;
     let project = |p: V3| -> (Pos2, f32) {
         let q = rot.apply(p);
@@ -629,6 +668,11 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
     let disp = |r: f32| -> f32 { pulse.map_or(1.0, |p| 1.0 + amp * p.xi_at(r) * pulse_s) };
     // Project a point of the static geometry at its pulsating position.
     let proj = |p: V3| project(scale(p, disp(dot(p, p).sqrt())));
+
+    if size < 0.995 {
+        let full = base_px * state.zoom;
+        painter.circle_stroke(origin, full, Stroke::new(1.0, theme::muted(dark).gamma_multiply(0.6)));
+    }
 
     // Soft ground shadow (light theme only; invisible on dark backgrounds).
     if !dark && state.pan.length() < 1.0 && state.zoom < 1.5 {
@@ -841,7 +885,14 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
         panel_backdrop(dark),
     );
     colorbar(&painter, bar, &scene.field, title, unit, true, dark);
-    draw_legend(&painter, rect, scene, v.model, dark, dot_r, pulse.is_some());
+    let size_note = (size < 0.995).then(|| {
+        format!(
+            "true size: R = {} R☉; faint outline = largest radius in run ({} R☉)",
+            fmt_value(v.model.globals.radius),
+            fmt_value(r_max)
+        )
+    });
+    draw_legend(&painter, rect, scene, v.model, dark, dot_r, LegendExtras { pulsing: pulse.is_some(), size_note });
 
     // Hover read-out: front-most triangle under the pointer.
     if let Some(m) = resp.hover_pos()
@@ -910,6 +961,14 @@ fn panel_backdrop(dark: bool) -> Color32 {
     }
 }
 
+/// View-state lines for the 3D legend.
+struct LegendExtras {
+    /// The pulsation animation is running.
+    pulsing: bool,
+    /// Explanation of the true-size view, when active.
+    size_note: Option<String>,
+}
+
 fn draw_legend(
     painter: &egui::Painter,
     rect: Rect,
@@ -917,8 +976,9 @@ fn draw_legend(
     model: &StarModel,
     dark: bool,
     dot_r: f32,
-    pulsing: bool,
+    extras: LegendExtras,
 ) {
+    let LegendExtras { pulsing, size_note } = extras;
     // Icons sit on a chip of face colour, as they appear on the star.
     let chip = scene.field.color_at(&scene.rn, 0.85);
     let ink = theme::primary(dark);
@@ -948,6 +1008,9 @@ fn draw_legend(
         ),
     ));
     lines.push((None, "white arcs: boundaries between radiative and convective zones".into()));
+    if let Some(note) = size_note {
+        lines.push((None, note));
+    }
     if let Some(p) = &scene.pulsation {
         let state = if pulsing { "" } else { " (animation off)" };
         lines.push((

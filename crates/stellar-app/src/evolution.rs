@@ -43,6 +43,114 @@ impl TrackPoint {
     }
 }
 
+/// How plots, colour scales and the star's size respond as the shown model changes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScaleMode {
+    /// Ranges cover every model of the run: axes and colours stay still, the star is drawn to scale.
+    FixedForRun,
+    /// Each view fits the model on screen (best detail; axes move during playback).
+    AdaptToModel,
+}
+
+/// A value range [lo, hi]; empty while lo > hi.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Range {
+    pub lo: f64,
+    pub hi: f64,
+}
+
+impl Range {
+    pub const EMPTY: Range = Range { lo: f64::INFINITY, hi: f64::NEG_INFINITY };
+    pub const UNIT: Range = Range { lo: 0.0, hi: 1.0 };
+
+    pub fn include(&mut self, v: f64) {
+        if v.is_finite() {
+            self.lo = self.lo.min(v);
+            self.hi = self.hi.max(v);
+        }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.lo <= self.hi
+    }
+}
+
+/// Ranges covering every model of a run, in plotted units (log₁₀ for
+/// logarithmic quantities). Updated incrementally as models arrive.
+#[derive(Clone, Copy, Debug)]
+pub struct RunRanges {
+    pub log_p: Range,
+    pub log_t: Range,
+    pub log_rho: Range,
+    pub log_kappa: Range,
+    pub log_eps: Range,
+    pub log_nabla: Range,
+    pub log_vconv: Range,
+    pub eps_grav: Range,
+    /// Luminosity L(r) [erg s⁻¹] (linear).
+    pub lum: Range,
+    pub log_teff: Range,
+    pub log_lum_sun: Range,
+    /// Photospheric radius [R☉].
+    pub radius: Range,
+    /// Largest hydrogen mass fraction.
+    pub x_max: f64,
+}
+
+impl RunRanges {
+    pub fn of(m: &StarModel) -> Self {
+        let mut r = Self {
+            log_p: Range::EMPTY,
+            log_t: Range::EMPTY,
+            log_rho: Range::EMPTY,
+            log_kappa: Range::EMPTY,
+            log_eps: Range::EMPTY,
+            log_nabla: Range::EMPTY,
+            log_vconv: Range::EMPTY,
+            eps_grav: Range::EMPTY,
+            lum: Range::EMPTY,
+            log_teff: Range::EMPTY,
+            log_lum_sun: Range::EMPTY,
+            radius: Range::EMPTY,
+            x_max: 0.0,
+        };
+        r.include(m);
+        r
+    }
+
+    pub fn include(&mut self, m: &StarModel) {
+        let p = &m.profile;
+        // Same floor as the energy-generation plot: 8 dex below the peak.
+        let eps_floor = p.eps.iter().cloned().fold(0.0, f64::max) * 1e-8;
+        let lg = |v: f64| if v > 0.0 { v.log10() } else { f64::NAN };
+        for k in 0..p.len() {
+            self.log_p.include(lg(p.p[k]));
+            self.log_t.include(lg(p.t[k]));
+            self.log_rho.include(lg(p.rho[k]));
+            self.log_kappa.include(lg(p.kappa[k]));
+            for e in [p.eps_pp[k], p.eps_cno[k], p.eps_3a[k], p.eps[k]] {
+                if e > eps_floor {
+                    self.log_eps.include(e.log10());
+                }
+            }
+            for n in [p.nabla_rad[k], p.nabla_ad[k], p.nabla[k]] {
+                self.log_nabla.include(lg(n));
+            }
+            if p.convective[k] {
+                self.log_vconv.include(lg(p.v_conv[k]));
+            }
+            self.eps_grav.include(p.eps_grav[k]);
+            self.lum.include(p.l[k]);
+            self.x_max = self.x_max.max(p.x[k]);
+        }
+        self.eps_grav.include(0.0);
+        let g = &m.globals;
+        self.log_teff.include(g.teff.log10());
+        self.log_lum_sun.include(g.luminosity.log10());
+        self.radius.include(g.radius);
+    }
+}
+
 /// Is `b` different enough from `a` to keep both as timeline snapshots?
 fn significant(a: &Globals, b: &Globals) -> bool {
     let dlog = |x: f64, y: f64| (x / y).log10().abs();
@@ -69,11 +177,14 @@ pub struct EvolutionRun {
     pub finished: Option<String>,
     /// (next Δt [yr], ZAMS radius [R☉]) to resume from the latest model.
     pub resume: Option<(f64, f64)>,
+    /// Ranges over every model computed in this run.
+    pub ranges: RunRanges,
 }
 
 impl EvolutionRun {
     pub fn new(zams: Arc<StarModel>) -> Self {
         Self {
+            ranges: RunRanges::of(&zams),
             job: None,
             track: vec![TrackPoint::of(&zams)],
             snapshots: vec![zams],
@@ -102,6 +213,7 @@ impl EvolutionRun {
     /// Add a newly computed model.
     pub fn push(&mut self, model: StarModel) {
         self.track.push(TrackPoint::of(&model));
+        self.ranges.include(&model);
         let n = self.snapshots.len();
         let model = Arc::new(model);
         // The current last element is a candidate: keep it only if it differs
@@ -172,7 +284,32 @@ pub enum EvoAction {
 }
 
 /// Evolution section of the left panel.
-pub fn controls(ui: &mut egui::Ui, settings: &mut EvolutionSettings, run: Option<&EvolutionRun>) -> Option<EvoAction> {
+/// Display options for evolution runs, editable before and during a run.
+pub struct DisplayPrefs<'a> {
+    pub scale: &'a mut ScaleMode,
+    /// "True size" of the Cross-section and 3D views (kept per view; set together here).
+    pub true_size_cross: &'a mut bool,
+    pub true_size_3d: &'a mut bool,
+}
+
+/// The two scale options as selectable buttons (shared by the left panel and the timeline).
+fn scale_buttons(ui: &mut egui::Ui, scale: &mut ScaleMode) {
+    ui.selectable_value(scale, ScaleMode::FixedForRun, "fixed for run").on_hover_text(
+        "axes and colour scales cover every model of the run, so they stay still while the star changes; \
+         the HR diagram shows the whole diagram",
+    );
+    ui.selectable_value(scale, ScaleMode::AdaptToModel, "adapt to model").on_hover_text(
+        "every view fits the model on screen: most detail, but axes and colours change during playback; \
+         the HR diagram zooms in on the track",
+    );
+}
+
+pub fn controls(
+    ui: &mut egui::Ui,
+    settings: &mut EvolutionSettings,
+    run: Option<&EvolutionRun>,
+    prefs: DisplayPrefs<'_>,
+) -> Option<EvoAction> {
     let dark = ui.visuals().dark_mode;
     let mut action = None;
     ui.label(RichText::new("Evolution").strong());
@@ -214,6 +351,26 @@ pub fn controls(ui: &mut egui::Ui, settings: &mut EvolutionSettings, run: Option
             action = Some(EvoAction::SunAge);
         }
     });
+    // Display options: can be set before a run starts and apply while it is shown.
+    ui.horizontal_wrapped(|ui| {
+        ui.label("Scale:");
+        scale_buttons(ui, prefs.scale);
+    });
+    ui.horizontal(|ui| {
+        let mixed = *prefs.true_size_cross != *prefs.true_size_3d;
+        let mut both = *prefs.true_size_cross && *prefs.true_size_3d;
+        let resp = ui.add(egui::Checkbox::new(&mut both, "true size").indeterminate(mixed)).on_hover_text(
+            "Cross-section and 3D model: draw the star to scale relative to its largest radius in the run, \
+                 so you see it expand (each view also has its own checkbox)",
+        );
+        if resp.changed() {
+            *prefs.true_size_cross = both;
+            *prefs.true_size_3d = both;
+        }
+        if run.is_none() {
+            ui.label(RichText::new("(apply once a run exists)").small().color(theme::secondary(dark)));
+        }
+    });
     if let Some(run) = run {
         let latest = &run.latest().globals;
         let text = if run.running() {
@@ -228,8 +385,9 @@ pub fn controls(ui: &mut egui::Ui, settings: &mut EvolutionSettings, run: Option
     action
 }
 
-/// Timeline above the views: scrub, step, play through the computed ages.
-pub fn timeline(ui: &mut egui::Ui, run: &mut EvolutionRun) {
+/// Timeline above the views: scrub, step, play through the computed ages, and
+/// choose how the views scale.
+pub fn timeline(ui: &mut egui::Ui, run: &mut EvolutionRun, scale: &mut ScaleMode) {
     let dark = ui.visuals().dark_mode;
     let n = run.snapshots.len();
     ui.horizontal(|ui| {
@@ -267,6 +425,10 @@ pub fn timeline(ui: &mut egui::Ui, run: &mut EvolutionRun) {
         if run.follow {
             run.selected = n - 1;
         }
+    });
+    ui.horizontal(|ui| {
+        ui.label("Scale:");
+        scale_buttons(ui, scale);
     });
     ui.horizontal_wrapped(|ui| {
         let m = run.selected_model();

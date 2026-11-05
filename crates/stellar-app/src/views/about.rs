@@ -311,6 +311,19 @@ fn usage(ui: &mut Ui, dark: bool) {
     );
     bullet(
         ui,
+        "Scale (Evolution section of the left panel, also in the timeline; can be set before a run starts): \
+         \"fixed for run\" (default) keeps every axis and colour scale constant over the whole run, \
+         so only the star changes while you scrub or play. \"adapt to model\" fits each view to the model on screen \
+         for the most detail, and zooms the HR diagram in on the track.",
+    );
+    bullet(
+        ui,
+        "True size (left panel for both views, or each view's own checkbox): draws the star to scale relative to its \
+         largest radius in the run, with a \
+         faint outline of that size, so you see it expand. After a giant phase the early star is small; zoom in on the 3D view.",
+    );
+    bullet(
+        ui,
         "For a pulsating star, evolve 1.5–2 M☉ (δ Scuti on the main sequence) or 5 M☉ \"as far as possible\" (Cepheid crossing), then select a model inside the shaded instability strip and open the 3D model.",
     );
 
@@ -989,6 +1002,13 @@ fn evolution(ui: &mut Ui, dark: bool) {
         "Pin current model pins the selected age. Track CSV exports the global properties of every timeline model.",
     );
     bullet(ui, "Changing any input parameter discards the run, because the ZAMS star itself changes.");
+    bullet(
+        ui,
+        "Scale: with \"fixed for run\" the y axes, the log P axis and the colour scales span every model computed in the \
+         run (updated as models arrive). Fractions use 0–1. The energy-generation range starts 8 dex below each model's \
+         peak, and the HR diagram shows the whole diagram. With \"adapt to model\" each view fits the model on screen, and \
+         the HR diagram is zoomed on the track. Switching the mode resets any manual zoom.",
+    );
     muted(
         ui,
         dark,
@@ -1072,6 +1092,11 @@ fn views(ui: &mut Ui, dark: bool) {
          between models. A legend is always shown; the Compare table lists exact values.",
     );
     bullet(ui, "Gray bands: convective zones of the current model (a neutral colour, never a series colour).");
+    bullet(
+        ui,
+        "During an evolution run, the timeline's Scale switch sets whether axes and colour scales stay fixed for the whole \
+         run (default) or adapt to the shown model; see \"Evolution in time\".",
+    );
     bullet(
         ui,
         "Continuous fields use single-hue, logarithmic colour scales: orange for temperature, blue for density. In 2D views \
