@@ -14,6 +14,7 @@ use crate::theme;
 use crate::views::about::AboutState;
 use crate::views::compare::{CompareAction, CompareState};
 use crate::views::cross_section::CrossSectionState;
+use crate::views::history::{HistoryAction, HistoryState};
 use crate::views::hr::ZamsLine;
 use crate::views::model3d::Model3dState;
 use crate::views::{PinnedModel, ViewCtx, XAxis, model_label, swatch};
@@ -26,13 +27,14 @@ enum Tab {
     CrossSection,
     Model3d,
     Hr,
+    History,
     Compare,
     About,
 }
 
 impl Tab {
-    const ALL: [Tab; 7] =
-        [Tab::Profiles, Tab::Extra, Tab::CrossSection, Tab::Model3d, Tab::Hr, Tab::Compare, Tab::About];
+    const ALL: [Tab; 8] =
+        [Tab::Profiles, Tab::Extra, Tab::CrossSection, Tab::Model3d, Tab::Hr, Tab::History, Tab::Compare, Tab::About];
 
     fn title(self) -> &'static str {
         match self {
@@ -41,6 +43,7 @@ impl Tab {
             Tab::CrossSection => "Cross-section",
             Tab::Model3d => "3D model",
             Tab::Hr => "HR diagram",
+            Tab::History => "Time evolution",
             Tab::Compare => "Compare",
             Tab::About => "About",
         }
@@ -53,6 +56,7 @@ impl Tab {
             Tab::CrossSection => "cross_section",
             Tab::Model3d => "model3d",
             Tab::Hr => "hr",
+            Tab::History => "history",
             Tab::Compare => "compare",
             Tab::About => "about",
         }
@@ -103,6 +107,7 @@ pub struct StarApp {
     cross: CrossSectionState,
     model3d: Model3dState,
     about: AboutState,
+    history: HistoryState,
     compare: CompareState,
     zams: ZamsLine,
     notice: Option<String>,
@@ -195,6 +200,7 @@ impl StarApp {
             detail_axis,
             cross: CrossSectionState::default(),
             model3d: Model3dState::default(),
+            history: HistoryState::default(),
             about: std::env::var("STAR_MODELS_ABOUT_SECTION")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -222,6 +228,12 @@ impl StarApp {
             Ok("hydrogen") => app.model3d.quantity = crate::views::model3d::FaceQuantity::Hydrogen,
             Ok("density") => app.model3d.quantity = crate::views::model3d::FaceQuantity::Density,
             _ => {}
+        }
+        if std::env::var("STAR_MODELS_HISTORY_FIT").is_ok() {
+            app.history.fit_all = true;
+        }
+        if std::env::var("STAR_MODELS_HISTORY_AXIS").as_deref() == Ok("step") {
+            app.history.axis = crate::views::history::HistoryAxis::Step;
         }
         if std::env::var("STAR_MODELS_TRUE_SIZE").is_ok() {
             app.cross.true_size = true;
@@ -362,6 +374,33 @@ impl StarApp {
             EvoAction::Start => self.start_evolution(),
             EvoAction::Stop => self.worker.cancel(),
             EvoAction::Reset => self.evolution = None,
+        }
+    }
+
+    fn history_action(&mut self, action: HistoryAction) {
+        match action {
+            HistoryAction::Evolve => self.start_evolution(),
+            HistoryAction::SelectAge(age) => {
+                if let Some(run) = &mut self.evolution {
+                    let best = run
+                        .snapshots
+                        .iter()
+                        .enumerate()
+                        .min_by(|a, b| (a.1.globals.age_yr - age).abs().total_cmp(&(b.1.globals.age_yr - age).abs()))
+                        .map(|(i, _)| i);
+                    if let Some(i) = best {
+                        run.selected = i;
+                        run.follow = false;
+                        run.playing = false;
+                    }
+                }
+            }
+            HistoryAction::Export => {
+                if let Some(run) = &self.evolution {
+                    let stem = format!("star_{:.2}Msun_history.csv", run.snapshots[0].params.mass);
+                    self.notice = save_text(&stem, "CSV", "csv", &crate::evolution::history_csv(&run.track));
+                }
+            }
         }
     }
 
@@ -718,6 +757,11 @@ impl StarApp {
             Tab::CrossSection => crate::views::cross_section::show(ui, &v, &mut self.cross),
             Tab::Model3d => crate::views::model3d::show(ui, &v, &mut self.model3d),
             Tab::Hr => crate::views::hr::show(ui, &v, &self.zams),
+            Tab::History => {
+                if let Some(action) = crate::views::history::show(ui, &v, &mut self.history) {
+                    self.history_action(action);
+                }
+            }
             Tab::About => {} // handled above
             Tab::Compare => {
                 if let Some(action) = crate::views::compare::show(ui, &v, &mut self.compare) {

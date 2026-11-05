@@ -5,6 +5,9 @@
 //! available at run time (current parameters, physics in use, ZAMS masses,
 //! CSV columns, version) it is read live, so the text cannot drift from the
 //! implementation.
+//!
+//! The same text is in `docs/about/` as Markdown, for reading on GitHub. Keep
+//! both in sync; a test checks that every equation appears there.
 
 use egui::{Align, RichText, Ui};
 use stellar_core::output::CSV_COLUMNS;
@@ -370,6 +373,13 @@ fn usage(ui: &mut Ui, dark: bool) {
         "HR diagram:",
         "the model on a computed ZAMS line, with the evolutionary track of the current run, the instability strip, \
          the present-day Sun and the pinned models.",
+    );
+    term(
+        ui,
+        "Time evolution:",
+        "after an evolution run, linked plots of how the global parameters change with age (or model number): L, R, \
+         T_eff, log g, central temperature and density, central composition, core masses, energy sources, pulsation \
+         period and solar-like oscillation frequencies. Click a plot to show that age everywhere.",
     );
     term(
         ui,
@@ -999,7 +1009,15 @@ fn evolution(ui: &mut Ui, dark: bool) {
     );
     bullet(
         ui,
-        "Pin current model pins the selected age. Track CSV exports the global properties of every timeline model.",
+        "Pin current model pins the selected age. Track CSV exports the global properties of every timeline model; \
+         the Time evolution tab exports every step (history CSV).",
+    );
+    bullet(
+        ui,
+        "Time evolution tab: twelve linked time-series panels covering the whole run. The x axis is age, or model number, \
+         which spreads out the fast phases after the main sequence. Vertical lines mark phase changes, a vertical \
+         marker shows the selected age, shaded intervals in the period panel mark the instability strip, and a click \
+         on any panel selects that age. \"fit all on screen\" shrinks the panels to show all of them at once.",
     );
     bullet(ui, "Changing any input parameter discards the run, because the ZAMS star itself changes.");
     bullet(
@@ -1186,6 +1204,14 @@ fn views(ui: &mut Ui, dark: bool) {
                 ms.iter().map(|m| format!("{m}")).collect::<Vec<_>>().join(", ")
             }
         ),
+    );
+    sub(ui, "Time evolution");
+    p(
+        ui,
+        "One point per computed step (not only the timeline models). The energy-source panel shows shares of the surface \
+         luminosity: the nuclear shares are the pp/CNO/3α fractions times (1 − L_grav/L), and the gravitational share is \
+         ∫ε_grav dm / L, so the four add up to 1. It can be negative while the star expands. Legends are drawn next to \
+         each panel title. Logarithmic axes label round values when the range is less than a decade.",
     );
     sub(ui, "Compare");
     p(
@@ -1420,6 +1446,28 @@ mod tests {
             count += 1;
         }
         assert!(count >= 40, "expected the About page to reference the equations, found {count}");
+    }
+
+    /// docs/about/ holds this page as Markdown for GitHub; every equation must
+    /// appear there verbatim as a ```math block, so the two cannot drift apart.
+    #[test]
+    fn markdown_docs_contain_every_equation() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/about");
+        let mut docs = String::new();
+        for entry in std::fs::read_dir(&dir).expect("docs/about exists") {
+            let path = entry.unwrap().path();
+            if path.extension().is_some_and(|e| e == "md") {
+                docs += &std::fs::read_to_string(&path).unwrap();
+            }
+        }
+        for e in crate::equations::EQUATIONS {
+            let block = format!("```math\n{}\n```", e.tex);
+            assert!(
+                docs.contains(&block),
+                "equation `{}` is missing from docs/about (or differs from equations.json)",
+                e.id
+            );
+        }
     }
 
     #[test]

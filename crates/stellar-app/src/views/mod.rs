@@ -4,6 +4,7 @@ pub mod about;
 pub mod compare;
 pub mod cross_section;
 pub mod extra;
+pub mod history;
 pub mod hr;
 pub mod model3d;
 pub mod profiles;
@@ -299,6 +300,25 @@ pub fn superscript(n: i64) -> String {
 pub fn log_spacer(input: GridInput) -> Vec<GridMark> {
     let (lo, hi) = input.bounds;
     let span = (hi - lo).max(1e-9);
+    // Less than a decade: label round values on a linear scale (e.g. 0.42, 0.44, …).
+    if span < 1.0 {
+        let (a, b) = (10f64.powf(lo), 10f64.powf(hi));
+        let raw = (b - a) / 3.0;
+        let mag = 10f64.powf(raw.log10().floor());
+        let step = [1.0, 2.0, 5.0, 10.0].into_iter().map(|k| k * mag).find(|&s| s >= raw).unwrap_or(10.0 * mag);
+        let mut marks = Vec::new();
+        let mut k = (a / step).ceil();
+        while k * step <= b {
+            let v = k * step;
+            if v > 0.0 {
+                // Spacing in log units, so egui fades labels that would collide.
+                let next = ((v + step) / v).log10();
+                marks.push(GridMark { value: v.log10(), step_size: next });
+            }
+            k += 1.0;
+        }
+        return marks;
+    }
     let step = [1.0, 2.0, 3.0, 5.0, 10.0, 20.0, 50.0].into_iter().find(|s| span / s <= 8.0).unwrap_or(100.0);
     let mut marks = Vec::new();
     let first = lo.floor() as i64;
@@ -323,8 +343,12 @@ pub fn log_spacer(input: GridInput) -> Vec<GridMark> {
 
 /// Tick labels for an axis holding log10 values: 10ⁿ at decades and 2·10ⁿ /
 /// 5·10ⁿ at the intermediate marks.
-pub fn log_tick(mark: GridMark, _range: &std::ops::RangeInclusive<f64>) -> String {
+pub fn log_tick(mark: GridMark, range: &std::ops::RangeInclusive<f64>) -> String {
     let v = mark.value;
+    // Less than a decade visible: plain round numbers throughout (see `log_spacer`).
+    if range.end() - range.start() < 1.0 {
+        return significant(10f64.powf(v));
+    }
     let e = v.floor();
     let frac = v - e;
     if frac.abs() < 1e-9 || (1.0 - frac).abs() < 1e-9 {
@@ -334,7 +358,23 @@ pub fn log_tick(mark: GridMark, _range: &std::ops::RangeInclusive<f64>) -> Strin
     } else if (frac - 5f64.log10()).abs() < 1e-9 {
         format!("5·10{}", superscript(e as i64))
     } else {
-        String::new()
+        // Round linear values from a narrow range (see `log_spacer`).
+        significant(10f64.powf(v))
+    }
+}
+
+/// A number with about three significant digits.
+fn significant(v: f64) -> String {
+    let a = v.abs();
+    if a == 0.0 {
+        "0".into()
+    } else if !(1e-3..1e5).contains(&a) {
+        format!("{v:.2e}")
+    } else {
+        let decimals = (2 - a.log10().floor() as i32).max(0) as usize;
+        let s = format!("{v:.decimals$}");
+        // Drop trailing zeros after the decimal point (0.4200 → 0.42).
+        if s.contains('.') { s.trim_end_matches('0').trim_end_matches('.').to_string() } else { s }
     }
 }
 

@@ -21,7 +21,21 @@ pub struct TrackPoint {
     pub teff: f64,
     pub lum: f64,
     pub radius: f64,
+    pub log_g: f64,
+    pub tc: f64,
+    pub rhoc: f64,
     pub x_c: f64,
+    pub y_c: f64,
+    pub he_core_q: f64,
+    pub conv_core_q: f64,
+    pub conv_env_base_r: Option<f64>,
+    /// Shares of the surface luminosity from pp, CNO, 3α and gravitational energy.
+    pub l_pp: f64,
+    pub l_cno: f64,
+    pub l_3a: f64,
+    pub l_grav: f64,
+    pub nu_max: f64,
+    pub delta_nu: f64,
     pub phase: Phase,
     pub period_days: Option<f64>,
     pub pulsator: Option<PulsatorType>,
@@ -30,17 +44,69 @@ pub struct TrackPoint {
 impl TrackPoint {
     pub fn of(m: &StarModel) -> Self {
         let g = &m.globals;
+        // frac_pp/cno/3a are shares of the nuclear luminosity; L_nuc / L = 1 − L_grav / L.
+        let nuc = 1.0 - g.frac_grav;
         Self {
             age_yr: g.age_yr,
             teff: g.teff,
             lum: g.luminosity,
             radius: g.radius,
+            log_g: g.log_g,
+            tc: g.tc,
+            rhoc: g.rhoc,
             x_c: g.x_c,
+            y_c: g.y_c,
+            he_core_q: g.he_core_q,
+            conv_core_q: g.conv_core_q,
+            conv_env_base_r: g.conv_env_base_r,
+            l_pp: g.frac_pp * nuc,
+            l_cno: g.frac_cno * nuc,
+            l_3a: g.frac_3a * nuc,
+            l_grav: g.frac_grav,
+            nu_max: g.nu_max_uhz,
+            delta_nu: g.delta_nu_uhz,
             phase: g.phase,
             period_days: m.pulsation.as_ref().map(|p| p.period_days()),
             pulsator: pulsation::classify(g.teff, g.luminosity),
         }
     }
+}
+
+/// Every step of a run as CSV (the full history, not only the timeline models).
+pub fn history_csv(track: &[TrackPoint]) -> String {
+    use std::fmt::Write as _;
+    let mut s = String::from(
+        "step,age_yr,phase,L_lsun,R_rsun,Teff_K,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,conv_env_base_r,\
+         L_pp_frac,L_cno_frac,L_3a_frac,L_grav_frac,P_fund_days,pulsator,nu_max_uHz,delta_nu_uHz\n",
+    );
+    for (i, t) in track.iter().enumerate() {
+        let _ = writeln!(
+            s,
+            "{i},{:.6e},{:?},{:.6e},{:.6e},{:.2},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{},{},{:.4},{:.4}",
+            t.age_yr,
+            t.phase,
+            t.lum,
+            t.radius,
+            t.teff,
+            t.log_g,
+            t.tc,
+            t.rhoc,
+            t.x_c,
+            t.y_c,
+            t.he_core_q,
+            t.conv_core_q,
+            t.conv_env_base_r.map(|r| format!("{r:.5}")).unwrap_or_default(),
+            t.l_pp,
+            t.l_cno,
+            t.l_3a,
+            t.l_grav,
+            t.period_days.map(|p| format!("{p:.6e}")).unwrap_or_default(),
+            t.pulsator.map(|p| p.label()).unwrap_or(""),
+            t.nu_max,
+            t.delta_nu,
+        );
+    }
+    s
 }
 
 /// How plots, colour scales and the star's size respond as the shown model changes.

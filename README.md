@@ -39,8 +39,9 @@ on standard GNOME/KDE desktops).
 | **Cross-section** | Split disc with temperature on the left and density on the right (log color scales). Convective zones are outlined and carry animated convection cells. Hover to read the local state. |
 | **3D model** | A cut-away sphere: one octant removed, cut faces coloured by T or ρ, and the energy-generating (or convective) core as a ball in the corner. The surface has the black-body colour at T_eff. Animated transport: photon sparks random-walk outward through radiative zones, convection cells carry rising hot (amber) and sinking cool (blue) gas, the surface shows granulation for a convective envelope, and a convective core "boils". Drag to rotate, scroll or pinch to zoom at the cursor (up to 400×, e.g. **Zoom to surface layers** for the Sun's thin envelope), right- or shift-drag to pan, double-click to reset. Hover to read the local state. |
 | **HR diagram** | The model on a ZAMS line computed for the current composition, with the **evolutionary track** of the current run (hover for age, phase, X_c and pulsation), the approximate **classical instability strip**, the present-day Sun and the pinned models. |
+| **Time evolution** | After an evolution run: linked plots of L, R, T_eff, log g, central T and ρ, central composition, core masses, energy sources (pp/CNO/3α/gravitational), pulsation period and ν_max/Δν against age or model number. Phase changes are marked; click a plot to show that age in every view. Exports every step as CSV. |
 | **Compare** | Table of global properties for the current and pinned models, plus an overlay of any profile quantity. |
-| **About** | In-app documentation: the model and its assumptions, every formula and coefficient used (typeset from LaTeX; right-click an equation to copy its source), the numerical algorithm, every input parameter (with its live current value), every output quantity and CSV column, how each view is made, CLI usage, limitations and references. A contents list on the left jumps to each section. |
+| **About** | In-app documentation: the model and its assumptions, every formula and coefficient used (typeset from LaTeX; right-click an equation to copy its source), the numerical algorithm, every input parameter (with its live current value), every output quantity and CSV column, how each view is made, CLI usage, limitations and references. A contents list on the left jumps to each section. The same documentation is in [`docs/about/`](docs/about/README.md) for reading on GitHub. |
 
 The left panel holds the parameters (auto-solve while you edit), the global results next to
 present-day solar values, **Pin current model**, and export buttons: **profile CSV** (25 columns),
@@ -145,8 +146,9 @@ Also, a ZAMS model is the *young* Sun; the present Sun has evolved for 4.6 Gyr.
 * **Evolution:** per-shell composition X(t), ε_grav, Ledoux criterion and an age parameter
   (e.g. the Sun at 4.57 Gyr). The Henyey solver and the per-shell composition storage are already
   in place for this.
-* **Web build:** eframe compiles to WASM. The Newton solver already exposes a step-wise API
-  (`HenyeyNewton::step`) so a browser build can iterate per frame instead of on threads.
+* **Web build:** a browser version, with all computation running client side in WebAssembly.
+  [docs/web-version.md](docs/web-version.md) covers what blocks it today, the two ways to schedule
+  the solver in a browser, the effort and the hosting plan.
 
 ## Development notes
 
