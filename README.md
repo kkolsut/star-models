@@ -21,6 +21,17 @@ cargo run --release -p stellar-cli  # headless: prints a solar model summary
 cargo test --workspace              # unit + integration tests
 ```
 
+Tests come in two kinds:
+
+* **Physical sanity checks** (`crates/stellar-core/tests/{solar_zams,mass_sequence,evolution,lane_emden}.rs`):
+  qualitative structure, loose bands around real stars, analytic solutions and global consistency.
+* **Regression tests** (`crates/stellar-core/tests/regression.rs`): exact current results of the
+  analytic physics, pinned to 10⁻⁴. They catch unintended changes. They are *not* validation against
+  real stars; when a change is intended, update the reference values deliberately.
+
+`cargo run --release -p stellar-core --example timestep_study` checks the time-step convergence of
+evolution runs (see [Evolution in time](docs/about/12-evolution.md#time-step-convergence)).
+
 Linux system packages for the GUI (Debian/Ubuntu):
 
 ```sh

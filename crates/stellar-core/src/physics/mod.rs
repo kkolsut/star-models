@@ -87,7 +87,12 @@ impl Physics {
 
     /// Short human-readable description of the physics in use.
     pub fn describe(&self) -> String {
-        format!("EOS: {}; opacity: {}; nuclear: {}", self.eos.name(), self.opacity.name(), self.nuclear.name())
+        format!(
+            "EOS: {}; opacity: {}; nuclear: {}; atmosphere: grey Eddington (T = T_eff at τ = 2/3)",
+            self.eos.name(),
+            self.opacity.name(),
+            self.nuclear.name()
+        )
     }
 }
 

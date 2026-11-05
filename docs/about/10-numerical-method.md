@@ -73,6 +73,11 @@ undamped step ($`\lambda = 1`$).
 
 * This typically takes 10–30 iterations, with quadratic convergence at the end.
 * The limit is 250 iterations from a cold start and 60 from a warm start.
+* A small correction alone does not prove the equations are satisfied, so the residuals of the
+  converged solution are evaluated as well. They are dimensionless (differences of $`\ln r`$,
+  $`\ln P`$, $`\ln T`$ and of $`L`$ in units of the luminosity scale). Converged models reach about
+  $`10^{-14}`$; a model above $`10^{-6}`$ is rejected. The largest residual of each equation is reported
+  with the model.
 
 **Checks.** Every converged model is checked, and a model failing any check is rejected:
 
@@ -80,7 +85,8 @@ undamped step ($`\lambda = 1`$).
 * $`r`$ increasing outward;
 * $`P`$ decreasing outward;
 * $`L > 0`$;
-* $`\beta`$ above the floor.
+* $`\beta`$ above the floor;
+* every residual below $`10^{-6}`$.
 
 ## Post-processing
 

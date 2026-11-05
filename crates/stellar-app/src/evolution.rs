@@ -383,9 +383,19 @@ pub fn controls(
         ui.label("Stop at:");
         ui.radio_value(&mut settings.stop, StopChoice::EndOfMainSequence, "end of main sequence")
             .on_hover_text("stop when the central hydrogen is exhausted (X_c < 0.001)");
-        ui.radio_value(&mut settings.stop, StopChoice::AsFarAsPossible, "as far as possible")
-            .on_hover_text("continue after the main sequence until the analytic physics or the solver gives out");
+        ui.radio_value(&mut settings.stop, StopChoice::AsFarAsPossible, "as far as possible").on_hover_text(
+            "continue after the main sequence until the analytic physics or the solver gives out. \
+                 Results after the main sequence are qualitative only.",
+        );
     });
+    if settings.stop == StopChoice::AsFarAsPossible {
+        ui.label(
+            RichText::new("After the main sequence the results are qualitative only.")
+                .small()
+                .color(theme::secondary(dark)),
+        )
+        .on_hover_text(crate::app::POST_MS_NOTE);
+    }
     ui.horizontal(|ui| {
         ui.radio_value(&mut settings.stop, StopChoice::Age, "age");
         ui.add(

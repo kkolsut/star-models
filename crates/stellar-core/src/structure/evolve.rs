@@ -48,6 +48,9 @@ pub struct EvolutionOptions {
     pub dx_max: f64,
     /// Target largest change of ln r, ln P, ln T and ln L per step.
     pub dlog_target: f64,
+    /// A step whose largest change exceeds `reject_factor × dlog_target` is
+    /// rejected and retried with half the time step.
+    pub reject_factor: f64,
     /// Safety limits.
     pub max_steps: usize,
     pub max_age_yr: f64,
@@ -61,6 +64,7 @@ impl Default for EvolutionOptions {
             stop: StopCondition::EndOfMainSequence,
             dx_max: 0.01,
             dlog_target: 0.02,
+            reject_factor: 4.0,
             max_steps: 3000,
             max_age_yr: 3.0e10,
             pulsation: true,
@@ -181,7 +185,7 @@ impl Evolution {
             ) {
                 Ok(mut m) => {
                     let change = max_change(old, &m);
-                    if change > 4.0 * self.opts.dlog_target && dt > MIN_DT_YR && attempts < 12 {
+                    if change > self.opts.reject_factor * self.opts.dlog_target && dt > MIN_DT_YR && attempts < 12 {
                         dt *= 0.5;
                         continue;
                     }

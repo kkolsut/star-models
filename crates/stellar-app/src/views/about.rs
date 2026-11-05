@@ -245,6 +245,14 @@ fn overview(ui: &mut Ui, dark: bool, physics: &Physics) {
          contracts, the envelope expands, and the star moves along an evolutionary track in the HR diagram. Stars \
          that cross the instability strip pulsate.",
     );
+    muted(
+        ui,
+        dark,
+        "What \"ZAMS\" means here: an idealised ZAMS, chemically homogeneous and static (ε_grav = 0), so nuclear burning \
+         alone supplies the luminosity. Detailed evolution codes usually reach the ZAMS along a pre-main-sequence track and \
+         define it by a criterion such as L_nuc/L ≈ 0.99. The two agree closely, but compare models at matched \
+         evolutionary stages: a ZAMS model is not the present-day Sun.",
+    );
     sub(ui, "Physics in use");
     p(ui, &physics.describe());
     sub(ui, "What happens when you change a parameter");
@@ -549,12 +557,26 @@ fn results(ui: &mut Ui, dark: bool) {
         ui,
         "Energy check:",
         "the energy generated inside (nuclear plus gravitational) must equal the energy leaving the surface. L₀ is the \
-         luminosity of the innermost point. The integral uses the solver's own midpoint rule, so this verifies that the \
-         converged solution conserves energy globally (the independent energy budget of an evolution run is described in \
-         \"Evolution in time\"):",
+         luminosity of the innermost point. The integral uses the solver's own midpoint rule, so it integrates the same \
+         difference equation the solver satisfies and holds by construction for a converged model: it is a \
+         discretisation consistency check, not an independent test of energy conservation (the independent energy \
+         budget of an evolution run is described in \"Evolution in time\"):",
     );
     math(ui, "res_energy", "");
     term(ui, "Newton iterations:", "iterations in the last solver step (a continuation may take several steps).");
+    term(
+        ui,
+        "Max residual:",
+        "largest residual of the discretised equations (continuity, hydrostatic, energy, transport, boundary \
+         conditions) of the converged model. They are dimensionless and typically about 10⁻¹⁴; hover over the checks \
+         line to see each one.",
+    );
+    muted(
+        ui,
+        dark,
+        "The virial, energy and residual checks measure numerical consistency. They say nothing about how close the \
+         model is to a real star (see \"Accuracy & limitations\").",
+    );
     term(ui, "Age:", "time since the ZAMS (0 unless the star has been evolved).");
     term(ui, "Phase:", "evolutionary phase, see \"Evolution in time\".");
     term(
@@ -634,7 +656,7 @@ fn profiles(ui: &mut Ui, dark: bool) {
         ui,
         "params: the input parameters (mass, x, z, alpha_mlt, f_cno, n_points).\n\
          physics: the description of the physics used.\n\
-         globals: every quantity of \"Results: global quantities\", plus newton_iterations and max_correction.\n\
+         globals: every quantity of \"Results: global quantities\", plus newton_iterations, max_correction and residuals.\n\
          convective_zones: one entry per zone, with q_inner, q_outer, r_inner and r_outer (r in units of R).",
     );
     muted(
@@ -700,6 +722,18 @@ fn microphysics(ui: &mut Ui, dark: bool) {
         ui,
         "The harmonic combination makes H⁻ dominate only in cool layers. Without it the steep T⁹ term would run away at \
          high temperature. For Z = 0, H⁻ uses Z = 10⁻⁴. These coefficients follow Carroll & Ostlie (2017), converted to CGS.",
+    );
+    p(
+        ui,
+        "Across regimes (plot in docs/about/07-microphysics.md):\n\
+         • The H⁻/Kramers blend is smooth: where the two are equal (log T ≈ 4.18 at log R = −1.5) it gives half of each, \
+         a dip of at most a factor of 2 with no discontinuity.\n\
+         • Too high in the core: κ ≈ 2.7 at the centre of the 1 M☉ ZAMS model, against roughly 1.2–1.5 in standard solar \
+         models with OPAL/OP opacities. Since L ∝ 1/κ in a radiative core, this is the main reason the analytic Sun is \
+         underluminous.\n\
+         • Too low below the convection zone: about 9 at the present Sun's convection-zone base (2.2 × 10⁶ K, \
+         0.19 g cm⁻³) against roughly 20, so the convective envelope ends too shallow.\n\
+         • No line opacity or ionisation bumps (such as the Z bump near log T ≈ 5.3): Kramers laws are smooth power laws.",
     );
 
     sub(ui, "Nuclear energy generation [erg g⁻¹ s⁻¹]");
@@ -838,12 +872,13 @@ fn numerics(ui: &mut Ui, dark: bool) {
         ui,
         "Convergence: the largest correction is below 10⁻⁸ with an undamped step (λ = 1). This typically takes 10–30 \
          iterations, with quadratic convergence at the end. The limit is 250 iterations from a cold start and 60 from a \
-         warm start.",
+         warm start. A small correction alone does not prove the equations are satisfied, so the residuals of the \
+         converged solution are also evaluated; converged models reach about 10⁻¹⁴.",
     );
     bullet(
         ui,
         "Every converged model is checked: all values finite, r increasing outward, P decreasing outward, L > 0, and β \
-         above the floor. A model failing any check is rejected.",
+         above the floor, and every residual below 10⁻⁶. A model failing any check is rejected.",
     );
     sub(ui, "Post-processing");
     bullet(ui, "Profiles: the full local physics (EOS, κ, ε, MLT) is evaluated at every mesh point.");
@@ -978,7 +1013,8 @@ fn evolution(ui: &mut Ui, dark: bool) {
         ui,
         "As far as possible:",
         "until T_eff drops below 2600 K (outside the range of the analytic opacities), T_c exceeds 3 × 10⁸ K, \
-         or the solver cannot continue even with tiny steps.",
+         or the solver cannot continue even with tiny steps. Results after the main sequence are qualitative only \
+         (see \"Accuracy & limitations\").",
     );
     term(ui, "Safety limits (always):", "3000 steps and an age of 30 Gyr.");
     sub(ui, "Checks");
@@ -988,6 +1024,22 @@ fn evolution(ui: &mut Ui, dark: bool) {
         ui,
         "For the Sun evolved to 4.57 Gyr the ratio is 0.995 (an automated test). Along every run the virial check stays \
          at 1 to about 10⁻⁴, and the energy check, which includes ε_grav, at 1.",
+    );
+    sub(ui, "Time-step convergence");
+    p(
+        ui,
+        "The same tracks were run with the step targets halved repeatedly (structural change 2%, 1%, 0.5%, 0.25%, with \
+         the hydrogen limit ΔX halved alongside). The results converge at first order, as expected from burning \
+         explicitly with the previous model's rates: each halving roughly halves the difference. At the default \
+         settings the errors are small compared with the physics uncertainties:\n\
+         • 1 M☉ at 4.57 Gyr: L, R and T_c within about 0.1%.\n\
+         • 3 M☉: main-sequence lifetime within about 0.6% (285.9 Myr against about 284.2 Myr extrapolated); \
+         convective-core mass at X_c = 0.3 within 0.1%.\n\
+         • Values exactly at the end of the main sequence scatter by up to about 1%, because the last step lands \
+         anywhere below X_c = 10⁻³.\n\
+         A step is rejected when it changes the structure by more than 4 × the target; in these runs the step-size \
+         control keeps every step well below that, so a stricter rejection threshold (1.5 ×) changes nothing. \
+         Run the study with: cargo run --release -p stellar-core --example timestep_study",
     );
     sub(ui, "In the app");
     bullet(
@@ -1058,6 +1110,20 @@ fn pulsation(ui: &mut Ui, dark: bool) {
     p(
         ui,
         "and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours (the observed solar value is about 1 hour).",
+    );
+    sub(ui, "What is calculated and what is not");
+    term(ui, "Calculated:", "the fundamental adiabatic radial mode: period, Ω², Q and the mode shape ξ(r).");
+    term(
+        ui,
+        "Empirical inference:",
+        "membership of the instability strip, from the model's position in the HR diagram.",
+    );
+    term(ui, "Scaling relations:", "ν_max and Δν, estimated from g, T_eff and the mean density.");
+    term(
+        ui,
+        "Not modelled:",
+        "driving and damping (growth rates), the excitation mechanism, amplitudes, overtones and non-radial modes. \
+         δ Scuti stars in particular usually pulsate in several radial and non-radial modes at once.",
     );
     sub(ui, "Which stars pulsate: the instability strip");
     p(
@@ -1185,7 +1251,9 @@ fn views(ui: &mut Ui, dark: bool) {
     muted(
         ui,
         dark,
-        "Animation speeds are illustrative, not to scale. In the Sun a photon needs of order 10⁴–10⁵ years to diffuse out \
+        "The cross-section and the 3D view are visualisations of a 1D model. Photon paths, convection cells, granulation \
+         and boiling are illustrative: their size, shape and speed are not computed, and this is not a 3D \
+         radiation-hydrodynamics simulation. Animation speeds are illustrative, not to scale. In the Sun a photon needs of order 10⁴–10⁵ years to diffuse out \
          of the radiative zone, while convective turnover takes from minutes (granules) to about a month (base of the envelope).",
     );
     sub(ui, "HR diagram");
@@ -1239,14 +1307,20 @@ fn limitations(ui: &mut Ui, dark: bool) {
     p(
         ui,
         "With Z = 0.008 the same physics reproduces the classic StatStar Sun of Carroll & Ostlie (L ≈ 0.83 L☉, \
-         T_eff ≈ 5500 K), which confirms that the implementation matches the textbook formulas.",
+         T_eff ≈ 5500 K), which shows that the implementation is consistent with the textbook formulas. This is a check \
+         of the code (verification), not a validation against the real Sun.",
+    );
+    p(
+        ui,
+        "The numerical checks (virial, energy, residuals, mesh refinement, time-step convergence) show that the \
+         equations are solved accurately. They say nothing about how realistic the physics is.",
     );
     sub(ui, "Evolution");
     bullet(
         ui,
         "Main-sequence lifetimes follow the model luminosities. The analytic Sun is underluminous (0.42 L☉ at the ZAMS), \
-         so it burns slowly and leaves the main sequence after about 17 Gyr instead of about 10 Gyr. Intermediate-mass \
-         and massive stars come out within about 20% of detailed models (for example 1.43 Gyr for 1.8 M☉ and 76 Myr \
+         so it burns slowly and leaves the main sequence after about 14 Gyr instead of about 10 Gyr. Intermediate-mass \
+         and massive stars come out within about 20% of detailed models (for example 1.41 Gyr for 1.8 M☉ and 76 Myr \
          for 5 M☉, against roughly 1.2–1.5 Gyr and 90–100 Myr).",
     );
     bullet(

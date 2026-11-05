@@ -72,6 +72,37 @@ The harmonic combination makes H⁻ dominate only in cool layers. Without it the
 run away at high temperature. For $`Z = 0`$, the H⁻ term uses $`Z = 10^{-4}`$. These coefficients
 follow Carroll & Ostlie (2017), converted to CGS.
 
+### Opacity across regimes
+
+![Analytic opacity: total κ at fixed log R, and its contributions at log R = −1.5](images/opacity.svg)
+
+The left panel slices the opacity at fixed $`\log R = \log\rho - 3\log T_6`$, as the OPAL and OP
+tables do, and overlays the solar ZAMS model along its own $`\rho`$–$`T`$ path. The right panel shows
+the separate contributions near that path.
+
+* **The H⁻/Kramers blend is smooth.** Where $`\kappa_{\mathrm{H}^-}`$ equals the Kramers +
+  scattering sum ($`\log T \approx 4.18`$ at $`\log R = -1.5`$), the harmonic combination gives half
+  of each. That is a dip of at most a factor of 2, with no discontinuity in $`\kappa`$ or its slope.
+* **Too high in the core.** At the centre of the 1 M☉ ZAMS model the analytic $`\kappa \approx 2.7`$,
+  and at present-day solar central conditions it gives 2.6. Standard solar models with OPAL/OP
+  opacities have roughly 1.2–1.5 there. Since $`L \propto 1/\kappa`$ in a radiative core, this is the
+  main reason the analytic Sun is underluminous (0.42 L☉ instead of about 0.7 L☉).
+* **Too low below the convection zone.** At the present Sun's convection-zone base
+  ($`T \approx 2.2 \times 10^6`$ K, $`\rho \approx 0.19`$ g cm⁻³) the analytic opacity is about 9,
+  against roughly 20 from OPAL/OP. A lower $`\kappa`$ gives a lower $`\nabla_{\mathrm{rad}}`$, so the
+  convective envelope ends too shallow. The missing ionisation zones in the EOS add to this (see
+  [Accuracy & limitations](15-limitations.md)).
+* **No line opacity or ionisation-edge structure.** Kramers laws are smooth power laws. The real
+  opacity has bumps from metal lines and from H and He ionisation (for example the Z bump near
+  $`\log T \approx 5.3`$) that these formulas cannot reproduce.
+
+The OPAL/OP figures are approximate values from standard solar models, for orientation. Regenerate the
+plot and the reference values with:
+
+```sh
+cargo run --release -p stellar-core --example opacity_map -- docs/about/images/opacity.svg
+```
+
 ## Nuclear energy generation [erg g⁻¹ s⁻¹]
 
 ```math

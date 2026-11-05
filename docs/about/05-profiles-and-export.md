@@ -39,7 +39,7 @@ Every model provides these quantities at every mesh point, from the centre to th
 |---|---|
 | `params` | the input parameters: `mass`, `x`, `z`, `alpha_mlt`, `f_cno`, `n_points` |
 | `physics` | the description of the physics used |
-| `globals` | every quantity of [Results: global quantities](04-results.md), plus `newton_iterations` and `max_correction` |
+| `globals` | every quantity of [Results: global quantities](04-results.md), plus `newton_iterations`, `max_correction` and `residuals` |
 | `convective_zones` | one entry per zone, with `q_inner`, `q_outer`, `r_inner` and `r_outer` ($`r`$ in units of $`R`$) |
 
 > All values are in CGS units unless the column name says otherwise. Numbers are written with 10

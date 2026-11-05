@@ -439,11 +439,18 @@ impl StarApp {
         ui.heading("Star Models");
         ui.label(RichText::new("Stellar structure and evolution").color(theme::secondary(dark)));
         ui.label(
-            RichText::new("Physics: analytic (Kramers + H⁻ opacity, ideal gas + radiation, MLT convection)")
-                .small()
-                .color(theme::muted(dark)),
+            RichText::new(format!(
+                "Physics: analytic Kramers + H⁻ opacity, fully ionized ideal gas + radiation, MLT (α = {:.2}), grey \
+                 atmosphere. Qualitative, not quantitatively solar.",
+                self.params.alpha_mlt
+            ))
+            .small()
+            .color(theme::muted(dark)),
         )
-        .on_hover_text(self.worker.physics().describe());
+        .on_hover_text(format!(
+            "{}\n\nComposition: X, Y, Z with a fixed CNO fraction of Z. See About › Accuracy & limitations.",
+            self.worker.physics().describe()
+        ));
         ui.separator();
 
         let before = self.params.clone();
@@ -557,56 +564,100 @@ impl StarApp {
             ui.label(RichText::new("Sun today").color(theme::muted(dark)))
                 .on_hover_text("present-day Sun (4.6 Gyr old) for orientation; a ZAMS model is the young star");
             ui.end_row();
-            let mut row = |name: &str, val: String, sun: String| {
-                ui.label(name);
+            let mut row = |name: &str, tip: &str, val: String, sun: String| {
+                let label = ui.label(name);
+                if !tip.is_empty() {
+                    label.on_hover_text(tip);
+                }
                 ui.monospace(val);
                 ui.label(RichText::new(sun).monospace().color(theme::muted(dark)));
                 ui.end_row();
             };
-            row("R [R☉]", format!("{:.4}", g.radius), format!("{:.3}", SunToday::R));
-            row("L [L☉]", crate::views::fmt_value(g.luminosity), format!("{:.3}", SunToday::L));
-            row("T_eff [K]", format!("{:.0}", g.teff), format!("{:.0}", SunToday::TEFF));
-            row("log g", format!("{:.3}", g.log_g), "4.438".into());
-            row("T_c [K]", format!("{:.3e}", g.tc), format!("{:.3e}", SunToday::TC));
-            row("ρ_c [g cm⁻³]", crate::views::fmt_value(g.rhoc), format!("{:.0}", SunToday::RHOC));
-            row("P_c [dyn cm⁻²]", format!("{:.3e}", g.pc), "2.4e17".into());
+            row("R [R☉]", "", format!("{:.4}", g.radius), format!("{:.3}", SunToday::R));
+            row("L [L☉]", "", crate::views::fmt_value(g.luminosity), format!("{:.3}", SunToday::L));
+            row("T_eff [K]", "", format!("{:.0}", g.teff), format!("{:.0}", SunToday::TEFF));
+            row("log g", "", format!("{:.3}", g.log_g), "4.438".into());
+            row("T_c [K]", "", format!("{:.3e}", g.tc), format!("{:.3e}", SunToday::TC));
+            row("ρ_c [g cm⁻³]", "", crate::views::fmt_value(g.rhoc), format!("{:.0}", SunToday::RHOC));
+            row("P_c [dyn cm⁻²]", "", format!("{:.3e}", g.pc), "2.4e17".into());
             row(
                 "Conv. core [m/M]",
+                "",
                 if g.conv_core_q > 0.0 { format!("{:.4}", g.conv_core_q) } else { "none".into() },
                 "none".into(),
             );
             row(
                 "Conv. env. base [r/R]",
+                "",
                 g.conv_env_base_r.map(|r| format!("{r:.4}")).unwrap_or_else(|| "none".into()),
                 format!("{:.3}", SunToday::ENV_BASE),
             );
-            row("pp / CNO [%]", format!("{:.1} / {:.1}", 100.0 * g.frac_pp, 100.0 * g.frac_cno), "99 / 1".into());
-            row("Age", stellar_core::fmt_age(g.age_yr), "4.57 Gyr".into());
-            row("Phase", short_phase(g.phase).into(), "main seq.".into());
-            row("X_c / He core [m/M]", format!("{:.4} / {:.3}", g.x_c, g.he_core_q), "0.34 / 0".into());
+            row("pp / CNO [%]", "", format!("{:.1} / {:.1}", 100.0 * g.frac_pp, 100.0 * g.frac_cno), "99 / 1".into());
+            row("Age", "", stellar_core::fmt_age(g.age_yr), "4.57 Gyr".into());
+            row("Phase", "", short_phase(g.phase).into(), "main seq.".into());
+            row("X_c / He core [m/M]", "", format!("{:.4} / {:.3}", g.x_c, g.he_core_q), "0.34 / 0".into());
             let period = model
                 .pulsation
                 .as_ref()
                 .map(|p| crate::evolution::fmt_period(p.period_days()))
                 .unwrap_or_else(|| "–".into());
-            row("Fund. radial mode", period, "≈ 1.1 h".into());
-            row("ν_max / Δν [μHz]", format!("{:.0} / {:.1}", g.nu_max_uhz, g.delta_nu_uhz), "3090 / 135".into());
+            row(
+                "Fund. radial mode",
+                "calculated: period of the linear adiabatic fundamental radial mode (no driving or damping)",
+                period,
+                "≈ 1.1 h".into(),
+            );
+            row(
+                "ν_max / Δν [μHz]",
+                "scaling relations from g, T_eff and mean density: estimates, not a computed oscillation spectrum",
+                format!("{:.0} / {:.1}", g.nu_max_uhz, g.delta_nu_uhz),
+                "3090 / 135".into(),
+            );
         });
         if let Some(kind) = stellar_core::pulsation::classify(g.teff, g.luminosity) {
             ui.label(
-                RichText::new(format!("In the instability strip: {}", kind.label()))
+                RichText::new(format!("In the empirical instability strip: {} (by HR position)", kind.label()))
                     .small()
                     .color(theme::secondary(dark)),
+            )
+            .on_hover_text(
+                "Calculated: the fundamental adiabatic radial period.\n\
+                 Empirical inference: membership of the observed instability strip, from T_eff and L only.\n\
+                 Not modelled: driving and damping (growth rates), the excitation mechanism, amplitudes, \
+                 overtones and non-radial modes.",
             );
         }
+        if matches!(
+            g.phase,
+            stellar_core::Phase::ShellHydrogen | stellar_core::Phase::RedGiant | stellar_core::Phase::CoreHelium
+        ) {
+            ui.label(
+                RichText::new("After the main sequence: qualitative only (see About › Accuracy & limitations)")
+                    .small()
+                    .color(theme::secondary(dark)),
+            )
+            .on_hover_text(POST_MS_NOTE);
+        }
+        let r = &g.residuals;
         ui.label(
             RichText::new(format!(
-                "Checks: virial {:.5}, energy {:.5}; {} Newton iterations",
-                g.virial_ratio, g.energy_ratio, g.newton_iterations
+                "Checks: virial {:.5}, energy {:.5}; {} Newton iterations, max residual {:.0e}",
+                g.virial_ratio,
+                g.energy_ratio,
+                g.newton_iterations,
+                r.max()
             ))
             .small()
             .color(theme::muted(dark)),
-        );
+        )
+        .on_hover_text(format!(
+            "Numerical consistency of the solution, not agreement with real stars.\n\
+             virial: global hydrostatic consistency (≈ 1)\n\
+             energy: discretisation check; holds by construction for a converged model\n\
+             largest residual of each discretised equation (dimensionless):\n\
+             continuity {:.1e}, hydrostatic {:.1e}, energy {:.1e}, transport {:.1e}, boundary {:.1e}",
+            r.continuity, r.hydrostatic, r.energy, r.transport, r.boundary
+        ));
 
         ui.add_space(6.0);
         ui.horizontal_wrapped(|ui| {
@@ -905,6 +956,10 @@ impl eframe::App for StarApp {
 }
 
 /// Compact phase name for the results table.
+/// Why post-main-sequence models are only qualitative.
+pub const POST_MS_NOTE: &str = "Not modelled: electron degeneracy, H/He ionization, conductive opacity, neutrino losses, \
+     strong screening and molecular opacities. The mass mesh is fixed, so thin burning shells are not resolved.";
+
 fn short_phase(p: stellar_core::Phase) -> &'static str {
     use stellar_core::Phase::*;
     match p {

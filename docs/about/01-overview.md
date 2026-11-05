@@ -7,6 +7,12 @@ star:
 * has just started burning hydrogen in its core;
 * is in hydrostatic and thermal equilibrium.
 
+> **What "ZAMS" means here.** The model is an idealised ZAMS: chemically homogeneous and static
+> ($`\varepsilon_{\mathrm{grav}} = 0`$), so nuclear burning alone supplies the luminosity. Detailed
+> evolution codes usually reach the ZAMS along a pre-main-sequence track and define it by a criterion
+> such as $`L_{\mathrm{nuc}}/L \approx 0.99`$. The two agree closely, but compare models at matched
+> evolutionary stages: a ZAMS model is not the present-day Sun.
+
 You choose the mass and the composition. The app then solves the four differential equations of
 stellar structure from the centre to the photosphere, with energy carried outward by radiation or by
 convection. It shows how pressure, temperature, density and many other quantities vary through the

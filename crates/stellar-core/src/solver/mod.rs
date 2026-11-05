@@ -4,4 +4,4 @@
 pub mod banded;
 pub mod henyey;
 
-pub use henyey::{BvpProblem, HenyeyNewton, IterInfo, NewtonOptions, StepOutcome};
+pub use henyey::{BvpProblem, HenyeyNewton, IterInfo, NewtonOptions, ResidualSummary, StepOutcome};

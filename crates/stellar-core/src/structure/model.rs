@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::equations::{I_L, I_LNP, I_LNR, I_LNT, NVAR, StructureProblem};
 use crate::composition::{Composition, CompositionError};
 use crate::constants::{FOUR_PI, G, L_SUN, M_SUN, R_SUN, TEFF_SUN};
+use crate::solver::ResidualSummary;
 
 /// User-facing model parameters.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -230,9 +231,47 @@ pub struct Globals {
     /// Virial check: ∫3P/ρ dm / ∫G m/r dm (should be ≈ 1).
     pub virial_ratio: f64,
     /// Energy check: (Σ Δm (ε_nuc + ε_grav) + L₀) / L_surface with the solver's midpoint rule (≈ 1).
+    /// This is a discretisation consistency check: it integrates the same
+    /// difference equation the solver satisfies, so it holds by construction
+    /// for a converged model. It is not an independent energy-conservation test.
     pub energy_ratio: f64,
     pub newton_iterations: usize,
+    /// Largest Newton correction in the last iteration (the convergence test).
     pub max_correction: f64,
+    /// Largest residuals of the discretised equations of the converged model.
+    #[serde(default)]
+    pub residuals: Residuals,
+}
+
+/// Largest absolute residual of each discretised structure equation over the
+/// mesh. All residuals are dimensionless (differences of ln r, ln P, ln T, and
+/// of L in units of the luminosity scale).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Residuals {
+    pub continuity: f64,
+    pub hydrostatic: f64,
+    pub energy: f64,
+    pub transport: f64,
+    /// Inner and outer boundary conditions.
+    pub boundary: f64,
+}
+
+impl Residuals {
+    pub fn from_summary(s: &ResidualSummary) -> Self {
+        let at = |i: usize| s.interval.get(i).copied().unwrap_or(0.0);
+        Self {
+            continuity: at(I_LNR),
+            hydrostatic: at(I_LNP),
+            energy: at(I_L),
+            transport: at(I_LNT),
+            boundary: s.boundary,
+        }
+    }
+
+    /// Largest of all residuals.
+    pub fn max(&self) -> f64 {
+        [self.continuity, self.hydrostatic, self.energy, self.transport, self.boundary].into_iter().fold(0.0, f64::max)
+    }
 }
 
 /// A converged stellar model.
@@ -261,6 +300,7 @@ pub(crate) fn build_model(
     y: Vec<f64>,
     newton_iterations: usize,
     max_correction: f64,
+    residuals: Residuals,
 ) -> StarModel {
     let n = q.len();
     let mut pr = Profile::default();
@@ -367,6 +407,7 @@ pub(crate) fn build_model(
         energy_ratio: (e_nuc_mid + e_grav + pr.l[0]) / lum,
         newton_iterations,
         max_correction,
+        residuals,
     };
 
     StarModel {
