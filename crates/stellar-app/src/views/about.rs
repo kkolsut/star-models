@@ -1531,7 +1531,8 @@ mod tests {
         for entry in std::fs::read_dir(&dir).expect("docs/about exists") {
             let path = entry.unwrap().path();
             if path.extension().is_some_and(|e| e == "md") {
-                docs += &std::fs::read_to_string(&path).unwrap();
+                // Windows checkouts may convert to CRLF; compare line endings-agnostically.
+                docs += &std::fs::read_to_string(&path).unwrap().replace("\r\n", "\n");
             }
         }
         for e in crate::equations::EQUATIONS {
