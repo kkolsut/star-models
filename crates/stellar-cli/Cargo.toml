@@ -1,0 +1,16 @@
+[package]
+name = "stellar-cli"
+description = "Command-line ZAMS stellar model builder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "stellar-cli"
+path = "src/main.rs"
+
+[dependencies]
+stellar-core.workspace = true
+clap.workspace = true
+anyhow.workspace = true
