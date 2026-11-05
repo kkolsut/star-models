@@ -20,6 +20,7 @@ clap = { version = "4", features = ["derive"] }
 eframe = "0.37"
 egui = "0.37"
 egui_plot = "0.38"
+egui_extras = { version = "0.37", default-features = false, features = ["svg"] }
 rfd = "0.17"
 
 # The solver is numerically heavy: keep it fast even in debug/test builds.

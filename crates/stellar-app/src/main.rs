@@ -1,6 +1,7 @@
 //! Star Models — interactive zero-age main-sequence stellar structure explorer.
 
 mod app;
+mod equations;
 mod theme;
 mod views;
 mod worker;

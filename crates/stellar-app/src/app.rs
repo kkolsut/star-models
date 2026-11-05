@@ -10,6 +10,7 @@ use stellar_core::output::{profile_csv, summary_json};
 use stellar_core::{NoControl, Physics, SolveError, SolveEvent, StarModel, StarParams, solve_model};
 
 use crate::theme;
+use crate::views::about::AboutState;
 use crate::views::compare::{CompareAction, CompareState};
 use crate::views::cross_section::CrossSectionState;
 use crate::views::hr::ZamsLine;
@@ -25,10 +26,12 @@ enum Tab {
     Model3d,
     Hr,
     Compare,
+    About,
 }
 
 impl Tab {
-    const ALL: [Tab; 6] = [Tab::Profiles, Tab::Extra, Tab::CrossSection, Tab::Model3d, Tab::Hr, Tab::Compare];
+    const ALL: [Tab; 7] =
+        [Tab::Profiles, Tab::Extra, Tab::CrossSection, Tab::Model3d, Tab::Hr, Tab::Compare, Tab::About];
 
     fn title(self) -> &'static str {
         match self {
@@ -38,6 +41,7 @@ impl Tab {
             Tab::Model3d => "3D model",
             Tab::Hr => "HR diagram",
             Tab::Compare => "Compare",
+            Tab::About => "About",
         }
     }
 
@@ -49,6 +53,7 @@ impl Tab {
             Tab::Model3d => "model3d",
             Tab::Hr => "hr",
             Tab::Compare => "compare",
+            Tab::About => "about",
         }
     }
 }
@@ -96,6 +101,7 @@ pub struct StarApp {
     detail_axis: XAxis,
     cross: CrossSectionState,
     model3d: Model3dState,
+    about: AboutState,
     compare: CompareState,
     zams: ZamsLine,
     notice: Option<String>,
@@ -104,6 +110,8 @@ pub struct StarApp {
 
 impl StarApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // SVG loader for the typeset equations of the About page.
+        egui_extras::install_image_loaders(&cc.egui_ctx);
         let physics = Arc::new(Physics::analytic());
         let mut params = StarParams::sun();
         if let Some(m) = std::env::var("STAR_MODELS_MASS").ok().and_then(|s| s.parse().ok()) {
@@ -170,6 +178,11 @@ impl StarApp {
             detail_axis,
             cross: CrossSectionState::default(),
             model3d: Model3dState::default(),
+            about: std::env::var("STAR_MODELS_ABOUT_SECTION")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .map(AboutState::at_section)
+                .unwrap_or_default(),
             compare: CompareState::default(),
             zams: ZamsLine::default(),
             notice: None,
@@ -511,6 +524,10 @@ impl StarApp {
     }
 
     fn central(&mut self, ui: &mut egui::Ui) {
+        if self.tab == Tab::About {
+            crate::views::about::show(ui, &mut self.about, &self.params, self.worker.physics());
+            return;
+        }
         let Some(model) = self.model.clone() else {
             ui.centered_and_justified(|ui| {
                 if let Some(e) = &self.last_error {
@@ -529,6 +546,7 @@ impl StarApp {
             Tab::CrossSection => crate::views::cross_section::show(ui, &v, &mut self.cross),
             Tab::Model3d => crate::views::model3d::show(ui, &v, &mut self.model3d),
             Tab::Hr => crate::views::hr::show(ui, &v, &self.zams),
+            Tab::About => {} // handled above
             Tab::Compare => {
                 if let Some(action) = crate::views::compare::show(ui, &v, &mut self.compare) {
                     match action {

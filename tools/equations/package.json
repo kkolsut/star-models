@@ -1,0 +1,11 @@
+{
+  "name": "star-models-equations",
+  "private": true,
+  "description": "Renders the LaTeX equations of the About page to SVG (dev-time tool)",
+  "scripts": {
+    "render": "node render.cjs"
+  },
+  "dependencies": {
+    "mathjax-full": "3.2.2"
+  }
+}

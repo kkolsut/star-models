@@ -40,6 +40,7 @@ on standard GNOME/KDE desktops).
 | **3D model** | A cut-away sphere: one octant removed, cut faces coloured by T or ρ, and the energy-generating (or convective) core as a ball in the corner. The surface has the black-body colour at T_eff. Animated transport: photon sparks random-walk outward through radiative zones, convection cells carry rising hot (amber) and sinking cool (blue) gas, the surface shows granulation for a convective envelope, and a convective core "boils". Drag to rotate, scroll or pinch to zoom at the cursor (up to 400×, e.g. **Zoom to surface layers** for the Sun's thin envelope), right- or shift-drag to pan, double-click to reset. Hover to read the local state. |
 | **HR diagram** | The current model on a ZAMS line computed for the current composition, alongside the present-day Sun and the pinned models. |
 | **Compare** | Table of global properties for the current and pinned models, plus an overlay of any profile quantity. |
+| **About** | In-app documentation: the model and its assumptions, every formula and coefficient used (typeset from LaTeX; right-click an equation to copy its source), the numerical algorithm, every input parameter (with its live current value), every output quantity and CSV column, how each view is made, CLI usage, limitations and references. A contents list on the left jumps to each section. |
 
 The left panel holds the parameters (auto-solve while you edit), the global results next to
 present-day solar values, **Pin current model**, and export buttons: **profile CSV** (25 columns),
@@ -125,6 +126,13 @@ Also, a ZAMS model is the *young* Sun; the present Sun has evolved for 4.6 Gyr.
   * `STAR_MODELS_AXIS=radius|mass|pressure`
   * `STAR_MODELS_TABS=model3d,hr` (only capture these tabs)
   * `STAR_MODELS_3D_ZOOM=surface` (start the 3D view zoomed on the envelope)
+  * `STAR_MODELS_ABOUT_SECTION=<n>` (open the About page at section n)
+* Equations on the About page are written in LaTeX in `crates/stellar-app/equations/equations.json`. They are
+  pre-rendered to SVG with MathJax (glyphs as paths, so no fonts are needed), embedded in the binary, and
+  tinted with the theme's text colour at run time (egui_extras SVG loader). After editing the LaTeX, regenerate:
+  `cd tools/equations && npm install && npm run render`. This writes `crates/stellar-app/assets/equations/*.svg`
+  and the registry `crates/stellar-app/src/equations.rs`. Node.js is only needed for this step, not to build or
+  run the app.
 * The 3D view is rendered on the CPU: rotation, shading and a depth sort (painter's algorithm) of about
   40k triangles per frame (~2 ms), handed to egui as one mesh with 4× MSAA. Overlays use an exact
   ray test against the cut-away geometry for occlusion. It needs no GPU-specific code, so it carries

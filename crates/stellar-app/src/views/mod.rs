@@ -1,5 +1,6 @@
 //! Tab views and shared plotting helpers.
 
+pub mod about;
 pub mod compare;
 pub mod cross_section;
 pub mod extra;
