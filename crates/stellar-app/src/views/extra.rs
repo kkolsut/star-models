@@ -1,6 +1,7 @@
 //! Additional profiles of the current model: luminosity and mass, opacity,
 //! energy generation by process, temperature gradients (why each layer is
-//! convective), convective velocity, convective flux and β.
+//! convective), composition, gravitational energy, convective velocity,
+//! convective flux and β.
 
 use egui::{Id, RichText};
 use egui_plot::{Corner, Legend, Line, Plot, PlotPoints};
@@ -38,6 +39,13 @@ fn panel(
     plot = v.x_axis.configure(plot, v.model);
     if log {
         plot = plot.y_grid_spacer(log_spacer).y_axis_formatter(log_tick);
+    } else {
+        // Readable ticks for very small or large linear values (e.g. ε_grav).
+        plot = plot.y_axis_formatter(|mark, _| {
+            let v = mark.value;
+            let a = v.abs();
+            if a == 0.0 || (1e-2..1e4).contains(&a) { format!("{v:.2}") } else { format!("{v:.1e}") }
+        });
     }
     plot.show(ui, |pu| {
         shade_convective(pu, v.model, v.x_axis, v.dark, false);
@@ -69,6 +77,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
 
     convective_caption(ui, v.dark);
     let label_rows = 3.0 * (ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.y);
+    // Three rows fit the window; the fourth row (convection) is reached by scrolling.
     let h = ((ui.available_height() - label_rows - 3.0 * ui.spacing().item_spacing.y) / 3.0).max(110.0);
 
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
@@ -133,6 +142,32 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 h,
                 link,
                 Corner::LeftTop,
+            );
+            panel(
+                &mut cols[0],
+                v,
+                "Chemical composition (changes as the star evolves)",
+                "mass fraction",
+                false,
+                vec![
+                    Series { name: "X (hydrogen)".into(), slot: 0, pts: vec![points(&xs, &p.x, false)] },
+                    Series { name: "Y (helium)".into(), slot: 1, pts: vec![points(&xs, &p.y, false)] },
+                    Series { name: "Z (metals)".into(), slot: 2, pts: vec![points(&xs, &p.z, false)] },
+                ],
+                h,
+                link,
+                Corner::RightBottom,
+            );
+            panel(
+                &mut cols[1],
+                v,
+                "Gravitational energy release ε_grav = −T ds/dt (> 0: contraction)",
+                "ε [erg g⁻¹ s⁻¹]",
+                false,
+                vec![Series { name: "ε_grav".into(), slot: 0, pts: vec![points(&xs, &p.eps_grav, false)] }],
+                h,
+                link,
+                Corner::RightTop,
             );
             panel(
                 &mut cols[0],

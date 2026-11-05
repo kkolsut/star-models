@@ -2,6 +2,7 @@
 //! initial model, the solve driver with continuation, and the model output.
 
 pub mod equations;
+pub mod evolve;
 pub mod initial;
 pub mod local;
 pub mod mesh;

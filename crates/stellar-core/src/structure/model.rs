@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::equations::{I_L, I_LNP, I_LNR, I_LNT, NVAR, StructureProblem};
 use crate::composition::{Composition, CompositionError};
-use crate::constants::{G, L_SUN, M_SUN, R_SUN};
+use crate::constants::{FOUR_PI, G, L_SUN, M_SUN, R_SUN, TEFF_SUN};
 
 /// User-facing model parameters.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -106,6 +106,8 @@ pub struct Profile {
     pub eps_cno: Vec<f64>,
     pub eps_3a: Vec<f64>,
     pub eps: Vec<f64>,
+    /// Gravitational energy release ε_grav = −T ds/dt [erg g⁻¹ s⁻¹] (0 on the ZAMS).
+    pub eps_grav: Vec<f64>,
     pub nabla_rad: Vec<f64>,
     pub nabla_ad: Vec<f64>,
     pub nabla: Vec<f64>,
@@ -115,6 +117,8 @@ pub struct Profile {
     pub hp: Vec<f64>,
     pub mu: Vec<f64>,
     pub beta: Vec<f64>,
+    /// First adiabatic exponent Γ₁.
+    pub gamma1: Vec<f64>,
     pub x: Vec<f64>,
     pub y: Vec<f64>,
     pub z: Vec<f64>,
@@ -139,9 +143,62 @@ pub struct ConvectiveZone {
     pub r_outer: f64,
 }
 
+/// Evolutionary phase of a model.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Phase {
+    /// Zero-age main sequence: homogeneous, just started burning hydrogen.
+    #[default]
+    Zams,
+    /// Core hydrogen burning.
+    MainSequence,
+    /// Hydrogen exhausted in the centre, burning in a shell (subgiant / Hertzsprung gap).
+    ShellHydrogen,
+    /// Shell burning, expanded to more than 5× the ZAMS radius and cooler than 5000 K.
+    RedGiant,
+    /// Helium burning in the core.
+    CoreHelium,
+}
+
+impl Phase {
+    pub fn label(self) -> &'static str {
+        match self {
+            Phase::Zams => "zero-age main sequence",
+            Phase::MainSequence => "main sequence (core H burning)",
+            Phase::ShellHydrogen => "H-shell burning (subgiant / Hertzsprung gap)",
+            Phase::RedGiant => "red giant (H-shell burning)",
+            Phase::CoreHelium => "core He burning",
+        }
+    }
+}
+
 /// Global properties of a converged model.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Globals {
+    /// Age since the ZAMS [yr].
+    #[serde(default)]
+    pub age_yr: f64,
+    #[serde(default)]
+    pub phase: Phase,
+    /// Central hydrogen and helium mass fractions.
+    #[serde(default)]
+    pub x_c: f64,
+    #[serde(default)]
+    pub y_c: f64,
+    /// Mass fraction of the hydrogen-exhausted core (X < 10⁻³), 0 on the main sequence.
+    #[serde(default)]
+    pub he_core_q: f64,
+    /// Mean density 3M / (4πR³) [g cm⁻³].
+    #[serde(default)]
+    pub mean_density: f64,
+    /// Asteroseismic scaling: frequency of maximum oscillation power [μHz].
+    #[serde(default)]
+    pub nu_max_uhz: f64,
+    /// Asteroseismic scaling: large frequency separation [μHz].
+    #[serde(default)]
+    pub delta_nu_uhz: f64,
+    /// Fraction of the luminosity supplied by gravitational contraction (∫ε_grav dm / L).
+    #[serde(default)]
+    pub frac_grav: f64,
     /// [M☉]
     pub mass: f64,
     /// [R☉]
@@ -172,7 +229,7 @@ pub struct Globals {
     pub frac_3a: f64,
     /// Virial check: ∫3P/ρ dm / ∫G m/r dm (should be ≈ 1).
     pub virial_ratio: f64,
-    /// Energy check: ∫ε dm / L_surface (should be ≈ 1).
+    /// Energy check: (Σ Δm (ε_nuc + ε_grav) + L₀) / L_surface with the solver's midpoint rule (≈ 1).
     pub energy_ratio: f64,
     pub newton_iterations: usize,
     pub max_correction: f64,
@@ -191,6 +248,9 @@ pub struct StarModel {
     pub solution: Vec<f64>,
     #[serde(skip)]
     pub l_scale: f64,
+    /// Fundamental radial pulsation mode, if computed.
+    #[serde(default)]
+    pub pulsation: Option<crate::pulsation::RadialMode>,
 }
 
 /// Evaluate the profiles and global quantities from a converged solution.
@@ -219,6 +279,7 @@ pub(crate) fn build_model(
         pr.eps_cno.push(s.nuc.cno);
         pr.eps_3a.push(s.nuc.triple_alpha);
         pr.eps.push(s.eps());
+        pr.eps_grav.push(problem.eps_grav_at(k, &y[k * NVAR..(k + 1) * NVAR]));
         pr.nabla_rad.push(s.nabla_rad);
         pr.nabla_ad.push(s.eos.nabla_ad);
         pr.nabla.push(s.nabla());
@@ -228,6 +289,7 @@ pub(crate) fn build_model(
         pr.hp.push(s.hp);
         pr.mu.push(s.eos.mu);
         pr.beta.push(s.eos.beta);
+        pr.gamma1.push(s.eos.gamma1);
         pr.x.push(c.x);
         pr.y.push(c.y);
         pr.z.push(c.z);
@@ -256,10 +318,36 @@ pub(crate) fn build_model(
     let e_cno = trap(&|k| pr.eps_cno[k]);
     let e_3a = trap(&|k| pr.eps_3a[k]);
     let e_tot = (e_pp + e_cno + e_3a).max(f64::MIN_POSITIVE);
+    // Energy generated, with the solver's own midpoint rule: this verifies
+    // that the converged solution conserves energy globally. (A point-based
+    // quadrature would mostly measure how well thin burning shells are sampled.)
+    let (mut e_nuc_mid, mut e_grav) = (0.0, 0.0);
+    for k in 0..n - 1 {
+        let (s, eg) = problem.interval_state(k, &y[k * NVAR..(k + 1) * NVAR], &y[(k + 1) * NVAR..(k + 2) * NVAR]);
+        let dm = problem.m[k + 1] - problem.m[k];
+        e_nuc_mid += dm * s.eps();
+        e_grav += dm * eg;
+    }
     let thermal = trap(&|k| 3.0 * pr.p[k] / pr.rho[k]);
     let grav = trap(&|k| G * pr.m[k] / pr.r[k]);
 
+    // Hydrogen-exhausted core: contiguous points from the centre with X < 10⁻³.
+    let he_core_q = pr.x.iter().zip(&pr.q).take_while(|(x, _)| **x < 1e-3).last().map(|(_, q)| *q).unwrap_or(0.0);
+    let mean_density = mass / (FOUR_PI / 3.0 * radius.powi(3));
+    let g_surf = G * mass / (radius * radius);
+    let g_sun = G * M_SUN / (R_SUN * R_SUN);
+    let rho_sun = M_SUN / (FOUR_PI / 3.0 * R_SUN.powi(3));
+
     let globals = Globals {
+        age_yr: 0.0,
+        phase: Phase::Zams,
+        x_c: pr.x[0],
+        y_c: pr.y[0],
+        he_core_q,
+        mean_density,
+        nu_max_uhz: 3090.0 * (g_surf / g_sun) * (pr.t[n - 1] / TEFF_SUN).powf(-0.5),
+        delta_nu_uhz: 135.1 * (mean_density / rho_sun).sqrt(),
+        frac_grav: e_grav / lum,
         mass: params.mass,
         radius: radius / R_SUN,
         luminosity: lum / L_SUN,
@@ -276,7 +364,7 @@ pub(crate) fn build_model(
         frac_cno: e_cno / e_tot,
         frac_3a: e_3a / e_tot,
         virial_ratio: thermal / grav,
-        energy_ratio: (e_tot + pr.l[0]) / lum,
+        energy_ratio: (e_nuc_mid + e_grav + pr.l[0]) / lum,
         newton_iterations,
         max_correction,
     };
@@ -289,6 +377,7 @@ pub(crate) fn build_model(
         profile: pr,
         solution: y,
         l_scale: problem.l_scale,
+        pulsation: None,
     }
 }
 

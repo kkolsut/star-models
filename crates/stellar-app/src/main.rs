@@ -2,6 +2,7 @@
 
 mod app;
 mod equations;
+mod evolution;
 mod theme;
 mod views;
 mod worker;

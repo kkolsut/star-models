@@ -26,3 +26,6 @@ pub const TEFF_SUN: f64 = 5772.0;
 
 /// 4π, used everywhere in the structure equations.
 pub const FOUR_PI: f64 = 4.0 * std::f64::consts::PI;
+
+/// Julian year [s].
+pub const YEAR: f64 = 3.155_76e7;

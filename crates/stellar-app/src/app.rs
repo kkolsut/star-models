@@ -9,6 +9,7 @@ use egui::{Color32, RichText};
 use stellar_core::output::{profile_csv, summary_json};
 use stellar_core::{NoControl, Physics, SolveError, SolveEvent, StarModel, StarParams, solve_model};
 
+use crate::evolution::{EvoAction, EvolutionRun, EvolutionSettings, StopChoice};
 use crate::theme;
 use crate::views::about::AboutState;
 use crate::views::compare::{CompareAction, CompareState};
@@ -106,6 +107,12 @@ pub struct StarApp {
     zams: ZamsLine,
     notice: Option<String>,
     capture: Option<Capture>,
+    /// Current evolution run (track and timeline), if any.
+    evolution: Option<EvolutionRun>,
+    evo_settings: EvolutionSettings,
+    /// Capture mode: evolution to run before taking screenshots, and which model to show.
+    capture_evolve: Option<(StopChoice, f64, String)>,
+    capture_evolve_started: bool,
 }
 
 impl StarApp {
@@ -187,7 +194,26 @@ impl StarApp {
             zams: ZamsLine::default(),
             notice: None,
             capture,
+            evolution: None,
+            evo_settings: EvolutionSettings::default(),
+            capture_evolve: std::env::var("STAR_MODELS_EVOLVE").ok().map(|v| {
+                let select = std::env::var("STAR_MODELS_EVO_SELECT").unwrap_or_else(|_| "latest".into());
+                match v.split_once(':') {
+                    Some(("age", a)) => (StopChoice::Age, a.parse().unwrap_or(4.57), select),
+                    _ if v == "max" => (StopChoice::AsFarAsPossible, 4.57, select),
+                    _ => (StopChoice::EndOfMainSequence, 4.57, select),
+                }
+            }),
+            capture_evolve_started: false,
         };
+        match std::env::var("STAR_MODELS_3D_FACES").as_deref() {
+            Ok("hydrogen") => app.model3d.quantity = crate::views::model3d::FaceQuantity::Hydrogen,
+            Ok("density") => app.model3d.quantity = crate::views::model3d::FaceQuantity::Density,
+            _ => {}
+        }
+        if let Some(t) = std::env::var("STAR_MODELS_3D_TIME").ok().and_then(|v| v.parse().ok()) {
+            app.model3d.freeze_at(t);
+        }
         if std::env::var("STAR_MODELS_3D_ZOOM").as_deref() == Ok("surface") {
             app.model3d.zoom_to_surface();
         }
@@ -226,6 +252,9 @@ impl StarApp {
                     let params = self.pending.take().map(|(_, p)| p);
                     match *result {
                         Ok(m) => {
+                            if self.evolution.as_ref().is_some_and(|r| r.snapshots[0].params != m.params) {
+                                self.evolution = None;
+                            }
                             self.model = Some(Arc::new(m));
                             self.last_error = None;
                             self.last_elapsed = Some(elapsed);
@@ -246,6 +275,23 @@ impl StarApp {
                 Msg::ZamsDone { key } => {
                     if self.zams.key == Some(key) {
                         self.zams.done = true;
+                    }
+                }
+                Msg::Evolved { job, model } => {
+                    if let Some(run) = &mut self.evolution
+                        && run.job == Some(job)
+                    {
+                        run.push(*model);
+                    }
+                }
+                Msg::EvolutionDone { job, reason, dt_yr, r_zams } => {
+                    self.worker.finish(job);
+                    if let Some(run) = &mut self.evolution
+                        && run.job == Some(job)
+                    {
+                        run.job = None;
+                        run.finished = Some(reason);
+                        run.resume = Some((dt_yr, r_zams));
                     }
                 }
             }
@@ -275,7 +321,7 @@ impl StarApp {
     }
 
     fn pin_current(&mut self) {
-        let Some(model) = &self.model else { return };
+        let Some(model) = &self.shown_model() else { return };
         let used: Vec<usize> = self.pinned.iter().map(|p| p.slot).collect();
         let Some(slot) = (1..theme::MAX_SLOTS).find(|s| !used.contains(s)) else {
             self.notice = Some("At most 7 pinned models (one per palette color). Unpin one first.".into());
@@ -284,13 +330,59 @@ impl StarApp {
         self.pinned.push(PinnedModel { model: model.clone(), slot, label: model_label(model), visible: true });
     }
 
+    /// The model shown in the views: the selected age of an evolution run,
+    /// otherwise the ZAMS model.
+    fn shown_model(&self) -> Option<Arc<StarModel>> {
+        self.evolution.as_ref().map(|r| r.selected_model().clone()).or_else(|| self.model.clone())
+    }
+
+    fn evo_action(&mut self, action: EvoAction) {
+        match action {
+            EvoAction::SunAge => {
+                self.evo_settings.stop = StopChoice::Age;
+                self.evo_settings.target_age_gyr = 4.57;
+                self.start_evolution();
+            }
+            EvoAction::Start => self.start_evolution(),
+            EvoAction::Stop => self.worker.cancel(),
+            EvoAction::Reset => self.evolution = None,
+        }
+    }
+
+    /// Start a new run from the ZAMS model, or continue the current run from
+    /// its latest model when possible.
+    fn start_evolution(&mut self) {
+        let Some(zams) = self.model.clone() else { return };
+        if zams.params != self.params {
+            self.notice = Some("Wait for the ZAMS model of the current parameters first.".into());
+            return;
+        }
+        let opts = self.evo_settings.options();
+        if let Some(run) = &mut self.evolution
+            && !run.running()
+            && let Some(resume) = run.resume
+        {
+            let latest_age = run.latest().globals.age_yr;
+            let target_reached = matches!(opts.stop, stellar_core::StopCondition::Age(a) if a <= latest_age);
+            if !target_reached {
+                run.job = Some(self.worker.submit_evolution(run.latest().clone(), Some(resume), opts));
+                run.finished = None;
+                run.follow = true;
+                return;
+            }
+        }
+        let mut run = EvolutionRun::new(zams.clone());
+        run.job = Some(self.worker.submit_evolution(zams, None, opts));
+        self.evolution = Some(run);
+    }
+
     // ------------------------------------------------------------------ panels
 
     fn params_panel(&mut self, ui: &mut egui::Ui) {
         let dark = ui.visuals().dark_mode;
         ui.add_space(4.0);
         ui.heading("Star Models");
-        ui.label(RichText::new("Zero-age main-sequence structure").color(theme::secondary(dark)));
+        ui.label(RichText::new("Stellar structure and evolution").color(theme::secondary(dark)));
         ui.label(
             RichText::new("Physics: analytic (Kramers + H⁻ opacity, ideal gas + radiation, MLT convection)")
                 .small()
@@ -374,12 +466,16 @@ impl StarApp {
         }
 
         ui.separator();
+        if let Some(action) = crate::evolution::controls(ui, &mut self.evo_settings, self.evolution.as_ref()) {
+            self.evo_action(action);
+        }
+        ui.separator();
         self.results(ui);
     }
 
     fn results(&mut self, ui: &mut egui::Ui) {
         let dark = ui.visuals().dark_mode;
-        let Some(model) = self.model.clone() else {
+        let Some(model) = self.shown_model() else {
             ui.label("No model yet.");
             return;
         };
@@ -425,7 +521,24 @@ impl StarApp {
                 format!("{:.3}", SunToday::ENV_BASE),
             );
             row("pp / CNO [%]", format!("{:.1} / {:.1}", 100.0 * g.frac_pp, 100.0 * g.frac_cno), "99 / 1".into());
+            row("Age", stellar_core::fmt_age(g.age_yr), "4.57 Gyr".into());
+            row("Phase", short_phase(g.phase).into(), "main seq.".into());
+            row("X_c / He core [m/M]", format!("{:.4} / {:.3}", g.x_c, g.he_core_q), "0.34 / 0".into());
+            let period = model
+                .pulsation
+                .as_ref()
+                .map(|p| crate::evolution::fmt_period(p.period_days()))
+                .unwrap_or_else(|| "–".into());
+            row("Fund. radial mode", period, "≈ 1.1 h".into());
+            row("ν_max / Δν [μHz]", format!("{:.0} / {:.1}", g.nu_max_uhz, g.delta_nu_uhz), "3090 / 135".into());
         });
+        if let Some(kind) = stellar_core::pulsation::classify(g.teff, g.luminosity) {
+            ui.label(
+                RichText::new(format!("In the instability strip: {}", kind.label()))
+                    .small()
+                    .color(theme::secondary(dark)),
+            );
+        }
         ui.label(
             RichText::new(format!(
                 "Checks: virial {:.5}, energy {:.5}; {} Newton iterations",
@@ -454,6 +567,13 @@ impl StarApp {
             if ui.button("Summary JSON").clicked() {
                 self.notice = save_text(&format!("{stem}.json"), "JSON", "json", &summary_json(&model));
             }
+            if let Some(run) = &self.evolution
+                && ui.button("Track CSV").on_hover_text("global properties of every model on the timeline").clicked()
+            {
+                let refs: Vec<&StarModel> = run.snapshots.iter().map(|m| m.as_ref()).collect();
+                self.notice =
+                    save_text(&format!("{stem}_track.csv"), "CSV", "csv", &stellar_core::output::track_csv(&refs));
+            }
             if ui.button("Screenshot PNG").clicked()
                 && let Some(path) = rfd::FileDialog::new()
                     .set_file_name(format!("{stem}_{}.png", self.tab.slug()))
@@ -472,7 +592,18 @@ impl StarApp {
 
     fn status_bar(&self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            if self.worker.busy() {
+            if let Some(run) = self.evolution.as_ref().filter(|r| r.running()) {
+                ui.spinner();
+                let g = &run.latest().globals;
+                ui.label(format!(
+                    "Evolving: {} steps, age {}, {}, L = {} L☉, T_eff = {:.0} K",
+                    run.track.len() - 1,
+                    stellar_core::fmt_age(g.age_yr),
+                    g.phase.label(),
+                    crate::views::fmt_value(g.luminosity),
+                    g.teff
+                ));
+            } else if self.worker.busy() {
                 ui.spinner();
                 let it = self
                     .iteration
@@ -528,7 +659,11 @@ impl StarApp {
             crate::views::about::show(ui, &mut self.about, &self.params, self.worker.physics());
             return;
         }
-        let Some(model) = self.model.clone() else {
+        if let Some(run) = &mut self.evolution {
+            crate::evolution::timeline(ui, run);
+            ui.separator();
+        }
+        let Some(model) = self.shown_model() else {
             ui.centered_and_justified(|ui| {
                 if let Some(e) = &self.last_error {
                     ui.label(format!("Could not compute a model: {e}"));
@@ -539,7 +674,8 @@ impl StarApp {
             return;
         };
         let x_axis = if self.tab == Tab::Profiles { self.profile_axis } else { self.detail_axis };
-        let v = ViewCtx { model: &model, pinned: &self.pinned, x_axis, dark: ui.visuals().dark_mode };
+        let track = self.evolution.as_ref().map(|r| r.track.as_slice()).unwrap_or(&[]);
+        let v = ViewCtx { model: &model, pinned: &self.pinned, x_axis, dark: ui.visuals().dark_mode, track };
         match self.tab {
             Tab::Profiles => crate::views::profiles::show(ui, &v),
             Tab::Extra => crate::views::extra::show(ui, &v),
@@ -567,7 +703,42 @@ impl StarApp {
         if cap.started == 0.0 {
             cap.started = now;
         }
-        let ready = self.model.is_some() && (self.zams.done || now - cap.started > 20.0);
+        let mut ready = self.model.is_some() && (self.zams.done || now - cap.started > 20.0);
+        if ready && let Some((stop, age, select)) = self.capture_evolve.clone() {
+            if !self.capture_evolve_started {
+                self.capture_evolve_started = true;
+                self.evo_settings.stop = stop;
+                self.evo_settings.target_age_gyr = age;
+                self.start_evolution();
+                return;
+            }
+            let finished = self.evolution.as_ref().is_some_and(|r| !r.running());
+            ready = finished || now - cap.started > 180.0;
+            if ready && let Some(run) = &mut self.evolution {
+                run.follow = false;
+                run.playing = false;
+                let n = run.snapshots.len();
+                run.selected = match select.split_once(':') {
+                    Some(("frac", f)) => {
+                        ((f.parse::<f64>().unwrap_or(1.0) * (n - 1) as f64).round() as usize).min(n - 1)
+                    }
+                    _ if select == "pulsating" => run
+                        .snapshots
+                        .iter()
+                        .position(|m| {
+                            stellar_core::pulsation::classify(m.globals.teff, m.globals.luminosity)
+                                == Some(stellar_core::pulsation::PulsatorType::Cepheid)
+                        })
+                        .or_else(|| {
+                            run.snapshots.iter().position(|m| {
+                                stellar_core::pulsation::classify(m.globals.teff, m.globals.luminosity).is_some()
+                            })
+                        })
+                        .unwrap_or(n - 1),
+                    _ => n - 1,
+                };
+            }
+        }
         if !ready {
             return;
         }
@@ -633,6 +804,12 @@ impl eframe::App for StarApp {
         if self.worker.busy() || (self.auto_solve && self.changed_at >= 0.0 && now - self.changed_at < 0.3) {
             ctx.request_repaint_after(Duration::from_millis(50));
         }
+        if let Some(run) = &mut self.evolution {
+            run.tick(ui.input(|i| i.stable_dt).min(0.1));
+            if run.playing {
+                ctx.request_repaint();
+            }
+        }
 
         egui::Panel::top("top").show(ui, |ui| {
             ui.add_space(3.0);
@@ -644,5 +821,17 @@ impl eframe::App for StarApp {
             egui::ScrollArea::vertical().show(ui, |ui| self.params_panel(ui));
         });
         egui::CentralPanel::default().show(ui, |ui| self.central(ui));
+    }
+}
+
+/// Compact phase name for the results table.
+fn short_phase(p: stellar_core::Phase) -> &'static str {
+    use stellar_core::Phase::*;
+    match p {
+        Zams => "ZAMS",
+        MainSequence => "main seq.",
+        ShellHydrogen => "H shell",
+        RedGiant => "red giant",
+        CoreHelium => "core He",
     }
 }

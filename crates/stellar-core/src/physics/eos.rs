@@ -28,7 +28,8 @@ impl Eos for IdealGasRadiation {
         let b2 = beta * beta;
         let cp = R_GAS / mu * (1.5 + 12.0 * (1.0 - beta) / beta + (4.0 - 3.0 * beta).powi(2) / b2);
         let nabla_ad = 2.0 * (4.0 - 3.0 * beta) / (32.0 - 24.0 * beta - 3.0 * b2);
-        EosState { rho, p_gas, p_rad, beta, mu, nabla_ad, cp, delta }
+        let gamma1 = (32.0 - 24.0 * beta - 3.0 * b2) / (24.0 - 21.0 * beta);
+        EosState { rho, p_gas, p_rad, beta, mu, nabla_ad, cp, delta, gamma1 }
     }
 }
 
@@ -63,6 +64,7 @@ mod tests {
         let s = IdealGasRadiation.eval(1e17, 1.5e7, &sun());
         assert!(s.beta > 0.99);
         assert!((s.nabla_ad - 0.4).abs() < 2e-3);
+        assert!((s.gamma1 - 5.0 / 3.0).abs() < 5e-3);
         let cp_ideal = 2.5 * R_GAS / sun().mu();
         assert!((s.cp / cp_ideal - 1.0).abs() < 0.05);
     }
@@ -74,6 +76,7 @@ mod tests {
         let p = A_RAD * t.powi(4) / 3.0 / (1.0 - 1e-3);
         let s = IdealGasRadiation.eval(p, t, &sun());
         assert!((s.nabla_ad - 0.25).abs() < 1e-3, "∇_ad = {}", s.nabla_ad);
+        assert!((s.gamma1 - 4.0 / 3.0).abs() < 2e-3, "Γ₁ = {}", s.gamma1);
     }
 
     #[test]

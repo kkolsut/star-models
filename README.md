@@ -1,6 +1,6 @@
 # Star Models
 
-Interactive **zero-age main-sequence (ZAMS) stellar structure** models, written in Rust.
+Interactive **stellar structure and evolution** models, written in Rust.
 
 You choose the mass, composition (X, Y = 1 − X − Z, Z) and the mixing-length parameter. The app
 solves the four stellar structure equations, with both **radiative and convective energy transport**,
@@ -38,7 +38,7 @@ on standard GNOME/KDE desktops).
 | **More profiles** | L/L_s and m/M, opacity κ, ε split into pp, CNO and 3α, ∇_rad vs ∇_ad vs ∇ (shows *why* a layer is convective), convective velocity, F_conv/F and β = P_gas/P. The x axis can be r/R, m/M or **log P**; log P spreads out the thin outer envelope. |
 | **Cross-section** | Split disc with temperature on the left and density on the right (log color scales). Convective zones are outlined and carry animated convection cells. Hover to read the local state. |
 | **3D model** | A cut-away sphere: one octant removed, cut faces coloured by T or ρ, and the energy-generating (or convective) core as a ball in the corner. The surface has the black-body colour at T_eff. Animated transport: photon sparks random-walk outward through radiative zones, convection cells carry rising hot (amber) and sinking cool (blue) gas, the surface shows granulation for a convective envelope, and a convective core "boils". Drag to rotate, scroll or pinch to zoom at the cursor (up to 400×, e.g. **Zoom to surface layers** for the Sun's thin envelope), right- or shift-drag to pan, double-click to reset. Hover to read the local state. |
-| **HR diagram** | The current model on a ZAMS line computed for the current composition, alongside the present-day Sun and the pinned models. |
+| **HR diagram** | The model on a ZAMS line computed for the current composition, with the **evolutionary track** of the current run (hover for age, phase, X_c and pulsation), the approximate **classical instability strip**, the present-day Sun and the pinned models. |
 | **Compare** | Table of global properties for the current and pinned models, plus an overlay of any profile quantity. |
 | **About** | In-app documentation: the model and its assumptions, every formula and coefficient used (typeset from LaTeX; right-click an equation to copy its source), the numerical algorithm, every input parameter (with its live current value), every output quantity and CSV column, how each view is made, CLI usage, limitations and references. A contents list on the left jumps to each section. |
 
@@ -49,12 +49,37 @@ present-day solar values, **Pin current model**, and export buttons: **profile C
 When you change a parameter, the solver warm-starts from the model on screen, so a new solution
 usually takes 20–100 ms.
 
+### Evolution and pulsation
+
+**Evolve** (left panel) follows the star in time from the ZAMS:
+
+* hydrogen burns to helium (and helium to carbon);
+* convective zones mix;
+* the structure is re-solved each step with the gravitational energy term ε_grav = −T ds/dt, using adaptive time steps.
+
+Stop at the end of the main sequence, at a given age, or "as far as possible". A **timeline** above the views lets you scrub, step or play through the computed ages; every tab shows the selected model. **Continue** resumes a stopped or finished run.
+
+For every model the **fundamental radial pulsation mode** is computed from the linear adiabatic wave equation (period, mode shape). When the star lies in the instability strip it is flagged as a **δ Scuti-type** (near the main sequence) or **Cepheid-type** pulsator, and the 3D model pulsates with the computed mode shape. Solar-like oscillation frequencies (ν_max, Δν) come from the asteroseismic scaling relations.
+
+Examples:
+
+| Run | Result |
+|---|---|
+| Sun to 4.57 Gyr | 26 steps, 0.3 s; L 0.42 → 0.52 L☉, X_c 0.70 → 0.51 |
+| 1.8 M☉ | δ Scuti on the main sequence (P ≈ 0.05–0.15 d); the convective-core "hook" at 1.4 Gyr |
+| 5 M☉ | main sequence to 76 Myr, then crosses the Cepheid strip (P ≈ 1.5–2.6 d at ~1000 L☉) |
+| 10 M☉ | reaches core helium burning as a red supergiant |
+
+The energy budget closes: hydrogen burnt × Q_H equals the energy radiated to 0.5%. After the main sequence the analytic physics is only qualitative: there is no degeneracy, ionisation or molecular opacity, so low-mass stars do not climb the red giant branch.
+
 ### CLI
 
 ```sh
 stellar-cli --mass 1 --x 0.70 --z 0.02 -o sun.csv --json sun.json
 stellar-cli --sweep 0.5,1,2,5,10,20      # a ZAMS sequence by continuation
 stellar-cli --mass 3 -v                  # print every Newton iteration
+stellar-cli --mass 1 --evolve --until age --max-age 4.57      # evolve the Sun to its present age
+stellar-cli --mass 5 --evolve --until max --track track.csv   # full track as CSV
 ```
 
 ## Physics and numerics

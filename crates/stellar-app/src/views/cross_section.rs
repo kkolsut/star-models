@@ -31,18 +31,26 @@ pub(super) fn interp(rn: &[f64], ys: &[f64], s: f64) -> f64 {
 }
 
 pub(super) struct Field {
+    /// Values on the colour scale: log₁₀ of the quantity, or the quantity itself when `linear`.
     log: Vec<f64>,
     lo: f64,
     hi: f64,
     ramp: Ramp,
+    linear: bool,
 }
 
 impl Field {
+    /// Logarithmic colour scale between the smallest and largest value.
     pub(super) fn new(values: &[f64], ramp: Ramp) -> Self {
         let log: Vec<f64> = values.iter().map(|v| v.max(1e-300).log10()).collect();
         let lo = log.iter().cloned().fold(f64::INFINITY, f64::min);
         let hi = log.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-        Self { log, lo, hi, ramp }
+        Self { log, lo, hi, ramp, linear: false }
+    }
+
+    /// Linear colour scale from 0 to `max` (e.g. mass fractions).
+    pub(super) fn linear(values: &[f64], ramp: Ramp, max: f64) -> Self {
+        Self { log: values.to_vec(), lo: 0.0, hi: max.max(1e-6), ramp, linear: true }
     }
     pub(super) fn color_at(&self, rn: &[f64], s: f64) -> Color32 {
         let v = interp(rn, &self.log, s);
@@ -133,18 +141,31 @@ pub(super) fn colorbar(
     let font = FontId::proportional(12.0);
     let (x, align) =
         if label_left { (rect.left() - 6.0, Align2::RIGHT_CENTER) } else { (rect.right() + 6.0, Align2::LEFT_CENTER) };
-    for e in (field.lo.ceil() as i64)..=(field.hi.floor() as i64) {
-        let t = ((e as f64 - field.lo) / (field.hi - field.lo)) as f32;
+    let ticks: Vec<(f64, String)> = if field.linear {
+        let step = if field.hi - field.lo > 0.5 { 0.2 } else { 0.1 };
+        (0..=((field.hi - field.lo) / step + 1e-9) as usize)
+            .map(|i| {
+                let v = field.lo + i as f64 * step;
+                (v, format!("{v:.1}"))
+            })
+            .collect()
+    } else {
+        ((field.lo.ceil() as i64)..=(field.hi.floor() as i64))
+            .map(|e| (e as f64, format!("10{}", superscript(e))))
+            .collect()
+    };
+    for (v, label) in ticks {
+        let t = ((v - field.lo) / (field.hi - field.lo)) as f32;
         let y = rect.bottom() - rect.height() * t;
         let tick_x = if label_left { rect.left() - 3.0 } else { rect.right() + 3.0 };
         let edge = if label_left { rect.left() } else { rect.right() };
         painter.line_segment([pos2(edge, y), pos2(tick_x, y)], Stroke::new(1.0, muted));
-        painter.text(pos2(x, y), align, format!("10{}", superscript(e)), font.clone(), muted);
+        painter.text(pos2(x, y), align, label, font.clone(), muted);
     }
     painter.text(
         pos2(rect.center().x, rect.top() - 8.0),
         Align2::CENTER_BOTTOM,
-        format!("{title} [{unit}]"),
+        if unit.is_empty() { title.to_string() } else { format!("{title} [{unit}]") },
         FontId::proportional(13.0),
         ink,
     );

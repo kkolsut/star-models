@@ -31,6 +31,8 @@ pub struct EosState {
     pub cp: f64,
     /// δ = −(∂ln ρ/∂ln T)_P.
     pub delta: f64,
+    /// First adiabatic exponent Γ₁ = (∂ln P/∂ln ρ)_s (used for pulsations).
+    pub gamma1: f64,
 }
 
 /// Equation of state: density and thermodynamic derivatives as functions of (P, T).

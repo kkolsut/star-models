@@ -42,6 +42,18 @@ struct Args {
     /// Comma-separated list of masses: solve a ZAMS sequence by continuation
     #[arg(long, value_delimiter = ',')]
     sweep: Option<Vec<f64>>,
+    /// Evolve the star from the ZAMS (see --until and --max-age)
+    #[arg(long)]
+    evolve: bool,
+    /// Stop condition for --evolve: tams (end of main sequence), age (needs --max-age) or max (as far as possible)
+    #[arg(long, default_value = "tams")]
+    until: String,
+    /// Age to stop at [Gyr] (with --until age), or safety limit otherwise
+    #[arg(long)]
+    max_age: Option<f64>,
+    /// Write the evolutionary track to this CSV file (with --evolve)
+    #[arg(long)]
+    track: Option<String>,
     /// Print every Newton iteration
     #[arg(short, long)]
     verbose: bool,
@@ -142,6 +154,10 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if args.evolve {
+        return evolve(&args, &base, &physics, &mut ctl);
+    }
+
     let t0 = Instant::now();
     let model = solve_model(&base, &physics, None, &mut ctl)?;
     eprintln!("solved in {:.2}s", t0.elapsed().as_secs_f64());
@@ -156,6 +172,80 @@ fn main() -> Result<()> {
     if let Some(path) = &args.json {
         std::fs::write(path, summary_json(&model)).with_context(|| format!("writing {path}"))?;
         eprintln!("summary written to {path}");
+    }
+    Ok(())
+}
+
+fn evolve(args: &Args, base: &StarParams, physics: &Physics, ctl: &mut Printer) -> Result<()> {
+    use stellar_core::{Evolution, EvolutionOptions, EvolutionStep, StopCondition, fmt_age};
+    let stop = match args.until.as_str() {
+        "tams" => StopCondition::EndOfMainSequence,
+        "age" => StopCondition::Age(args.max_age.context("--until age needs --max-age <Gyr>")? * 1e9),
+        "max" => StopCondition::AsFarAsPossible,
+        other => bail!("unknown --until {other} (use tams, age or max)"),
+    };
+    let mut opts = EvolutionOptions { stop, ..Default::default() };
+    if let (Some(a), false) = (args.max_age, matches!(stop, StopCondition::Age(_))) {
+        opts.max_age_yr = a * 1e9;
+    }
+    let t0 = Instant::now();
+    let zams = solve_model(base, physics, None, ctl)?;
+    let mut evo = Evolution::new(zams.clone(), opts);
+    let mut track = vec![zams];
+    println!(
+        "{:>5} {:>11} {:>10} {:>10} {:>7} {:>8} {:>10} {:>8} {:>7} {:>9} {:>11} {:>8}  phase",
+        "step", "age", "dt [yr]", "L/L☉", "Teff", "R/R☉", "Tc", "Xc", "q_He", "P_fund", "pulsator", "energy"
+    );
+    let print = |step: usize, m: &StarModel, dt: f64| {
+        let g = &m.globals;
+        let period = m.pulsation.as_ref().map(|p| format!("{:.4}d", p.period_days())).unwrap_or_else(|| "-".into());
+        let puls = stellar_core::pulsation::classify(g.teff, g.luminosity)
+            .map(|p| match p {
+                stellar_core::pulsation::PulsatorType::DeltaScuti => "δ Sct",
+                stellar_core::pulsation::PulsatorType::Cepheid => "Cepheid",
+            })
+            .unwrap_or("");
+        println!(
+            "{:5} {:>11} {:10.3e} {:10.4e} {:7.0} {:8.4} {:10.4e} {:8.5} {:7.4} {:>9} {:>11} {:8.5}  {}",
+            step,
+            fmt_age(g.age_yr),
+            dt,
+            g.luminosity,
+            g.teff,
+            g.radius,
+            g.tc,
+            g.x_c,
+            g.he_core_q,
+            period,
+            puls,
+            g.energy_ratio,
+            g.phase.label()
+        );
+    };
+    print(0, &track[0], 0.0);
+    loop {
+        match evo.step(physics, ctl)? {
+            EvolutionStep::Advanced { dt_yr, .. } => {
+                if args.verbose || evo.steps.is_multiple_of(10) {
+                    print(evo.steps, &evo.model, dt_yr);
+                }
+                track.push(evo.model.clone());
+            }
+            EvolutionStep::Finished(reason) => {
+                print(evo.steps, &evo.model, 0.0);
+                eprintln!("finished after {} steps in {:.1}s: {reason}", evo.steps, t0.elapsed().as_secs_f64());
+                break;
+            }
+        }
+    }
+    if let Some(path) = &args.track {
+        let refs: Vec<&StarModel> = track.iter().collect();
+        std::fs::write(path, stellar_core::output::track_csv(&refs)).with_context(|| format!("writing {path}"))?;
+        eprintln!("track written to {path}");
+    }
+    if let Some(path) = &args.output {
+        std::fs::write(path, profile_csv(&evo.model)).with_context(|| format!("writing {path}"))?;
+        eprintln!("final profile written to {path}");
     }
     Ok(())
 }

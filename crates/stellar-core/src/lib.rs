@@ -17,10 +17,12 @@ pub mod composition;
 pub mod constants;
 pub mod output;
 pub mod physics;
+pub mod pulsation;
 pub mod solver;
 pub mod structure;
 
 pub use composition::Composition;
 pub use physics::Physics;
-pub use structure::model::{ConvectiveZone, Globals, Profile, StarModel, StarParams};
+pub use structure::evolve::{Evolution, EvolutionOptions, EvolutionStep, StopCondition, fmt_age};
+pub use structure::model::{ConvectiveZone, Globals, Phase, Profile, StarModel, StarParams};
 pub use structure::solve::{NoControl, SolveControl, SolveError, SolveEvent, solve_model};

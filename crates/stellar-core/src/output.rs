@@ -22,6 +22,7 @@ pub const CSV_COLUMNS: &[&str] = &[
     "eps_cno",
     "eps_3a",
     "eps_total",
+    "eps_grav",
     "nabla_rad",
     "nabla_ad",
     "nabla",
@@ -31,6 +32,7 @@ pub const CSV_COLUMNS: &[&str] = &[
     "H_P_cm",
     "mu",
     "beta",
+    "Gamma1",
     "X",
     "Y",
     "Z",
@@ -57,6 +59,7 @@ pub fn profile_csv(model: &StarModel) -> String {
             p.eps_cno[k],
             p.eps_3a[k],
             p.eps[k],
+            p.eps_grav[k],
             p.nabla_rad[k],
             p.nabla_ad[k],
             p.nabla[k],
@@ -66,6 +69,7 @@ pub fn profile_csv(model: &StarModel) -> String {
             p.hp[k],
             p.mu[k],
             p.beta[k],
+            p.gamma1[k],
             p.x[k],
             p.y[k],
             p.z[k],
@@ -74,7 +78,7 @@ pub fn profile_csv(model: &StarModel) -> String {
             if i > 0 {
                 s.push(',');
             }
-            if i == 16 {
+            if CSV_COLUMNS[i] == "convective" {
                 let _ = write!(s, "{}", *v as u8);
             } else {
                 let _ = write!(s, "{v:.10e}");
@@ -102,4 +106,44 @@ pub fn summary_json(model: &StarModel) -> String {
         convective_zones: &model.zones,
     })
     .expect("model summary is always serialisable")
+}
+
+/// Evolutionary track as CSV: one row per model.
+pub fn track_csv(models: &[&StarModel]) -> String {
+    let mut s = String::from(
+        "age_yr,phase,L_lsun,Teff_K,R_rsun,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,conv_env_base_r,\
+         frac_pp,frac_cno,frac_3a,frac_grav,P_fund_days,Q_days,pulsator,nu_max_uHz,delta_nu_uHz\n",
+    );
+    for m in models {
+        let g = &m.globals;
+        let (period, q) = m.pulsation.as_ref().map(|p| (p.period_days(), p.q_days)).unwrap_or((f64::NAN, f64::NAN));
+        let pulsator = crate::pulsation::classify(g.teff, g.luminosity).map(|p| p.label()).unwrap_or("");
+        let _ = writeln!(
+            s,
+            "{:.6e},{:?},{:.6e},{:.2},{:.6e},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{:.6e},{:.5},{},{:.4},{:.4}",
+            g.age_yr,
+            g.phase,
+            g.luminosity,
+            g.teff,
+            g.radius,
+            g.log_g,
+            g.tc,
+            g.rhoc,
+            g.x_c,
+            g.y_c,
+            g.he_core_q,
+            g.conv_core_q,
+            g.conv_env_base_r.map(|r| format!("{r:.5}")).unwrap_or_default(),
+            g.frac_pp,
+            g.frac_cno,
+            g.frac_3a,
+            g.frac_grav,
+            period,
+            q,
+            pulsator,
+            g.nu_max_uhz,
+            g.delta_nu_uhz,
+        );
+    }
+    s
 }

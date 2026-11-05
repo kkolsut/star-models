@@ -7,7 +7,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
-use stellar_core::{Physics, SolveControl, SolveError, SolveEvent, StarModel, StarParams, solve_model};
+use stellar_core::{
+    Evolution, EvolutionOptions, EvolutionStep, Physics, SolveControl, SolveError, SolveEvent, StarModel, StarParams,
+    solve_model,
+};
 
 /// Masses used for the computed ZAMS line in the HR diagram [M☉].
 pub const ZAMS_MASSES: &[f64] = &[
@@ -38,10 +41,35 @@ pub struct ZamsPoint {
 }
 
 pub enum Msg {
-    Progress { job: u64, event: SolveEvent },
-    Finished { job: u64, result: Box<Result<StarModel, SolveError>>, elapsed: Duration },
-    Zams { key: ZamsKey, point: ZamsPoint },
-    ZamsDone { key: ZamsKey },
+    Progress {
+        job: u64,
+        event: SolveEvent,
+    },
+    Finished {
+        job: u64,
+        result: Box<Result<StarModel, SolveError>>,
+        elapsed: Duration,
+    },
+    Zams {
+        key: ZamsKey,
+        point: ZamsPoint,
+    },
+    ZamsDone {
+        key: ZamsKey,
+    },
+    /// A new model of an evolution run.
+    Evolved {
+        job: u64,
+        model: Box<StarModel>,
+    },
+    /// An evolution run ended (finished, failed or stopped). `dt_yr` and
+    /// `r_zams` allow it to be resumed from its latest model.
+    EvolutionDone {
+        job: u64,
+        reason: String,
+        dt_yr: f64,
+        r_zams: f64,
+    },
 }
 
 struct Ctl {
@@ -100,7 +128,11 @@ impl Worker {
         std::thread::spawn(move || {
             let t0 = Instant::now();
             let mut ctl = Ctl { job, cancel, tx: tx.clone(), ctx: ctx.clone(), last: None };
-            let result = solve_model(&params, &physics, warm.as_deref(), &mut ctl);
+            let result = solve_model(&params, &physics, warm.as_deref(), &mut ctl).map(|mut m| {
+                // The fundamental radial mode is cheap (a few ms): compute it for every model.
+                m.pulsation = stellar_core::pulsation::fundamental_mode(&m, None).ok();
+                m
+            });
             let _ = tx.send(Msg::Finished { job, result: Box::new(result), elapsed: t0.elapsed() });
             ctx.request_repaint();
         });
@@ -170,6 +202,53 @@ impl Worker {
             let _ = tx.send(Msg::ZamsDone { key });
             ctx.request_repaint();
         });
+    }
+
+    /// Start (or resume) an evolution run in the background. Each new model is
+    /// sent as [`Msg::Evolved`]; the end of the run as [`Msg::EvolutionDone`].
+    pub fn submit_evolution(
+        &mut self,
+        start: Arc<StarModel>,
+        resume: Option<(f64, f64)>,
+        opts: EvolutionOptions,
+    ) -> u64 {
+        self.cancel();
+        let job = self.next_job;
+        self.next_job += 1;
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.current = Some((job, cancel.clone()));
+        let (tx, ctx, physics) = (self.tx.clone(), self.ctx.clone(), self.physics.clone());
+        std::thread::spawn(move || {
+            let mut evo = match resume {
+                Some((dt, r_zams)) => Evolution::resume((*start).clone(), dt, r_zams, opts),
+                None => Evolution::new((*start).clone(), opts),
+            };
+            // Newton-iteration progress is not reported for evolution steps.
+            let mut ctl = Ctl {
+                job: 0,
+                cancel: cancel.clone(),
+                tx: tx.clone(),
+                ctx: ctx.clone(),
+                last: Some(Instant::now() + Duration::from_secs(3600)),
+            };
+            let reason = loop {
+                if cancel.load(Ordering::Relaxed) {
+                    break "stopped".to_string();
+                }
+                match evo.step(&physics, &mut ctl) {
+                    Ok(EvolutionStep::Advanced { .. }) => {
+                        let _ = tx.send(Msg::Evolved { job, model: Box::new(evo.model.clone()) });
+                        ctx.request_repaint();
+                    }
+                    Ok(EvolutionStep::Finished(r)) => break r,
+                    Err(SolveError::Cancelled) => break "stopped".to_string(),
+                    Err(e) => break e.to_string(),
+                }
+            };
+            let _ = tx.send(Msg::EvolutionDone { job, reason, dt_yr: evo.dt_yr, r_zams: evo.r_zams() });
+            ctx.request_repaint();
+        });
+        job
     }
 
     pub fn poll(&self) -> Vec<Msg> {

@@ -160,7 +160,18 @@ impl Ramp {
     /// Single-hue orange ramp at the hue of categorical slot 2, from
     /// L = 0.93 down to L = 0.36 in OKLCH.
     pub fn orange(dark: bool) -> Self {
-        let [_, a, b] = to_oklab(hex(0xeb6834));
+        Self::single_hue(hex(0xeb6834), dark)
+    }
+
+    /// Single-hue ramp at the hue of categorical slot 3 (aqua), used for the
+    /// hydrogen abundance.
+    pub fn aqua(dark: bool) -> Self {
+        Self::single_hue(hex(0x1baf7a), dark)
+    }
+
+    /// Single-hue ramp at the hue of `c`, from L = 0.93 down to L = 0.36 in OKLCH.
+    fn single_hue(c: Color32, dark: bool) -> Self {
+        let [_, a, b] = to_oklab(c);
         let h = b.atan2(a);
         let c_peak = (a * a + b * b).sqrt();
         let lut = (0..256)
@@ -185,11 +196,11 @@ mod tests {
 
     #[test]
     fn ramps_are_monotonic_in_lightness() {
-        for ramp in [Ramp::blue(false), Ramp::orange(false)] {
+        for ramp in [Ramp::blue(false), Ramp::orange(false), Ramp::aqua(false)] {
             let ls: Vec<f64> = ramp.lut.iter().map(|&c| lightness(c)).collect();
             assert!(ls.windows(2).all(|w| w[1] <= w[0] + 2e-3), "light mode must darken with magnitude");
         }
-        for ramp in [Ramp::blue(true), Ramp::orange(true)] {
+        for ramp in [Ramp::blue(true), Ramp::orange(true), Ramp::aqua(true)] {
             let ls: Vec<f64> = ramp.lut.iter().map(|&c| lightness(c)).collect();
             assert!(ls.windows(2).all(|w| w[1] >= w[0] - 2e-3), "dark mode must lighten with magnitude");
         }

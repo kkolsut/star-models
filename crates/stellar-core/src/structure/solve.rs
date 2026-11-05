@@ -1,10 +1,11 @@
 //! Solve driver: cold start from a polytrope, warm start / continuation from a
 //! previously converged model, with step halving when Newton fails.
 
-use super::equations::{I_LNP, I_LNR, I_LNT, NVAR, StructureProblem};
+use super::equations::{I_LNP, I_LNR, I_LNT, NVAR, PrevStep, StructureProblem};
 use super::initial::polytrope_guess;
 use super::mesh::{make_mesh, remap};
 use super::model::{StarModel, StarParams, build_model, sanity_check};
+use crate::composition::Composition;
 use crate::physics::Physics;
 use crate::solver::{HenyeyNewton, NewtonOptions, StepOutcome};
 
@@ -105,7 +106,8 @@ fn cold_start(params: &StarParams, physics: &Physics, ctl: &mut dyn SolveControl
     newton(params, physics, &q, guess.y, guess.l_scale, COLD_START, ctl)
 }
 
-/// Run Newton iterations for fixed parameters from initial guess `y0`.
+/// Run Newton iterations for fixed parameters from initial guess `y0`
+/// (chemically homogeneous, static model).
 pub fn newton(
     params: &StarParams,
     physics: &Physics,
@@ -116,8 +118,27 @@ pub fn newton(
     ctl: &mut dyn SolveControl,
 ) -> Result<StarModel, SolveError> {
     let comp = params.composition().map_err(|e| SolveError::InvalidParams(e.to_string()))?;
+    solve_structure(params, physics, q, vec![comp; q.len()], None, y0, l_scale, opts, ctl)
+}
+
+/// Solve the structure equations for a given composition profile and,
+/// during evolution, the previous time step (for ε_grav).
+#[allow(clippy::too_many_arguments)]
+pub fn solve_structure(
+    params: &StarParams,
+    physics: &Physics,
+    q: &[f64],
+    comps: Vec<Composition>,
+    prev: Option<PrevStep>,
+    y0: Vec<f64>,
+    l_scale: f64,
+    opts: NewtonOptions,
+    ctl: &mut dyn SolveControl,
+) -> Result<StarModel, SolveError> {
     let mass = params.mass * crate::constants::M_SUN;
-    let problem = StructureProblem::new(physics, mass, q, comp, params.alpha_mlt, l_scale);
+    let mut problem = StructureProblem::new(physics, mass, q, comps[0], params.alpha_mlt, l_scale);
+    problem.comp = comps;
+    problem.prev = prev;
     let mut nr = HenyeyNewton::new(&problem, y0, opts);
     loop {
         if ctl.cancelled() {

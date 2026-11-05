@@ -41,6 +41,8 @@ const SECTIONS: &[&str] = &[
     "Boundary conditions",
     "Numerical method",
     "Initial model & continuation",
+    "Evolution in time",
+    "Pulsations & oscillations",
     "How the views are made",
     "Accuracy & limitations",
     "Constants & units",
@@ -207,11 +209,13 @@ pub fn show(ui: &mut Ui, state: &mut AboutState, params: &StarParams, physics: &
         section(ui, 8, &mut |ui| boundaries(ui, dark));
         section(ui, 9, &mut |ui| numerics(ui, dark));
         section(ui, 10, &mut |ui| initial(ui, dark));
-        section(ui, 11, &mut |ui| views(ui, dark));
-        section(ui, 12, &mut |ui| limitations(ui, dark));
-        section(ui, 13, &mut |ui| constants(ui, dark));
-        section(ui, 14, &mut |ui| cli(ui, dark));
-        section(ui, 15, &mut |ui| references(ui, dark));
+        section(ui, 11, &mut |ui| evolution(ui, dark));
+        section(ui, 12, &mut |ui| pulsation(ui, dark));
+        section(ui, 13, &mut |ui| views(ui, dark));
+        section(ui, 14, &mut |ui| limitations(ui, dark));
+        section(ui, 15, &mut |ui| constants(ui, dark));
+        section(ui, 16, &mut |ui| cli(ui, dark));
+        section(ui, 17, &mut |ui| references(ui, dark));
         ui.add_space(40.0);
         state.current = current;
     });
@@ -232,9 +236,11 @@ fn overview(ui: &mut Ui, dark: bool, physics: &Physics) {
     );
     p(
         ui,
-        "Every model is static (no time evolution), spherically symmetric, non-rotating and non-magnetic. \
-         The defaults are those of the Sun (1 M☉, X = 0.70, Z = 0.02, α_MLT = 1.8). The default model is \
-         therefore the young Sun as it was about 4.6 billion years ago, not today's Sun.",
+        "Models are spherically symmetric, non-rotating and non-magnetic, without mass loss. The defaults are those \
+         of the Sun (1 M☉, X = 0.70, Z = 0.02, α_MLT = 1.8). The default model is therefore the young Sun as it was \
+         about 4.6 billion years ago. Press Evolve to follow the star in time: hydrogen burns to helium, the core \
+         contracts, the envelope expands, and the star moves along an evolutionary track in the HR diagram. Stars \
+         that cross the instability strip pulsate.",
     );
     sub(ui, "Physics in use");
     p(ui, &physics.describe());
@@ -253,6 +259,11 @@ fn overview(ui: &mut Ui, dark: bool, physics: &Physics) {
     bullet(
         ui,
         "Every view is redrawn from that model; the ZAMS line in the HR diagram is recomputed if the composition changed.",
+    );
+    bullet(
+        ui,
+        "With Evolve, a background thread advances the star in time step by step (see \"Evolution in time\"), and \
+         computes the fundamental radial pulsation mode of every model (see \"Pulsations & oscillations\").",
     );
     muted(
         ui,
@@ -281,6 +292,28 @@ fn usage(ui: &mut Ui, dark: bool) {
     );
     bullet(ui, "A note appears below 0.4 M☉, where the ideal-gas equation of state is no longer adequate.");
 
+    sub(ui, "Evolving a star");
+    bullet(
+        ui,
+        "In the Evolution section of the left panel, choose where to stop (end of main sequence, an age, or as far as possible) and press Evolve.",
+    );
+    bullet(
+        ui,
+        "The run is computed in the background. The HR track grows and the views follow the latest model (\"follow latest\").",
+    );
+    bullet(
+        ui,
+        "Use the timeline above the views to pick any computed age, step with < and >, or Play through the run.",
+    );
+    bullet(
+        ui,
+        "Stop interrupts a run, Continue resumes it, Reset to ZAMS discards it. \"Sun's age\" evolves to 4.57 Gyr.",
+    );
+    bullet(
+        ui,
+        "For a pulsating star, evolve 1.5–2 M☉ (δ Scuti on the main sequence) or 5 M☉ \"as far as possible\" (Cepheid crossing), then select a model inside the shaded instability strip and open the 3D model.",
+    );
+
     sub(ui, "Comparing and exporting");
     bullet(
         ui,
@@ -305,19 +338,25 @@ fn usage(ui: &mut Ui, dark: bool) {
         ui,
         "More profiles:",
         "luminosity and enclosed mass, opacity, nuclear energy generation by process, temperature gradients, \
-         convective velocity, convective flux fraction and gas-pressure fraction. The x axis can also be log P, \
-         which spreads out the thin outer envelope.",
+         chemical composition, gravitational energy release, convective velocity, convective flux fraction and \
+         gas-pressure fraction. The x axis can also be log P, which spreads out the thin outer envelope.",
     );
     term(
         ui,
         "Cross-section:",
         "a slice through the star, with temperature on the left half and density on the right. Convective zones carry animated cells.",
     );
-    term(ui, "3D model:", "a cut-away sphere with animated radiative and convective energy transport.");
+    term(
+        ui,
+        "3D model:",
+        "a cut-away sphere with animated radiative and convective energy transport. It can be coloured by hydrogen \
+         content to show the helium core, and pulsates when the star is in the instability strip.",
+    );
     term(
         ui,
         "HR diagram:",
-        "the model on a computed ZAMS line, together with the present-day Sun and the pinned models.",
+        "the model on a computed ZAMS line, with the evolutionary track of the current run, the instability strip, \
+         the present-day Sun and the pinned models.",
     );
     term(
         ui,
@@ -428,6 +467,16 @@ fn parameters(ui: &mut Ui, dark: bool, pr: &StarParams) {
         "Sun AGSS09:",
         "the same, with the protosolar composition of Asplund et al. (2009): X = 0.7154, Z = 0.0142.",
     );
+    sub(ui, "Evolution settings");
+    term(
+        ui,
+        "Stop at:",
+        "end of main sequence (X_c < 10⁻³, default), a given age in Gyr (default 4.57), or as far as possible.",
+    );
+    p(
+        ui,
+        "The time-step controls are fixed (see \"Evolution in time\"). The mesh-points setting also applies to evolution: more points resolve the thin hydrogen-burning shell after the main sequence better.",
+    );
     sub(ui, "Display settings (do not change the model)");
     term(
         ui,
@@ -476,10 +525,30 @@ fn results(ui: &mut Ui, dark: bool) {
     term(
         ui,
         "Energy check:",
-        "the energy generated inside must equal the energy leaving the surface. L₀ = ε₀ m₀ is the luminosity of the innermost point:",
+        "the energy generated inside (nuclear plus gravitational) must equal the energy leaving the surface. L₀ is the \
+         luminosity of the innermost point. The integral uses the solver's own midpoint rule, so this verifies that the \
+         converged solution conserves energy globally (the independent energy budget of an evolution run is described in \
+         \"Evolution in time\"):",
     );
     math(ui, "res_energy", "");
     term(ui, "Newton iterations:", "iterations in the last solver step (a continuation may take several steps).");
+    term(ui, "Age:", "time since the ZAMS (0 unless the star has been evolved).");
+    term(ui, "Phase:", "evolutionary phase, see \"Evolution in time\".");
+    term(
+        ui,
+        "X_c / He core [m/M]:",
+        "central hydrogen mass fraction, and the mass fraction of the hydrogen-exhausted core (X < 10⁻³).",
+    );
+    term(
+        ui,
+        "Fund. radial mode:",
+        "period of the fundamental radial pulsation mode, see \"Pulsations & oscillations\".",
+    );
+    term(
+        ui,
+        "ν_max / Δν [μHz]:",
+        "solar-like oscillation frequencies from the asteroseismic scaling relations (meaningful for stars with convective envelopes).",
+    );
     sub(ui, "\"Sun today\" reference column");
     p(
         ui,
@@ -514,6 +583,7 @@ fn profiles(ui: &mut Ui, dark: bool) {
         ("eps_cno", "energy generation by the CNO cycle [erg g⁻¹ s⁻¹]"),
         ("eps_3a", "energy generation by triple-α helium burning [erg g⁻¹ s⁻¹]"),
         ("eps_total", "total nuclear energy generation ε [erg g⁻¹ s⁻¹]"),
+        ("eps_grav", "gravitational energy release ε_grav = −T ds/dt [erg g⁻¹ s⁻¹] (0 on the ZAMS)"),
         ("nabla_rad", "radiative gradient ∇_rad: the d ln T / d ln P needed to carry L by radiation alone"),
         ("nabla_ad", "adiabatic gradient ∇_ad = (∂ ln T / ∂ ln P) at constant entropy"),
         ("nabla", "actual gradient ∇ = d ln T / d ln P used in the model"),
@@ -523,7 +593,8 @@ fn profiles(ui: &mut Ui, dark: bool) {
         ("H_P_cm", "pressure scale height H_P = P / (ρ g) [cm]"),
         ("mu", "mean molecular weight μ"),
         ("beta", "gas-pressure fraction β = P_gas / P"),
-        ("X", "hydrogen mass fraction (uniform in ZAMS models)"),
+        ("Gamma1", "first adiabatic exponent Γ₁ (used for pulsations)"),
+        ("X", "hydrogen mass fraction (uniform in ZAMS models, depleted by burning during evolution)"),
         ("Y", "helium mass fraction"),
         ("Z", "metal mass fraction"),
     ];
@@ -570,7 +641,8 @@ fn equations(ui: &mut Ui, dark: bool) {
     sub(ui, "Assumptions");
     bullet(
         ui,
-        "Static: the gravitational energy term ε_grav = −T ds/dt is zero, as appropriate for a star in thermal equilibrium on the ZAMS.",
+        "ZAMS models are static: the gravitational energy term ε_grav = −T ds/dt is zero. During evolution ε_grav is \
+         added to ε (see \"Evolution in time\").",
     );
     bullet(ui, "Chemically homogeneous: X, Y, Z are the same everywhere (no burning history yet).");
     bullet(ui, "No neutrino losses, rotation, magnetic fields, mass loss or element diffusion.");
@@ -822,6 +894,175 @@ fn initial(ui: &mut Ui, dark: bool) {
     );
 }
 
+fn evolution(ui: &mut Ui, dark: bool) {
+    p(
+        ui,
+        "Starting from the ZAMS model, Evolve follows the star in time on the same mass mesh (the total mass is \
+         constant: no mass loss). Each time step has two parts. First the composition changes by nuclear burning \
+         and convective mixing. Then the structure is solved again, including the energy released or absorbed as \
+         layers contract or expand.",
+    );
+    sub(ui, "Composition");
+    math(ui, "evo_burn_h", "hydrogen burning (pp chain and CNO cycle)");
+    math(ui, "evo_burn_he", "helium burning (triple-α); its carbon counts as metals");
+    math(ui, "evo_mix", "instant mixing");
+    p(
+        ui,
+        "Burning uses the energy-generation rates of the previous model (an explicit step, kept small by the time-step \
+         limits below). The CNO catalyst abundance X_CNO = f_CNO · Z keeps its initial value. Mixing uses the \
+         Schwarzschild convective zones of the previous model, so a convective core that shrinks during the main \
+         sequence leaves a hydrogen gradient behind.",
+    );
+    sub(ui, "Structure with gravitational energy");
+    p(ui, "The energy equation gains the gravitational term:");
+    math(ui, "evo_dl", "");
+    math(ui, "evo_egrav", "");
+    p(
+        ui,
+        "ε_grav is evaluated implicitly, against the previous model at the same mass. The Henyey solver therefore \
+         handles contraction (ε_grav > 0: the layer heats up and releases gravitational energy) and expansion \
+         (ε_grav < 0), which happen on the thermal timescale after the main sequence. The previous model is the \
+         starting guess for Newton, and the luminosity unknown is re-scaled to the current luminosity every step.",
+    );
+    sub(ui, "Time steps");
+    math(ui, "evo_dt", "");
+    bullet(
+        ui,
+        "Burning limit: no shell may lose more than 0.01 of X, or more than 30% of its hydrogen, in one step. A \
+         convective zone counts as a single shell.",
+    );
+    bullet(
+        ui,
+        "Structural limit: the step grows or shrinks so that ln r, ln P, ln T and ln L change by about 0.02 per step. \
+         A step that changes them by more than 0.08 is rejected and repeated with half the time step.",
+    );
+    bullet(ui, "If Newton fails, the step is divided by 3 and retried, up to 12 times; the smallest step is 1 year.");
+    bullet(ui, "First step: 10% of the burning limit, at most 10⁶ years.");
+    sub(ui, "Evolutionary phases");
+    term(ui, "Zero-age main sequence:", "age 0, homogeneous composition.");
+    term(ui, "Main sequence:", "core hydrogen burning, central X ≥ 10⁻³.");
+    term(
+        ui,
+        "H-shell burning (subgiant / Hertzsprung gap):",
+        "central hydrogen exhausted (X_c < 10⁻³); hydrogen burns in a shell around the helium core.",
+    );
+    term(ui, "Red giant:", "shell burning, radius above 5 × the ZAMS radius and T_eff below 5000 K.");
+    term(ui, "Core helium burning:", "triple-α supplies more than 10% of the nuclear energy.");
+    sub(ui, "Stop conditions");
+    term(ui, "End of main sequence:", "central hydrogen below 10⁻³.");
+    term(ui, "Age:", "the chosen age; the last step is shortened to land on it.");
+    term(
+        ui,
+        "As far as possible:",
+        "until T_eff drops below 2600 K (outside the range of the analytic opacities), T_c exceeds 3 × 10⁸ K, \
+         or the solver cannot continue even with tiny steps.",
+    );
+    term(ui, "Safety limits (always):", "3000 steps and an age of 30 Gyr.");
+    sub(ui, "Checks");
+    p(ui, "The hydrogen burnt, times Q_H, must equal the energy radiated over the run:");
+    math(ui, "evo_budget", "");
+    p(
+        ui,
+        "For the Sun evolved to 4.57 Gyr the ratio is 0.995 (an automated test). Along every run the virial check stays \
+         at 1 to about 10⁻⁴, and the energy check, which includes ε_grav, at 1.",
+    );
+    sub(ui, "In the app");
+    bullet(
+        ui,
+        "Evolution section (left panel): choose the stop condition and press Evolve. Stop interrupts a run; Continue \
+         resumes it from its latest model, for example with a later stop condition. Reset to ZAMS discards the run. \
+         Sun's age evolves to 4.57 Gyr.",
+    );
+    bullet(
+        ui,
+        "Timeline (above the views): drag to choose an age, step with < and >, Play through the run, or tick \"follow \
+         latest\" to watch it as it is computed. Every tab shows the selected model.",
+    );
+    bullet(
+        ui,
+        "Every step is added to the HR track. Full models are kept for the timeline when T_eff changes by more than \
+         0.006 dex, L or R by more than 0.015 dex, X_c by more than 0.02, or when the phase or pulsation state changes. \
+         This keeps memory bounded on runs of thousands of steps.",
+    );
+    bullet(
+        ui,
+        "Pin current model pins the selected age. Track CSV exports the global properties of every timeline model.",
+    );
+    bullet(ui, "Changing any input parameter discards the run, because the ZAMS star itself changes.");
+    muted(
+        ui,
+        dark,
+        "Typical runs: the Sun to 4.57 Gyr in 26 steps (0.3 s). A 5 M☉ star from the ZAMS across the Hertzsprung gap \
+         to 2600 K takes about 1650 steps (15 s), computed in the background while the timeline fills.",
+    );
+}
+
+fn pulsation(ui: &mut Ui, dark: bool) {
+    sub(ui, "Radial pulsation modes");
+    p(
+        ui,
+        "For every model (the ZAMS model and every model of an evolution run), the fundamental radial mode is computed \
+         from the linear adiabatic wave equation (ξ: relative radial displacement, p: relative pressure perturbation):",
+    );
+    math(ui, "puls_lawe", "");
+    math(ui, "puls_bc", "");
+    math(ui, "puls_gamma1", "ideal gas + radiation");
+    p(
+        ui,
+        "The dimensionless eigenvalue Ω² is an extra unknown of the boundary-value problem. It is solved with the same \
+         Henyey method as the structure, with three unknowns per mesh point (ξ, p, Ω²). The fundamental mode is the \
+         solution without nodes in ξ. During evolution the previous model's mode is the starting guess, which keeps \
+         the solver on the fundamental branch. Period and pulsation constant:",
+    );
+    math(ui, "puls_period", "");
+    p(ui, "Validation: for a uniform-density sphere the solver reproduces the exact result");
+    math(ui, "puls_homogeneous", "");
+    p(
+        ui,
+        "and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours (the observed solar value is about 1 hour).",
+    );
+    sub(ui, "Which stars pulsate: the instability strip");
+    p(
+        ui,
+        "Whether a mode is actually driven (by the κ mechanism in the He II ionisation zone) needs a non-adiabatic \
+         analysis, which is not done here. Instead, an approximate classical instability strip in the HR diagram decides \
+         it. These are linear fits to the observed strip, from δ Scuti stars (6300–8700 K at log L ≈ 0.5) to classical \
+         Cepheids (about 5400–6800 K at log L ≈ 3.5):",
+    );
+    math(ui, "puls_strip", "");
+    term(
+        ui,
+        "δ Scuti-type:",
+        "inside the strip with log L < 1.7, on or near the main sequence (periods of about 0.02–0.3 d).",
+    );
+    term(
+        ui,
+        "Cepheid-type:",
+        "inside the strip with log L ≥ 1.7, for example while a 4–10 M☉ star crosses the Hertzsprung gap (periods of days).",
+    );
+    p(
+        ui,
+        "Inside the strip the 3D model pulsates with the computed fundamental mode. Each layer is displaced by ξ(r), \
+         largest at the surface and small in the core. One cycle is shown per 1.6 s, the amplitude is exaggerated (6% \
+         of the radius), and the surface is brightest near maximum compression. The HR diagram shows the strip as a \
+         shaded band, and the timeline names the pulsator type and period.",
+    );
+    sub(ui, "Solar-like oscillations");
+    p(
+        ui,
+        "Stars with convective envelopes, like the Sun, oscillate in many p modes excited by turbulent convection. \
+         Their frequency of maximum power and their large frequency separation follow the asteroseismic scaling \
+         relations, shown in the results panel:",
+    );
+    math(ui, "seis_scaling", "");
+    muted(
+        ui,
+        dark,
+        "Real Cepheids change their radius by a few percent and δ Scuti stars by much less; periods range from about \
+         half an hour to weeks. The animation is not to scale in time or amplitude.",
+    );
+}
+
 fn views(ui: &mut Ui, dark: bool) {
     sub(ui, "Colour");
     bullet(
@@ -883,6 +1124,17 @@ fn views(ui: &mut Ui, dark: bool) {
     bullet(ui, "White arcs: boundaries between radiative and convective zones.");
     bullet(
         ui,
+        "Cut-face colouring by hydrogen X (linear scale): hydrogen-rich gas dark, hydrogen-poor gas light. During \
+         evolution the burnt core shows up as a light region (or a light core ball).",
+    );
+    bullet(
+        ui,
+        "Pulsation (models in the instability strip): every layer is drawn at r · (1 + A ξ(r) sin φ), with the computed \
+         fundamental-mode shape ξ(r) (1 at the surface), A = 6% and one cycle per 1.6 s. The surface brightens near \
+         maximum compression. The legend gives the real period.",
+    );
+    bullet(
+        ui,
         "Rendering: orthographic projection on the CPU. About 40,000 shaded triangles are depth-sorted every frame \
          (painter's algorithm, about 2 ms) and drawn as one mesh with 4× multisampling. Overlays use an exact ray test \
          against the cut-away geometry, so they are hidden correctly behind the sphere and the core.",
@@ -899,7 +1151,10 @@ fn views(ui: &mut Ui, dark: bool) {
         &format!(
             "The ZAMS line connects models at {} M☉. They are computed in the background with the current X, Z, α_MLT \
              and f_CNO, 400 mesh points each, by continuation from the current model. T_eff increases to the left, as is \
-             conventional. The ☉ symbol marks the present-day Sun (5772 K, 1 L☉).",
+             conventional. The ☉ symbol marks the present-day Sun (5772 K, 1 L☉). The evolutionary track joins every \
+             step of the current run; labels mark the ZAMS, the end of the main sequence and the latest age, and \
+             hovering over the track shows age, phase, X_c, radius and pulsation. The shaded band is the approximate \
+             classical instability strip (see \"Pulsations & oscillations\").",
             {
                 let mut ms = ZAMS_MASSES.to_vec();
                 ms.sort_by(f64::total_cmp);
@@ -935,6 +1190,31 @@ fn limitations(ui: &mut Ui, dark: bool) {
         "With Z = 0.008 the same physics reproduces the classic StatStar Sun of Carroll & Ostlie (L ≈ 0.83 L☉, \
          T_eff ≈ 5500 K), which confirms that the implementation matches the textbook formulas.",
     );
+    sub(ui, "Evolution");
+    bullet(
+        ui,
+        "Main-sequence lifetimes follow the model luminosities. The analytic Sun is underluminous (0.42 L☉ at the ZAMS), \
+         so it burns slowly and leaves the main sequence after about 17 Gyr instead of about 10 Gyr. Intermediate-mass \
+         and massive stars come out within about 20% of detailed models (for example 1.43 Gyr for 1.8 M☉ and 76 Myr \
+         for 5 M☉, against roughly 1.2–1.5 Gyr and 90–100 Myr).",
+    );
+    bullet(
+        ui,
+        "After the main sequence the results are qualitative. Without electron degeneracy, hydrogen and helium \
+         ionisation or molecular opacities, low-mass stars do not climb the red giant branch. They cool towards 2600 K at \
+         roughly constant luminosity, the helium flash cannot occur, and runs stop there.",
+    );
+    bullet(
+        ui,
+        "The hydrogen-burning shell after the main sequence is thin in mass. Global results are converged at 800 points \
+         (5 M☉ crossing: L within 0.2% of 3000 points), but more mesh points resolve the shell's profile better.",
+    );
+    bullet(ui, "Not included: convective overshooting, semiconvection, mass loss, rotational mixing, neutrino losses.");
+    bullet(
+        ui,
+        "Pulsation: the period is computed, but driving is not. The instability strip is an empirical band, so stars \
+         are flagged by position, not by a stability analysis.",
+    );
     sub(ui, "Not modelled");
     bullet(ui, "Partial ionisation of H and He (Saha equation): this affects the convective envelopes of cool stars.");
     bullet(ui, "Electron degeneracy and Coulomb interactions: these matter below about 0.4 M☉.");
@@ -942,10 +1222,7 @@ fn limitations(ui: &mut Ui, dark: bool) {
         ui,
         "Tabulated opacities (OPAL/OP, low-temperature molecular tables) and detailed model atmospheres (a grey Eddington atmosphere is used).",
     );
-    bullet(
-        ui,
-        "Neutrino losses; time evolution (age, burnt composition, ε_grav); rotation; magnetic fields; mass loss; diffusion; overshooting.",
-    );
+    bullet(ui, "Neutrino losses; rotation; magnetic fields; mass loss; element diffusion; overshooting.");
     bullet(
         ui,
         "Very massive stars (above about 50 M☉) approach the Eddington limit, where this simple treatment becomes crude.",
@@ -953,8 +1230,9 @@ fn limitations(ui: &mut Ui, dark: bool) {
     sub(ui, "Planned");
     p(
         ui,
-        "• Tabulated opacities and an EOS with ionisation, plugged into the existing physics interfaces.\n\
-         • Time evolution, for example the Sun at 4.57 Gyr.\n\
+        "• Tabulated opacities and an EOS with ionisation and degeneracy, plugged into the existing physics interfaces. \
+         This is the step that would make the solar model quantitative and allow the red giant branch.\n\
+         • Adaptive remeshing around burning shells.\n\
          • A web version.",
     );
     muted(
@@ -1006,7 +1284,11 @@ fn cli(ui: &mut Ui, dark: bool) {
         ("-o, --output <file>", "write the profile CSV"),
         ("--json <file>", "write the summary JSON"),
         ("--sweep <M1,M2,…>", "solve a ZAMS sequence by continuation and print a table"),
-        ("-v, --verbose", "print every Newton iteration"),
+        ("--evolve", "evolve the star from the ZAMS and print the track"),
+        ("--until <tams|age|max>", "stop condition: end of main sequence (default), age, or as far as possible"),
+        ("--max-age <Gyr>", "target age with --until age; otherwise a safety limit"),
+        ("--track <file>", "write the evolutionary track (one row per model) as CSV"),
+        ("-v, --verbose", "print every Newton iteration (every model with --evolve)"),
         ("-h, --help / -V, --version", "print help / version"),
     ];
     egui::Grid::new("cli_opts").num_columns(2).striped(true).spacing([20.0, 3.0]).show(ui, |ui| {
@@ -1020,6 +1302,8 @@ fn cli(ui: &mut Ui, dark: bool) {
     eq(ui, "stellar-cli --mass 1 -o sun.csv --json sun.json");
     eq(ui, "stellar-cli --sweep 0.5,1,2,5,10,20");
     eq(ui, "stellar-cli --mass 3 --z 0.008 -v");
+    eq(ui, "stellar-cli --mass 1 --evolve --until age --max-age 4.57");
+    eq(ui, "stellar-cli --mass 5 --evolve --until max --track track.csv -o final_profile.csv");
     muted(
         ui,
         dark,
@@ -1050,6 +1334,21 @@ fn references(ui: &mut Ui, dark: bool) {
     );
     term(ui, "Asplund, Grevesse, Sauval & Scott (2009),", "ARA&A 47, 481: the AGSS09 solar composition preset.");
     term(ui, "IAU 2015 Resolution B3:", "nominal solar radius, luminosity and effective temperature.");
+    term(
+        ui,
+        "Cox (1980),",
+        "Theory of Stellar Pulsation, Princeton University Press: the linear adiabatic wave equation and its boundary conditions.",
+    );
+    term(
+        ui,
+        "Unno, Osaki, Ando, Saio & Shibahashi (1989),",
+        "Nonradial Oscillations of Stars, 2nd ed., University of Tokyo Press.",
+    );
+    term(
+        ui,
+        "Brown, Gilliland, Noyes & Ramsey (1991),",
+        "ApJ 368, 599, and Kjeldsen & Bedding (1995), A&A 293, 87: the ν_max and Δν scaling relations.",
+    );
     sub(ui, "Software");
     term(
         ui,

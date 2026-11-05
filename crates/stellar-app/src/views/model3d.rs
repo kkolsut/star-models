@@ -74,6 +74,31 @@ const N: usize = 24;
 pub enum FaceQuantity {
     Temperature,
     Density,
+    /// Hydrogen mass fraction: shows the helium core growing during evolution.
+    Hydrogen,
+}
+
+/// Seconds of animation time per pulsation cycle (the real period is shown in the legend).
+const PULSE_VIS_PERIOD: f32 = 1.6;
+
+/// Radial pulsation of a model inside the instability strip.
+struct ScenePulse {
+    /// Eigenfunction ξ = δr/r (1 at the surface) sampled on normalised radius.
+    rn: Vec<f32>,
+    xi: Vec<f32>,
+    period_days: f64,
+    kind: stellar_core::pulsation::PulsatorType,
+}
+
+impl ScenePulse {
+    fn xi_at(&self, r: f32) -> f32 {
+        if r <= self.rn[0] {
+            return self.xi[0];
+        }
+        let i = self.rn.partition_point(|&x| x < r).clamp(1, self.rn.len() - 1);
+        let w = ((r - self.rn[i - 1]) / (self.rn[i] - self.rn[i - 1]).max(1e-9)).clamp(0.0, 1.0);
+        self.xi[i - 1] + w * (self.xi[i] - self.xi[i - 1])
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -108,6 +133,8 @@ struct Scene {
     radiative: Vec<(f32, f32)>,
     /// Zone boundaries (r/R) to outline on the faces.
     boundaries: Vec<f32>,
+    /// Fundamental radial mode, if the model lies in the instability strip.
+    pulsation: Option<ScenePulse>,
 }
 
 pub struct Model3dState {
@@ -120,6 +147,10 @@ pub struct Model3dState {
     pub auto_rotate: bool,
     pub quantity: FaceQuantity,
     pub core_sphere: bool,
+    /// Animate radial pulsation when the star is in the instability strip.
+    pub pulsate: bool,
+    /// Displayed relative radius amplitude of the pulsation (exaggerated).
+    pub amplitude: f32,
     sim_time: f64,
     /// Zoom onto the envelope on the next frame (needs the canvas size).
     pending_surface_zoom: bool,
@@ -141,6 +172,8 @@ impl Default for Model3dState {
             auto_rotate: false,
             quantity: FaceQuantity::Temperature,
             core_sphere: true,
+            pulsate: true,
+            amplitude: 0.06,
             sim_time: 0.0,
             pending_surface_zoom: false,
             scene: None,
@@ -149,6 +182,12 @@ impl Default for Model3dState {
 }
 
 impl Model3dState {
+    /// Stop the animation at a given animation time (used by the capture mode).
+    pub fn freeze_at(&mut self, t: f64) {
+        self.sim_time = t;
+        self.animate = false;
+    }
+
     /// Request a zoom onto the outer envelope at the cut (resolved on the next
     /// frame, once the canvas size is known).
     pub fn zoom_to_surface(&mut self) {
@@ -226,16 +265,17 @@ fn build_scene(model: &Arc<StarModel>, quantity: FaceQuantity, core_sphere: bool
     let p = &model.profile;
     let r_surf = *p.r.last().unwrap();
     let rn: Vec<f64> = p.r.iter().map(|r| r / r_surf).collect();
-    let values = match quantity {
-        FaceQuantity::Temperature => &p.t,
-        FaceQuantity::Density => &p.rho,
-    };
     // Physical metaphor: hotter / denser = brighter, in both themes.
-    let ramp = match quantity {
-        FaceQuantity::Temperature => Ramp::orange(true),
-        FaceQuantity::Density => Ramp::blue(true),
+    let field = match quantity {
+        FaceQuantity::Temperature => Field::new(&p.t, Ramp::orange(true)),
+        FaceQuantity::Density => Field::new(&p.rho, Ramp::blue(true)),
+        FaceQuantity::Hydrogen => {
+            let x_max = p.x.iter().cloned().fold(0.0, f64::max);
+            // Hydrogen-rich gas dark, the burnt (helium) core light: the core
+            // stands out and the overlays keep their contrast.
+            Field::linear(&p.x, Ramp::aqua(false), x_max)
+        }
     };
-    let field = Field::new(values, ramp);
     let g = &model.globals;
 
     // The ball: the convective core if there is one (and it is not the whole
@@ -332,6 +372,17 @@ fn build_scene(model: &Arc<StarModel>, quantity: FaceQuantity, core_sphere: bool
         octant_patch(&mut verts, &mut tris, [1.0, 1.0, 1.0], r_core, c, Kind::Core);
     }
 
+    let pulsation = model.pulsation.as_ref().and_then(|mode| {
+        let kind = stellar_core::pulsation::classify(g.teff, g.luminosity)?;
+        let xi_s = *mode.xi.last()?;
+        (mode.xi.len() == rn.len()).then(|| ScenePulse {
+            rn: rn.iter().map(|&r| r as f32).collect(),
+            xi: mode.xi.iter().map(|&x| (x / xi_s) as f32).collect(),
+            period_days: mode.period_days(),
+            kind,
+        })
+    });
+
     Scene {
         key: (Arc::as_ptr(model) as usize, quantity, core_sphere),
         verts,
@@ -345,6 +396,7 @@ fn build_scene(model: &Arc<StarModel>, quantity: FaceQuantity, core_sphere: bool
         convective,
         radiative,
         boundaries,
+        pulsation,
     }
 }
 
@@ -470,17 +522,29 @@ fn photon(painter: &egui::Painter, p: Pos2, r: f32, alpha: f32) {
 pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
     let dark = v.dark;
 
-    // Controls, in two short rows so they fit narrow windows.
+    let key = (Arc::as_ptr(v.model) as usize, state.quantity, state.core_sphere);
+    if state.scene.as_ref().is_none_or(|s| s.key != key) {
+        state.scene = Some(build_scene(v.model, state.quantity, state.core_sphere));
+    }
+    let pulsating = state.scene.as_ref().is_some_and(|s| s.pulsation.is_some());
+
+    // Controls, in short rows so they fit narrow windows.
     ui.horizontal(|ui| {
         ui.label("Cut faces:");
         ui.radio_value(&mut state.quantity, FaceQuantity::Temperature, "temperature");
         ui.radio_value(&mut state.quantity, FaceQuantity::Density, "density");
+        ui.radio_value(&mut state.quantity, FaceQuantity::Hydrogen, "hydrogen X")
+            .on_hover_text("hydrogen mass fraction: the helium core grows as the star evolves");
         ui.separator();
         ui.checkbox(&mut state.core_sphere, "core as sphere");
         ui.separator();
         ui.checkbox(&mut state.animate, "animate");
         ui.add(egui::Slider::new(&mut state.speed, 0.1..=5.0).logarithmic(true).text("speed").max_decimals(1));
         ui.checkbox(&mut state.auto_rotate, "auto-rotate");
+        ui.separator();
+        ui.add_enabled(pulsating, egui::Checkbox::new(&mut state.pulsate, "pulsation"))
+            .on_hover_text("radial pulsation, shown when the star lies in the instability strip")
+            .on_disabled_hover_text("this model is outside the instability strip: no classical pulsation");
     });
     ui.horizontal(|ui| {
         ui.add(egui::Slider::new(&mut state.zoom, 0.3..=400.0).logarithmic(true).text("zoom").max_decimals(1));
@@ -496,11 +560,6 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
                 .color(theme::muted(dark)),
         );
     });
-
-    let key = (Arc::as_ptr(v.model) as usize, state.quantity, state.core_sphere);
-    if state.scene.as_ref().is_none_or(|s| s.key != key) {
-        state.scene = Some(build_scene(v.model, state.quantity, state.core_sphere));
-    }
 
     let (resp, painter) = ui.allocate_painter(ui.available_size(), Sense::click_and_drag());
     let rect = resp.rect;
@@ -562,6 +621,14 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
         (pos2(origin.x + q[0] * scale_px, origin.y - q[1] * scale_px), q[2])
     };
     let t = state.sim_time as f32;
+    // Radial pulsation: each layer moves by ξ(r) (1 at the surface) times the
+    // displayed amplitude; layers are shown at r · (1 + A ξ(r) sin φ).
+    let pulse = scene.pulsation.as_ref().filter(|_| state.pulsate);
+    let pulse_s = (TAU * t / PULSE_VIS_PERIOD).sin();
+    let amp = state.amplitude;
+    let disp = |r: f32| -> f32 { pulse.map_or(1.0, |p| 1.0 + amp * p.xi_at(r) * pulse_s) };
+    // Project a point of the static geometry at its pulsating position.
+    let proj = |p: V3| project(scale(p, disp(dot(p, p).sqrt())));
 
     // Soft ground shadow (light theme only; invisible on dark backgrounds).
     if !dark && state.pan.length() < 1.0 && state.zoom < 1.5 {
@@ -586,8 +653,10 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
     let mut depth = Vec::with_capacity(scene.verts.len());
     let mut nz = Vec::with_capacity(scene.verts.len());
     let mut colors = Vec::with_capacity(scene.verts.len());
+    // The surface is hottest and brightest near maximum compression.
+    let pulse_light = if pulse.is_some() { 1.0 - 2.5 * amp * pulse_s } else { 1.0 };
     for vtx in &scene.verts {
-        let (s, z) = project(vtx.p);
+        let (s, z) = project(scale(vtx.p, disp(vtx.r)));
         let n = rot.apply(vtx.n);
         screen.push(s);
         depth.push(z);
@@ -597,7 +666,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
         let c = match vtx.kind {
             Kind::Surface => {
                 let gran = if scene.envelope_convective { 1.0 + 0.07 * granulation(vtx.p, t * 0.6, 18.0) } else { 1.0 };
-                let k = (0.38 + 0.62 * diffuse) * gran;
+                let k = (0.38 + 0.62 * diffuse) * gran * pulse_light;
                 vtx.c.map(|c| c * k + 0.30 * spec)
             }
             Kind::Face => {
@@ -645,7 +714,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
             let pts: Vec<(Pos2, bool)> = (0..=48)
                 .map(|k| {
                     let p = face_point(f, rb, FRAC_PI_2 * k as f32 / 48.0);
-                    (project(p).0, vis(p))
+                    (proj(p).0, vis(p))
                 })
                 .collect();
             for w in pts.windows(2) {
@@ -682,7 +751,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
             if alpha <= 0.0 || !vis(p_now) {
                 continue;
             }
-            let (s_now, _) = project(p_now);
+            let (s_now, _) = proj(p_now);
             // Short trail showing the zig-zag path.
             let mut prev = s_now;
             for k in 1..=5 {
@@ -690,7 +759,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
                 if !vis(pk) || (phase + (t - 0.12 * k as f32) * speed).fract() > frac {
                     break;
                 }
-                let sk = project(pk).0;
+                let sk = proj(pk).0;
                 let a_k = alpha * (1.0 - k as f32 / 6.0) * 0.6;
                 painter.line_segment([prev, sk], Stroke::new(1.0, PHOTON.gamma_multiply(a_k)));
                 prev = sk;
@@ -726,7 +795,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
                     let pts: Vec<(Pos2, bool)> = (0..=24)
                         .map(|k| {
                             let p = at_angle(TAU * k as f32 / 24.0);
-                            (project(p).0, vis(p))
+                            (proj(p).0, vis(p))
                         })
                         .collect();
                     if pts.iter().all(|p| !p.1) {
@@ -748,7 +817,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
                         // dr/dt ∝ −sin θ · dir: positive means the parcel rises.
                         let rising = -th.sin() * dir > 0.0;
                         let col_ = if rising { RISING } else { SINKING };
-                        let sp = project(p).0;
+                        let sp = proj(p).0;
                         painter.circle(sp, dot_r, col_, Stroke::new(0.8, Color32::from_black_alpha(120)));
                     }
                 }
@@ -764,6 +833,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
     let (title, unit) = match state.quantity {
         FaceQuantity::Temperature => ("T", "K"),
         FaceQuantity::Density => ("ρ", "g cm⁻³"),
+        FaceQuantity::Hydrogen => ("X", ""),
     };
     painter.rect_filled(
         Rect::from_min_max(pos2(bar.left() - 52.0, bar.top() - 30.0), pos2(bar.right() + 10.0, bar.bottom() + 10.0)),
@@ -771,7 +841,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
         panel_backdrop(dark),
     );
     colorbar(&painter, bar, &scene.field, title, unit, true, dark);
-    draw_legend(&painter, rect, scene, v.model, dark, dot_r);
+    draw_legend(&painter, rect, scene, v.model, dark, dot_r, pulse.is_some());
 
     // Hover read-out: front-most triangle under the pointer.
     if let Some(m) = resp.hover_pos()
@@ -811,13 +881,14 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
                     let head =
                         if kind == Kind::Core { format!("{} boundary\n", scene.core_label) } else { String::new() };
                     format!(
-                        "{head}r/R = {:.4}\nm/M = {:.4}\nT = {} K\nρ = {} g cm⁻³\nP = {} dyn cm⁻²\nL/L_s = {:.4}\n{zone} transport",
+                        "{head}r/R = {:.4}\nm/M = {:.4}\nT = {} K\nρ = {} g cm⁻³\nP = {} dyn cm⁻²\nL/L_s = {:.4}\nX = {:.4}\n{zone} transport",
                         s,
                         interp(rn, &pr.q, s),
                         fmt_value(log_at(&pr.t)),
                         fmt_value(log_at(&pr.rho)),
                         fmt_value(log_at(&pr.p)),
                         interp(rn, &pr.l, s) / pr.l[pr.len() - 1],
+                        interp(rn, &pr.x, s),
                     )
                 }
             };
@@ -839,7 +910,15 @@ fn panel_backdrop(dark: bool) -> Color32 {
     }
 }
 
-fn draw_legend(painter: &egui::Painter, rect: Rect, scene: &Scene, model: &StarModel, dark: bool, dot_r: f32) {
+fn draw_legend(
+    painter: &egui::Painter,
+    rect: Rect,
+    scene: &Scene,
+    model: &StarModel,
+    dark: bool,
+    dot_r: f32,
+    pulsing: bool,
+) {
     // Icons sit on a chip of face colour, as they appear on the star.
     let chip = scene.field.color_at(&scene.rn, 0.85);
     let ink = theme::primary(dark);
@@ -869,6 +948,17 @@ fn draw_legend(painter: &egui::Painter, rect: Rect, scene: &Scene, model: &StarM
         ),
     ));
     lines.push((None, "white arcs: boundaries between radiative and convective zones".into()));
+    if let Some(p) = &scene.pulsation {
+        let state = if pulsing { "" } else { " (animation off)" };
+        lines.push((
+            None,
+            format!(
+                "{}: fundamental radial mode, P = {}; shown as 1 cycle per {PULSE_VIS_PERIOD} s, amplitude exaggerated{state}",
+                p.kind.label(),
+                crate::evolution::fmt_period(p.period_days)
+            ),
+        ));
+    }
     let width = lines.iter().map(|(_, t)| t.chars().count()).max().unwrap_or(0) as f32 * 6.6 + 34.0;
     let height = lines.len() as f32 * 18.0 + 10.0;
     let backdrop = Rect::from_min_max(pos2(x - 6.0, y - height + 2.0), pos2(x + width, y + 6.0));

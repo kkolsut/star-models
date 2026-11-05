@@ -121,6 +121,8 @@ pub struct ViewCtx<'a> {
     pub pinned: &'a [PinnedModel],
     pub x_axis: XAxis,
     pub dark: bool,
+    /// Evolutionary track of the current run (empty without a run).
+    pub track: &'a [crate::evolution::TrackPoint],
 }
 
 impl ViewCtx<'_> {
@@ -135,7 +137,8 @@ impl ViewCtx<'_> {
 }
 
 pub fn model_label(m: &StarModel) -> String {
-    format!("{:.2} M☉, X={:.3}, Z={:.4}", m.params.mass, m.params.x, m.params.z)
+    let base = format!("{:.2} M☉, X={:.3}, Z={:.4}", m.params.mass, m.params.x, m.params.z);
+    if m.globals.age_yr > 0.0 { format!("{base}, {}", stellar_core::fmt_age(m.globals.age_yr)) } else { base }
 }
 
 /// A plotted quantity: how to read it from a profile and how to label it.
