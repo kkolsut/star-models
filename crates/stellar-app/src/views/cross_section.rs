@@ -191,7 +191,9 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut CrossSectionState) {
     let rn: Vec<f64> = p.r.iter().map(|r| r / r_surf).collect();
 
     ui.horizontal(|ui| {
-        ui.checkbox(&mut state.animate, "Animate convection cells");
+        ui.checkbox(&mut state.animate, "Animate convection cells").on_hover_text(
+            "the cells are illustrative: the model is 1D, so their size, shape and speed are not computed",
+        );
         ui.checkbox(&mut state.true_size, "true size").on_hover_text(
             "during an evolution run: draw the star to scale, relative to its largest radius in the run",
         );

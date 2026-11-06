@@ -4,7 +4,7 @@
 use super::equations::{I_LNP, I_LNR, I_LNT, NVAR, PrevStep, StructureProblem};
 use super::initial::polytrope_guess;
 use super::mesh::{make_mesh, remap};
-use super::model::{StarModel, StarParams, build_model, sanity_check};
+use super::model::{Residuals, StarModel, StarParams, build_model, sanity_check};
 use crate::composition::Composition;
 use crate::physics::Physics;
 use crate::solver::{HenyeyNewton, NewtonOptions, StepOutcome};
@@ -40,6 +40,8 @@ impl SolveControl for NoControl {}
 
 const COLD_START: NewtonOptions = NewtonOptions { max_iter: 250, tol: 1e-8 };
 const WARM_START: NewtonOptions = NewtonOptions { max_iter: 60, tol: 1e-8 };
+/// Largest residual of any discretised equation accepted in a converged model.
+const MAX_RESIDUAL: f64 = 1e-6;
 /// Smallest continuation step (as a fraction of the full path).
 const MIN_STEP: f64 = 1.0 / 1024.0;
 
@@ -159,7 +161,17 @@ pub fn solve_structure(
                     damping: info.damping,
                 });
                 let iters = nr.iterations();
-                let model = build_model(params, &problem, q, nr.into_solution(), iters, info.max_correction);
+                let residuals = Residuals::from_summary(&nr.residual_summary());
+                // Convergence is judged on the correction size; also require the
+                // discretised equations themselves to be satisfied. Converged
+                // models reach ~1e-14, so this only catches pathological cases.
+                if !(residuals.max() < MAX_RESIDUAL) {
+                    return Err(SolveError::NoConvergence(format!(
+                        "residual {:.1e} above {MAX_RESIDUAL:.0e} after convergence",
+                        residuals.max()
+                    )));
+                }
+                let model = build_model(params, &problem, q, nr.into_solution(), iters, info.max_correction, residuals);
                 sanity_check(&model).map_err(SolveError::NoConvergence)?;
                 return Ok(model);
             }

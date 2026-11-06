@@ -1008,6 +1008,10 @@ fn draw_legend(
         ),
     ));
     lines.push((None, "white arcs: boundaries between radiative and convective zones".into()));
+    lines.push((
+        None,
+        "photons, convection cells and granulation are illustrative: a 1D model, not a 3D simulation".into(),
+    ));
     if let Some(note) = size_note {
         lines.push((None, note));
     }

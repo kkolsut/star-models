@@ -14,6 +14,7 @@ These are shown in the left panel, the Compare table and the JSON export.
 | Virial check | Should be 1 (see [below](#virial-check)) |
 | Energy check | Should be 1 (see [below](#energy-check)) |
 | Newton iterations | Iterations in the last solver step (a continuation may take several steps) |
+| Max residual | Largest residual of the discretised equations (see [below](#residuals)) |
 | Age | Time since the ZAMS (0 unless the star has been evolved) |
 | Phase | Evolutionary phase, see [Evolution in time](12-evolution.md#evolutionary-phases) |
 | $`X_c`$ / He core [$`m/M`$] | Central hydrogen mass fraction, and the mass fraction of the hydrogen-exhausted core ($`X < 10^{-3}`$) |
@@ -44,9 +45,20 @@ $`L_0`$ is the luminosity of the innermost point.
 \frac{\displaystyle\int_{m_0}^M \varepsilon\, dm + L_0}{L} = 1 \qquad \text{(energy conservation)}
 ```
 
-The integral uses the solver's own midpoint rule, so this verifies that the converged solution
-conserves energy globally. An evolution run also has an independent energy budget, described in
-[Evolution in time](12-evolution.md#checks).
+The integral uses the solver's own midpoint rule. It therefore integrates the same difference equation
+the solver satisfies, and holds by construction for a converged model: it is a **discretisation
+consistency check**, not an independent test of energy conservation. An evolution run has an
+independent energy budget, described in [Evolution in time](12-evolution.md#checks).
+
+## Residuals
+
+The largest residual of each discretised equation (continuity, hydrostatic equilibrium, energy,
+transport, and the boundary conditions), evaluated for the converged model. They are dimensionless and
+typically about $`10^{-14}`$. Hover over the checks line in the app to see each one; the CLI prints
+them, and the JSON export has them under `globals.residuals`.
+
+> The virial, energy and residual checks measure **numerical** consistency. They say nothing about how
+> close the model is to a real star; see [Accuracy & limitations](15-limitations.md).
 
 ## "Sun today" reference column
 

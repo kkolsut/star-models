@@ -103,10 +103,19 @@ fn print_summary(m: &StarModel) {
         "  zones: {}",
         m.zones.iter().map(|z| format!("[r/R {:.4}–{:.4}]", z.r_inner, z.r_outer)).collect::<Vec<_>>().join(" ")
     );
+    let r = &g.residuals;
     println!(
-        "  checks: virial {:.5}  energy {:.5}  Newton iters {}",
-        g.virial_ratio, g.energy_ratio, g.newton_iterations
+        "  checks: virial {:.5}  energy {:.5} (discretisation)  Newton iters {}  max|F| {:.1e}",
+        g.virial_ratio,
+        g.energy_ratio,
+        g.newton_iterations,
+        r.max()
     );
+    println!(
+        "  residuals: continuity {:.1e}  hydrostatic {:.1e}  energy {:.1e}  transport {:.1e}  boundary {:.1e}",
+        r.continuity, r.hydrostatic, r.energy, r.transport, r.boundary
+    );
+    println!("  physics: {}; MLT α = {}", m.physics, m.params.alpha_mlt);
 }
 
 fn main() -> Result<()> {

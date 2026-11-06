@@ -21,18 +21,22 @@ This model also has $`T_{\mathrm{eff}} \approx 4400`$ K. Two things cause the di
 
 With $`Z = 0.008`$ the same physics reproduces the classic StatStar Sun of Carroll & Ostlie
 ($`L \approx 0.83\,L_\odot`$, $`T_{\mathrm{eff}} \approx 5500`$ K). This confirms that the
-implementation matches the textbook formulas.
+implementation is consistent with the textbook formulas. This is a check of the code (verification),
+not a validation against the real Sun.
+
+The numerical checks (virial, energy, residuals, mesh refinement, time-step convergence) show that the
+equations are solved accurately. They say nothing about how realistic the physics is.
 
 ## Evolution
 
 * **Lifetimes:** main-sequence lifetimes follow the model luminosities.
   * The analytic Sun is underluminous (0.42 L☉ at the ZAMS), so it burns slowly. It leaves the main
-    sequence after about 17 Gyr instead of about 10 Gyr.
+    sequence after about 14 Gyr instead of about 10 Gyr.
   * Intermediate-mass and massive stars come out within about 20% of detailed models:
 
     | Mass | This model | Detailed models |
     |---|---|---|
-    | 1.8 M☉ | 1.43 Gyr | roughly 1.2–1.5 Gyr |
+    | 1.8 M☉ | 1.41 Gyr | roughly 1.2–1.5 Gyr |
     | 5 M☉ | 76 Myr | roughly 90–100 Myr |
 * **After the main sequence** the results are qualitative.
   * Without electron degeneracy, hydrogen and helium ionisation or molecular opacities, low-mass stars
