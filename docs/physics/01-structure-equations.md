@@ -62,9 +62,29 @@ The unknowns are $`\ln r`$, $`\ln P`$, $`\ln T`$ and $`L`$:
 ```
 
 $`\varepsilon_\nu(\rho, T, \text{composition})`$ is the loss by *thermal* neutrinos (plasma, photo,
-pair, bremsstrahlung), from the fits of Itoh et al. (1996) **[check source]**. It is separate from
-the *reaction* neutrinos, which are already subtracted in the $`Q`$ values of
-[Nuclear burning](04-nuclear-burning.md) and must not be counted twice.
+pair, bremsstrahlung), from the fits of Itoh, Hayashi, Nishikawa & Kohyama (1996, ApJS 102, 411–424;
+original read 2026-11-11). It is separate from the *reaction* neutrinos, which are already
+subtracted in the $`Q`$ values of [Nuclear burning](04-nuclear-burning.md) and must not be counted
+twice.
+
+What the paper gives, for whoever codes it (no coefficients are copied here; take them from the
+paper):
+
+| Process | Location in Itoh et al. (1996) | Fit valid for |
+|---|---|---|
+| pair | §2, eqs. 2.1–2.10, Table 1 (fit of Itoh et al. 1989) | $`10^{0} \le \rho/\mu_e \le 10^{14}`$ g cm⁻³, $`10^{7} \le T \le 10^{11}`$ K |
+| photo | §3, eqs. 3.1–3.8, Table 2 (fit of Itoh et al. 1989) | $`10^{0} \le \rho/\mu_e \le 10^{11}`$ g cm⁻³, $`10^{7} \le T \le 10^{11}`$ K |
+| plasma | §4, eqs. 4.1–4.11 (the fit of Haft, Raffelt & Weiss 1994, their eqs. 23–27, reproduced) | range not stated in the paper |
+| bremsstrahlung, gas | §5.1, eqs. 5.1–5.15 | $`10^{0} \le \rho/\mu_e \le 10^{12}`$ g cm⁻³, $`10^{8} \le T \le 10^{11}`$ K |
+| bremsstrahlung, liquid | §5.2–5.3, eqs. 5.16–5.28, Tables 3–4 | $`10^{4} \le \rho \le 4.3\times10^{11}`$ g cm⁻³, $`1 \le \Gamma \le 160`$ |
+| bremsstrahlung, crystal ($`\Gamma \ge 180`$) | later in §5 (lattice and phonon parts) | not recorded here |
+| recombination | §6, Table 12 | not recorded here |
+
+The rates are per unit volume (erg cm⁻³ s⁻¹, §1), so $`\varepsilon_\nu`$ is the sum divided by
+$`\rho`$. The stated accuracy is about 10% (pair), 1% (photo) and 5% (plasma) where that process
+dominates; it is poor outside those regions, where the paper recommends its numerical tables
+(CD-ROM) instead (§§2–3). "Applied wherever they are valid" in plan 9.6 refers to these ranges; what
+to do outside them is still to be decided.
 
 There is no single temperature threshold: the rate depends on density and composition as well.
 Plasma neutrinos already cool the helium cores of red giants near $`10^8`$ K, where they shift the

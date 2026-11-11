@@ -136,20 +136,48 @@ Wherever $`\varepsilon_{3\alpha} > 0`$:
 |\Delta Y| \le \min\!\left(0.01,\ \max(0.3\,Y,\ 10^{-5})\right)
 ```
 
-### Mass loss (E1, plan phase 4) **[check source]**
+### Mass loss (E1, plan phase 4)
 
 *Hot stars* (de Jager, Nieuwenhuijzen & van der Hucht 1988), in M☉ yr⁻¹, with a metallicity factor
 (Vink, de Koter & Lamers 2001):
 
 ```math
-\log\left(-\dot M\right) = -8.158 + 1.769\,\log\frac{L}{L_\odot} - 1.676\,\log T_{\mathrm{eff}}, \qquad \dot M \propto \left(\frac{Z}{0.02}\right)^{0.7}
+\log\left(-\dot M\right) = -8.158 + 1.769\,\log\frac{L}{L_\odot} - 1.676\,\log T_{\mathrm{eff}}, \qquad \dot M \propto \left(\frac{Z}{0.019}\right)^{0.69}
 ```
 
-*Cool giants* (Reimers 1975), in solar units, $`\eta \approx 0.5`$:
+*Source comparison.* The three coefficients agree with de Jager et al. (1988), §4, remark 3,
+p. 264. That linear form is the paper's own reduction of its fit to the linear terms; the fit
+itself is a 20-term Chebyshev expansion in $`\log T_{\mathrm{eff}}`$ and $`\log(L/L_\odot)`$
+(eq. 1, p. 262, normalised form p. 263, coefficients in Table VI), valid for
+$`3.3 \le \log T_{\mathrm{eff}} \le 4.8`$ and $`2.5 \le \log(L/L_\odot) \le 6.7`$ (p. 263), and
+covering O through M stars, not only hot ones. The linear form drops the higher terms; at the
+paper's central point ($`\log T_{\mathrm{eff}} = 4.05`$, $`\log L/L_\odot = 4.6`$) it gives
+$`\log(-\dot M) = -6.81`$, the value the paper quotes there (p. 264); its departure from the full
+fit elsewhere is not quantified in the paper. The unit is not stated on the pages read; the values
+of Table I (e.g. 4.90 for $`-\log(-\dot M)`$ of an O3 If star, p. 270) are in M☉ yr⁻¹.
+
+The metallicity factor was compared with Vink et al. (2001), §7, eqs. 21–22 and the text after
+them, and the abstract: $`\dot M \propto Z^{0.85}\,v_\infty^{p}`$ at fixed $`v_\infty/v_{\mathrm{esc}}`$;
+with $`v_\infty \propto Z^{0.13}`$ this becomes $`\dot M \propto Z^{0.69}`$ for
+$`T_{\mathrm{eff}} \gtrsim 25\,000`$ K and $`Z^{0.64}`$ for B supergiants below, for
+$`1/30 \le Z/Z_\odot \le 3`$, with $`Z_\odot = 0.019`$ (§4). *Changed:* the exponent was 0.7 and the
+reference metallicity 0.02; they are now the source's 0.69 and 0.019 (O-star side). Multiplying the
+de Jager fit by Vink's factor is a combination made here, not a prescription of either paper; the
+Vink factor belongs to Vink's own recipe (eq. 24, which has $`+0.85\log(Z/Z_\odot)`$ at fixed
+$`v_\infty/v_{\mathrm{esc}}`$).
+
+*Cool giants* (Reimers 1975), in solar units, $`\eta \approx 0.5`$ **[check source]**:
 
 ```math
 \dot M = -4\times10^{-13}\,\eta\,\frac{L\,R}{M} \qquad [M_\odot\,\mathrm{yr}^{-1}]
 ```
+
+The original (Reimers 1975, Mém. Soc. R. Sci. Liège, 6e sér., 8, 369) was not obtained. The
+coefficient $`4\times10^{-13}`$ for $`L/(gR)`$ in solar units, i.e. $`L R / M`$, is confirmed by
+Reimers (1977, A&A 61, 217), p. 217, who quotes it as his 1975 proposal and recalibrates it to
+$`1.4\times10^{-13}`$ (p. 223, i.e. $`\eta \approx 0.35`$ in the form above). The factor $`\eta`$
+does not appear there, and the value $`\eta \approx 0.5`$ is unverified: choose and cite a
+calibration before coding.
 
 Estimated loss on the main sequence from the ZAMS models: 0.003 M☉ (5 M☉), about 0.2 M☉ (20 M☉),
 5–10 M☉ (60 M☉).

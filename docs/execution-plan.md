@@ -93,22 +93,25 @@ the convection zone.
 
 Worked in slices; the slice for a task is done before that task starts (rule 6).
 
-| For task | To verify |
-|---|---|
-| 1.4 | bounded scale height (Eggleton 1971) |
-| 1.6 | Kippenhahn–Weigert(–Weiss) pp and CNO fits; Solar Fusion III thermal rates and S factors; attribution of the old C_α |
-| 1.7 | Y_p, ΔY/ΔZ |
-| 3.3 | Krishna Swamy coefficients in the original; its optical-depth scale (τ₅₀₀₀ or Rosseland) |
-| 4.1 | de Jager et al. and Reimers fits; metallicity exponent |
-| 5.1 | gravity-darkening exponents |
-| 6.3, 6.4 | ionisation energies and weights; Pols et al. (1995) potential and constants in the original |
-| 6.5 | Paczyński formulas, including the energy expression |
-| 7.1–7.5 | table formats, mixture, type 2 (C/O) tables, conduction fit |
-| 9.6, 9.7 | Itoh et al. fits; Chugunov & DeWitt coefficients; the unpublished electron-response extension; the triple-α product form |
-| 9.5 | ¹²C(α,γ)¹⁶O rate and energies |
-| 8.2, 8.5 | overshoot f₀; Thoul et al. diffusion velocities |
-| 9.1 | Cowling equations as printed in Unno et al. |
-| all | journal volume and page numbers in p. 12 |
+| For task | To verify | Status (2026-11-11) |
+|---|---|---|
+| 1.4 | bounded scale height | done: formula is Paxton et al. 2011 §5.1, not in Eggleton (1971) |
+| 1.6 | Kippenhahn–Weigert(–Weiss) pp and CNO fits; Solar Fusion III thermal rates and S factors; attribution of the old C_α | partly: implemented KW1990 fits agree with Harris et al. 1983 / Fowler et al. 1975; SF III agrees. Open: KWW 2012 fits (book, NACRE), Clayton's C_α. Rough estimate: implemented CNO rate about 2× too high |
+| 1.7 | Y_p, ΔY/ΔZ | done: corrected to MIST 0.249 / 1.5 |
+| 3.3 | Krishna Swamy coefficients in the original; its optical-depth scale (τ₅₀₀₀ or Rosseland) | done: eq. 33 agrees; Rosseland depth |
+| 4.1 | de Jager et al. and Reimers fits; metallicity exponent | partly: de Jager agrees; exponent corrected to (Z/0.019)^0.69. Open: Reimers (1975) original, η |
+| 5.1 | gravity-darkening exponents | done: 0.25 von Zeipel, 0.08 Lucy (1967) |
+| 6.3, 6.4 | ionisation energies and weights; Pols et al. (1995) potential and constants in the original | done: agree (NIST; Pols eqs. 14–18, 26–29) |
+| 6.5 | Paczyński formulas, including the energy expression | done: K₁, K₂ corrected to the published m_H values |
+| 7.1–7.5 | table formats, mixture, type 2 (C/O) tables, conduction fit | partly: OPAL and Ferguson formats, type 2 agree; mixture corrected to GN93. Open: OP, conduction fit; table licences unclear |
+| 9.6, 9.7 | Itoh et al. fits; Chugunov & DeWitt coefficients; the unpublished electron-response extension; the triple-α product form | partly: Itoh reference, units, ranges; C&D t_ij agree. Open: the two unpublished constructions (published alternative recorded) |
+| 9.5 | ¹²C(α,γ)¹⁶O rate and energies | partly: Q values agree (AME2020). Open: CF88 original |
+| 8.2, 8.5 | overshoot f₀; Thoul et al. diffusion velocities | done: f₀ = 0.005 withdrawn; Thoul agrees. New open item: solar size of settling |
+| 9.1 | Cowling equations as printed in Unno et al. | partly: agree with Christensen-Dalsgaard (2014); Unno not obtained |
+| all | journal volume and page numbers in p. 12 | done |
+
+Details and source locations: the table "Source comparisons recorded" in
+[`physics/12-constants-and-references.md`](physics/12-constants-and-references.md).
 
 ## Stage 1: small corrections and consistency checks
 
@@ -175,7 +178,8 @@ Order: 1.1, 1.2, 1.5 → 1.10 → 1.4, 1.3, 1.8, 1.11, 1.7 → 1.6 → 1.9.
 * `StarModel` carries a current mass distinct from `params.mass`; `solve_structure`,
   `pulsation::fundamental_mode`, `build_model` and the exports use it. No behaviour change.
 * New `physics/mass_loss.rs`: de Jager et al. (hot), Reimers (cool, parameter η), switch near
-  8000 K, factor (Z/0.02)^0.7. Unit tests against the table in `physics-review.md` §5.
+  8000 K, factor (Z/0.019)^0.69 (Vink et al. 2001, eqs. 21–22). Unit tests against the table in
+  `physics-review.md` §5.
 
 ### 4.2 Evolution with a wind (M), p. 7
 
@@ -198,8 +202,8 @@ Order: 1.1, 1.2, 1.5 → 1.10 → 1.4, 1.3, 1.8, 1.11, 1.7 → 1.6 → 1.9.
 ### 5.1 Rotation, display only: Roche shape and gravity darkening, E3 stage 1 (S–M), p. 8
 
 * A pure function in `stellar-core` (testable): x(θ) for ω = Ω/Ω_crit in 0–0.95, g_eff(θ),
-  T_eff(θ) ∝ g_eff^β with β = 0.25 (radiative envelope) or about 0.08 (convective), normalised by
-  L. Used by `views/model3d.rs` for the mesh and its colour.
+  T_eff(θ) ∝ g_eff^β with β = 0.25 (radiative envelope, von Zeipel) or about 0.08 (convective,
+  Lucy 1967), normalised by L. Used by `views/model3d.rs` for the mesh and its colour.
 * Label: "shape only, interior not recomputed".
 * Tests: ω = 0 gives a sphere; ω = 1 gives R_eq/R_pole = 1.5; ∮σT_eff⁴ dA = L.
 

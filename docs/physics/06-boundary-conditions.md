@@ -229,22 +229,31 @@ What stays approximate: local mixing-length theory with an interpolated radiativ
 Rosseland opacity used both for transport and for the emission of a transparent element, which
 physically involves absorption (Planck-type) means.
 
-### Non-grey $`T(\tau)`$ relation (F3) **[check source]**
+### Non-grey $`T(\tau)`$ relation (F3)
 
-Empirical solar relation of Krishna Swamy (1966):
+Empirical solar relation of Krishna Swamy (1966), eq. 33 on p. 182, there written as
+$`T^4 = \tfrac34 T_{\mathrm{eff}}^4\,(\tau + q(\tau))`$:
 
 ```math
 q(\tau) = 1.39 - 0.815\,e^{-2.54\,\tau} - 0.025\,e^{-30\,\tau}
 ```
 
-The coefficients agree with a contemporaneous paper that reproduces the relation (its eq. 4); the
-original has not been read. Its optical-depth scale is also unverified: if it is a monochromatic
-depth ($`\tau_{5000}`$) and not the Rosseland depth used here, it must be converted with
-$`d\tau_{5000}/d\tau_R = \kappa_{5000}/\kappa_R`$ before use; the two scales are not
-interchangeable **[check source]**. It is a fit to the observed Sun, so it is of the second kind
-above (convection is partly inside it), and its supported range is about $`0.02 \le \tau \le 10`$
-(Trampedach et al. 2014, §5). Using it down to $`\tau = 0`$ for the starting pressure is an
-extrapolation and is labelled as such; so is using it for stars unlike the Sun.
+The coefficients were compared with the original (eq. 33, p. 182) and agree, as does the
+contemporaneous reproduction (Trampedach et al. 2014, eq. 4). *Optical-depth scale:* the paper's
+$`\tau`$ is the mean (Rosseland) optical depth, not $`\tau_{5000}`$: its model atmospheres use
+$`dP/d\tau = g/\bar\kappa`$ with $`\bar\kappa`$ the mean absorption coefficient (eq. 1, p. 174),
+"Rosseland mean opacity is used" (p. 175), and the tabulated relation that eq. 33 fits is given
+"between the mean optical depth and the temperature" (Table 2, p. 177). It can therefore be used
+on the Rosseland depth of these pages without conversion. Eq. 33 is an analytic fit to that
+tabulated solar relation (Table 2, $`0 \le \tau \le 10`$; at $`\tau = 0`$ it gives
+$`T/T_{\mathrm{eff}} = 0.801`$ against the tabulated 0.800), chosen because line profiles computed
+with it matched the observed solar profiles better than the Böhm-Vitense relation (pp. 181–183). The
+paper itself warns that it "may not be applicable in the topmost layers" and "is also not applicable
+in deeper layers where convection takes over" (p. 182). It is a fit to the observed Sun, so it is of
+the second kind above (convection is partly inside it), and its supported range is about
+$`0.02 \le \tau \le 10`$ (Trampedach et al. 2014, §5). Using it down to $`\tau = 0`$ for the
+starting pressure is an extrapolation and is labelled as such; so is using it for stars unlike the
+Sun.
 
 ### Surface conditions with a general $`q(\tau)`$
 

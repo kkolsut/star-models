@@ -8,7 +8,19 @@ cause. In the code the rates are the `Nuclear` trait.
 Source: `crates/stellar-core/src/physics/nuclear.rs` (rates),
 `crates/stellar-core/src/structure/evolve.rs` (composition).
 
-The rate fits are those of Kippenhahn & Weigert (1990).
+The rate fits are those of Kippenhahn & Weigert (1990). The book itself was not available for the
+source check of 2026-11-11 (no legitimate copy found), so equation and page numbers in it are not
+recorded. The fits were instead compared with the published reaction-rate compilations they are
+built on (originals read on ADS; conversion $`T_9^{1/3} = 0.1\,T_6^{1/3}`$, $`T_9 = 0.1\,T_8`$):
+
+| Fit | Compilation entry | Exponent and correction polynomial | Prefactor re-derived |
+|---|---|---|---|
+| pp | Harris et al. (1983), ARA&A 21, 165, Table 1 (p. 168), H1(P,E+NU)H2: $`3.82\times10^{-15}`$ (same polynomial and exponent in Fowler et al. 1975, Table 1, p. 72, with 4.21e-15) | 33.80 and 0.0123, 0.0109, 0.000938 → 0.0009: agree | $`2.377\times10^{6}`$ with $`n_p = \rho X/m_{\mathrm{H}}`$ and 13.1 MeV per p + p reaction (half of 26.2 MeV); code 2.38e6 |
+| CNO | Fowler, Caughlan & Zimmerman (1975), ARA&A 13, 69, Table 1 (p. 78), N14(P,G)O15: $`5.08\times10^{7}`$, "Q = 24.970 per N14(P,G)O15 reaction for full CN-cycle" | 152.28 and 0.0027, −0.00778, −0.000149: agree; the source's further terms ($`T_9^{4/3}`$, $`T_9^{5/3}`$, $`\exp[-(T_9/3.090)^2]`$, resonances) are dropped | $`8.674\times10^{27}`$ with $`n_p = \rho X/m_{\mathrm{H}}`$, $`n_{14} = \rho X_{\mathrm{CNO}}/(14\,m_u)`$ and 24.97 MeV; code 8.67e27 |
+| triple-α | Harris et al. (1983), Table 1 (p. 168), HE4(2A,G)C12: $`2.79\times10^{-8}\,T_9^{-3}\exp(-4.4027/T_9)`$, Q = 7.275 (the same high-temperature term in the ORNL reproduction of Caughlan & Fowler 1988); the 1975 entry (p. 74) had 2.49e-8 and 4.4109 | 44.027: agrees | $`5.100\times10^{11}`$ with $`\rho^2Y^3N_A/384`$ and 7.275 MeV; code 5.09e11 |
+
+No disagreement with the compilations was found; the book's printed coefficients and
+its section numbers remain unverified.
 
 ### Rates
 
@@ -124,7 +136,10 @@ within the pp I/II approximation.
 
 *How $`\alpha`$ is obtained.* The specification is the definition, evaluated with consistently
 defined thermal rates $`\langle\sigma v\rangle`$ from one evaluation (Solar Fusion III), including
-their energy dependence and screening:
+their energy dependence and screening. Solar Fusion III does not tabulate thermal rates for these
+reactions: it gives $`S(0)`$, $`S'(0)`$, $`S''(0)`$ (Table I) for the expansion of its eq. 4, and
+$`\langle\sigma v\rangle`$ is its eq. 3 integrated with them (Acharya et al. 2025, Rev. Mod. Phys. 97,
+035002, §I.B; arXiv:2405.06470 read 2026-11-11):
 
 ```math
 \alpha = \left(\frac{n_4}{n_p}\right)^{2} \frac{\langle\sigma v\rangle_{34}^{\,2}}{\langle\sigma v\rangle_{11}\,\langle\sigma v\rangle_{33}}, \qquad \frac{n_4}{n_p} = \frac{Y}{4X}
@@ -137,21 +152,41 @@ no screening, leading Gamow term), with reduced masses $`\mu_{ij}`$ in atomic ma
 C_\alpha \simeq \frac{S_{34}^{2}}{S_{11}\,S_{33}}\left(\frac{4\,\mu_{11}\,\mu_{33}}{\mu_{34}^{2}}\right)^{1/3}
 ```
 
-With the Solar Fusion III values (Table 1, in MeV b) $`S_{11}(0) = 4.09\times10^{-25}`$,
-$`S_{33}(0) = 5.21`$, $`S_{34}(0) = 5.61\times10^{-4}`$ and $`\mu_{11} = 1/2`$,
+With the Solar Fusion III values (Table I, in MeV b; checked against the paper)
+$`S_{11}(0) = 4.09\times10^{-25}`$, $`S_{33}(0) = 5.21`$, $`S_{34}(0) = 5.61\times10^{-4}`$ and $`\mu_{11} = 1/2`$,
 $`\mu_{33} = 3/2`$, $`\mu_{34} = 12/7`$, this gives $`C_\alpha \simeq 1.49\times10^{17}`$ (computed
 by the reviewer of these pages and re-computed here; the exponent 100 follows from the same Gamow
-terms). It is an estimate for checking the implementation, not a precision fit.
+terms: with $`\tau_{ij} = 42.49\,(Z_i^2 Z_j^2\,\mu_{ij})^{1/3}\,T_6^{-1/3}`$,
+$`2\tau_{34} - \tau_{11} - \tau_{33} = 99.98\,T_6^{-1/3}`$). It is an
+estimate for checking the implementation, not a precision fit. Integrating eq. 3 of Solar Fusion III
+numerically with the same constant $`S(0)`$ values gives $`C_\alpha = 1.47`$, 1.46 and
+$`1.45\times10^{17}`$ at $`T_6 = 10`$, 15 and 30 (the next term of the Gamow expansion; re-computed
+2026-11-11).
 
 The value $`1.2\times10^{17}`$ quoted earlier from memory of Clayton (1968) is of the same size;
-its attribution is unverified **[check source]**. The earlier expectation that a modern value would
-be "several times smaller" was wrong and is withdrawn.
+its attribution is unverified **[check source]**: the book was not available (the Internet Archive
+copy is lending-only and its text search is closed), so it is not known whether, or where, Clayton
+gives this constant. The value computed above does not depend on it. The earlier expectation that a
+modern value would be "several times smaller" was wrong and is withdrawn.
 
 ### Newer rate fits (D11) **[check source]**
 
 Kippenhahn, Weigert & Weiss (2012, §18.5). These are an interim step, not the final reference: the
 coefficients are to be compared with rates built from the Solar Fusion III $`S`$ factors before
 they are adopted.
+
+*Status of the check (2026-11-11).* The book was not available (no legitimate copy found), so the
+section number and every coefficient below are still unverified. The forms (polynomial in $`T_9`$,
+the $`\exp[-(T_9/0.8)^2]`$ cut-off) look like the NACRE analytic approximations (Angulo et al. 1999,
+Nucl. Phys. A 656, 3–183), but that paper was not obtained either (publisher access only), so the
+attribution is a guess to be checked.
+
+For the comparison asked for above: Solar Fusion III gives $`S_{1,14}(0) = 1.68\times10^{-3}`$ MeV b
+(Table I). With constant $`S`$ this gives a ¹⁴N(p,γ)¹⁵O rate 0.52–0.56 times the Fowler–Caughlan
+rates (1975, behind the implemented CNO fit, and the 1988 reproduction) at $`T_6 = 15`$–30 (rough: $`S'`$, $`S''`$ and
+resonances neglected; computed 2026-11-11). The implemented CNO rate is therefore probably about a
+factor 2 too high at main-sequence temperatures; whether the 2012 fit already contains this reduction
+can only be decided with the book or the NACRE paper.
 
 ```math
 \varepsilon_{pp} = 2.57\times10^{4}\;\psi\, f_{11}\, g_{11}\;\rho\, X^2\; T_9^{-2/3} \exp\!\left(-3.381\, T_9^{-1/3}\right)
@@ -194,8 +229,29 @@ consumed by ¹²C(α,γ)¹⁶O:
 \frac{\partial Y}{\partial t} = -\frac{\partial X}{\partial t} - \frac{\varepsilon_{3\alpha}}{Q_{3\alpha}} - \frac{1}{3}\,\frac{\varepsilon_{\mathrm{C}\alpha}}{Q_{\mathrm{C}\alpha}}
 ```
 
+*Energies (checked 2026-11-11).* With the AME2020 mass excesses (Wang et al. 2021, file
+`mass_1.mas20` of the IAEA AMDC: ⁴He 2424.916 keV, ¹²C 0, ¹⁶O −4737.002 keV), $`Q`$ of ¹²C(α,γ)¹⁶O is
+7161.9 keV and $`Q_{3\alpha} = 3 \times 2424.916 = 7274.7`$ keV, as used above. Per gram:
+$`7.162\ \mathrm{MeV}/12\,m_u = 5.759\times10^{17}`$ erg g⁻¹ (carbon) and
+$`7.275\ \mathrm{MeV}/(3 \times 4.0026\,m_u) = 5.846\times10^{17}`$ erg g⁻¹ (helium), consistent with
+the rounded values. The mass factors 4/3 and 1/3 use mass numbers (12 + 4 → 16); the mass defect is
+below 10⁻³ of the mass.
+
 The rate $`\varepsilon_{\mathrm{C}\alpha}`$ is to be taken from Kippenhahn, Weigert & Weiss (2012)
-or Caughlan & Fowler (1988).
+or Caughlan & Fowler (1988, At. Data Nucl. Data Tables 40, 283–334) **[check source]**. Neither
+original was available on 2026-11-11. The CF88 fit as reproduced in the ORNL Fortran version of the
+compilation (reaction 62, C12(A,G)O16, Q = 7.162; read via the Internet Archive copy of
+`www.phy.ornl.gov/astrophysics/data/cf88/fortran_rates.html`) is
+
+```math
+N_A\langle\sigma v\rangle = \frac{1.04\times10^{8}}{T_9^{2}\,(1 + 0.0489\,T_9^{-2/3})^{2}}\,e^{-32.120\,T_9^{-1/3} - (T_9/3.496)^{2}} + \frac{1.76\times10^{8}}{T_9^{2}\,(1 + 0.2654\,T_9^{-2/3})^{2}}\,e^{-32.120\,T_9^{-1/3}} + 1.25\times10^{3}\,T_9^{-3/2}\,e^{-27.499/T_9} + 1.43\times10^{-2}\,T_9^{5}\,e^{-15.541/T_9}
+```
+
+in cm³ mol⁻¹ s⁻¹. With $`n_{\mathrm{C}} = \rho X_{\mathrm{C}}/(12\,m_u)`$ and $`n_\alpha = \rho Y/(4\,m_u)`$ this gives
+$`\varepsilon_{\mathrm{C}\alpha} = \rho\,X_{\mathrm{C}}\,Y\,N_A\,\big(N_A\langle\sigma v\rangle\big)\,Q/48`$ (derivation). This is a transcription from a reproduction, not from the
+printed table; compare it with the original before coding. Harris et al. (1983, p. 167) already
+noted that the first term of their own fit should be changed to 1.58e8, a reminder that this rate
+has been revised repeatedly; a current evaluation should be chosen with 9.5.
 
 *What the composition vector must then mean.* Tracking C and O is not only two more equations. The
 following have to be fixed together, or the pieces contradict each other:
@@ -227,7 +283,9 @@ Until then: report the largest screening exponent reached in a run, and warn whe
 
 **Decided 2026-11-11** (recommendation of the Codex review, accepted). Two parts of it are not from
 a published source and must be checked before they are coded: the electron-response extension for
-the weak limit, and the product form for triple-α at intermediate coupling. Chosen over
+the weak limit, and the product form for triple-α at intermediate coupling. The source check of
+2026-11-11 found no publication of either in this form; a published alternative for the first is
+given below (Potekhin & Chabrier 2012), and the second stays a derivation of these pages. Chosen over
 Graboske et al. (1973) because one analytic interpolation is easier to keep smooth than joined
 branches; Graboske's paper was not opened.
 
@@ -270,10 +328,16 @@ nuclei:
 t_{ij} = \left[1 + 0.013\,y_{ij}^{2}\,z_{ij} + 0.406\,y_{ij}^{0.14}\,z_{ij}^{2} + \left(0.062\,y_{ij}^{0.19} + \frac{1.8}{\Gamma_{ij}}\right)z_{ij}^{3}\right]^{1/3}
 ```
 
+$`z_{ij}`$ is $`\zeta_{ij}`$ of Chugunov & DeWitt (2009, eq. 12) and $`t_{ij}`$ their eq. 25; the same
+expression is printed as eq. 22 of Potekhin & Chabrier (2012, A&A 538, A115), whose footnote 1 on
+the substitution $`\Gamma_j \to \Gamma_j/t_{ij}`$ corrects a typo of the 2009 paper. Both agree with
+the form above (checked 2026-11-11).
+
 *Electron response in the weak limit* (an extension proposed by the review, **not** in the
-published formula, and not verified). The published $`C_{ij}`$ assumes a rigid electron
-background, so it does not reproduce the electron part of the implemented Salpeter formula. To
-recover the correct weak limit for classical or degenerate electrons, replace $`C_{ij}`$ by
+published formula; no publication of it was found) **[check source]**. The published $`C_{ij}`$
+assumes a rigid electron background (Chugunov & DeWitt 2009, App. A; Potekhin & Chabrier 2012, §1),
+so it does not reproduce the electron part of the implemented Salpeter formula. To recover the
+correct weak limit for classical or degenerate electrons, replace $`C_{ij}`$ by
 $`H_{\mathrm{DH}}/H_{\mathrm{LM,DH}}`$:
 
 ```math
@@ -282,6 +346,25 @@ D^{-2} = 4\pi e^{2}\left[\frac{\sum_s n_s Z_s^{2}}{kT} + \left(\frac{\partial n_
 
 $`\partial n_e/\partial\mu_e^{\mathrm{chem}}`$ comes from the Fermi–Dirac EOS. This fades out at
 strong coupling and does not model electron polarisation there.
+
+What is published and agrees: $`D^{-2}`$ with the electron term $`k_{\mathrm{TF}}^{2} = 4\pi e^{2}\,\partial n_e/\partial\mu_e`$
+and $`H_{\mathrm{DH}}`$ are eqs. 14–17 of Potekhin & Chabrier (2012); $`H_{\mathrm{LM,DH}}`$ is eq. A2 of
+Chugunov & DeWitt (2009). What is not published: using their ratio in place of $`C_{ij}`$.
+
+*Published alternative* (Potekhin & Chabrier 2012, eqs. 20–21, read 2026-11-11). Multiply a
+rigid-background exponent $`h_{\mathrm{ii}}`$ by an electron-screening factor:
+
+```math
+h_{\mathrm{appr}} = h_{\mathrm{ii}}\,\sqrt{1 + k_{\mathrm{TF}}^{2}\,\tilde D_{\mathrm{ion}}^{2}}, \qquad \tilde D_{\mathrm{ion}} = \sqrt{D_{\mathrm{ion}}^{2} + (0.6\,a_{ij})^{2}}, \qquad D_{\mathrm{ion}}^{-2} = \frac{4\pi e^{2}}{kT}\sum_s n_s Z_s^{2}, \qquad a_{ij} = \frac{a_i + a_j}{2}
+```
+
+with $`a_s = Z_s^{1/3} a_e`$ and 0.6 their only fitted parameter. In the weak limit
+$`h_{\mathrm{ii}} \to Z_iZ_je^{2}/(kT D_{\mathrm{ion}})`$ and the factor is $`D_{\mathrm{ion}}/D`$, so it
+gives the same limit $`H_{\mathrm{DH}}`$; unlike the review's extension it keeps an electron
+polarisation term at strong coupling. Potekhin & Chabrier used it with their own rigid-background
+$`h_{\mathrm{ii}}`$ (their eq. 19 or the fit of Chugunov & DeWitt 2009b), not with eq. A4 of
+Chugunov & DeWitt (2009a); applying it to $`H_{ij}`$ above is a small extrapolation of the source.
+Which of the two is coded is decided with plan 9.7.
 
 *Use.* $`f_{11}`$ for pp and $`f_{1,7}`$ for the CNO bottleneck, with the actual mixture
 (including produced carbon once it is tracked). The exponent cap of 2 is removed; $`H`$ is kept as
@@ -296,9 +379,18 @@ f_{3\alpha} \approx \exp\!\left[H_{2,2}^{\mathrm{static}} + H_{4,2}^{\mathrm{sta
 The first term shifts the equilibrium abundance of ⁸Be, the second the capture of the third α
 through the Hoyle state. The basis is the difference of Coulomb chemical potentials,
 $`\ln f_{3\alpha} = (3\mu_\alpha^{C} - \mu_{\mathrm{C}}^{C})/kT`$ (Kushnir, Waxman & Chugunov 2019,
-eqs. 1, 7–8 **[compared]**), valid for classical ions; electron degeneracy is allowed. In the
-strong limit the two stages telescope exactly to $`3f_0(\Gamma_2) - f_0(\Gamma_6)`$. At
-intermediate coupling the product of two interpolation factors is an approximation. The
+MNRAS 486, 449, eqs. 1, 7–8 **[compared]**; they credit this triple-α factor to Yakovlev &
+Shalybkov 1989, Astrophys. Space Phys. Rev. 7, 311, not read), valid for non-degenerate ions with
+$`\Gamma/\tau \ll 1`$ and a small Coulomb contribution to the electron free energy (their
+assumptions i–iii, §2). In the strong limit the two stages telescope exactly to
+$`3f_0(\Gamma_2) - f_0(\Gamma_6)`$, and in the weak limit they add to $`(4 + 8)\,e^2/(kTD)`$, which
+is the Debye–Hückel value of $`(3\mu_\alpha^{C} - \mu_{\mathrm{C}}^{C})/kT`$ (derivation). At
+intermediate coupling the product of two interpolation factors is an approximation **[check
+source]**: no publication of the product form was found on 2026-11-11, and the factors
+$`(C_{ij} + \Gamma_{ij}^2)/(1 + \Gamma_{ij}^2)`$ of the two stages use different $`\Gamma_{ij}`$, so the
+sum is not exactly a difference of chemical potentials there. Evaluating the chemical-potential
+difference directly from one free-energy expression would avoid this; that, too, is not from a
+publication. The
 non-resonant correction $`t_{ij}`$ must not be applied to this chain.
 
 | Test | Expected |
