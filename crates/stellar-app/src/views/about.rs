@@ -1128,7 +1128,7 @@ fn pulsation(ui: &mut Ui, dark: bool) {
     p(
         ui,
         "and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours. This mode is not observed in the Sun; \
-         standard solar models give about an hour. The agreement is partly a coincidence, since the model Sun has \
+         the standard solar model Model S gives 64.6 minutes (258 μHz). The agreement is partly a coincidence, since the model Sun has \
          R = 1.11 R☉.",
     );
     sub(ui, "What is calculated and what is not");
