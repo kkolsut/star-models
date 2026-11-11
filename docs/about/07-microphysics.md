@@ -85,8 +85,9 @@ the separate contributions near that path.
   of each. That is a dip of at most a factor of 2, with no discontinuity in $`\kappa`$ or its slope.
 * **Too high in the core.** At the centre of the 1 M☉ ZAMS model the analytic $`\kappa \approx 2.7`$,
   and at present-day solar central conditions it gives 2.6. Standard solar models with OPAL/OP
-  opacities have roughly 1.2–1.5 there. Since $`L \propto 1/\kappa`$ in a radiative core, this is the
-  main reason the analytic Sun is underluminous (0.42 L☉ instead of about 0.7 L☉).
+  opacities have roughly 1.2–1.5 there. Since $`L \propto 1/\kappa`$ in a radiative core (a homology
+  argument), this is the leading suspect for the underluminous analytic Sun (0.42 L☉ instead of about
+  0.7 L☉); its share has not been isolated.
 * **Too low below the convection zone.** At the present Sun's convection-zone base
   ($`T \approx 2.2 \times 10^6`$ K, $`\rho \approx 0.19`$ g cm⁻³) the analytic opacity is about 9,
   against roughly 20 from OPAL/OP. A lower $`\kappa`$ gives a lower $`\nabla_{\mathrm{rad}}`$, so the
@@ -105,6 +106,9 @@ cargo run --release -p stellar-core --example opacity_map -- docs/about/images/o
 
 ## Nuclear energy generation [erg g⁻¹ s⁻¹]
 
+The rate coefficients ($`2.38\times10^{6}`$, $`8.67\times10^{27}`$, $`5.09\times10^{11}`$) are those of
+Kippenhahn & Weigert (1990).
+
 ```math
 T_6 = \frac{T}{10^6\,\mathrm{K}}, \qquad T_8 = \frac{T}{10^8\,\mathrm{K}}
 ```
@@ -112,12 +116,16 @@ T_6 = \frac{T}{10^6\,\mathrm{K}}, \qquad T_8 = \frac{T}{10^8\,\mathrm{K}}
 *pp chain*
 
 ```math
-\varepsilon_{pp} = 2.38\times10^{6}\;\rho\, X^2\, f_{1}\, \psi\; T_6^{-2/3}\, \exp\!\left(-33.80\, T_6^{-1/3}\right)
+\varepsilon_{pp} = 2.38\times10^{6}\;\rho\, X^2\, f_{1}\, g_{11}\; T_6^{-2/3}\, \exp\!\left(-33.80\, T_6^{-1/3}\right)
 ```
 
 ```math
-\psi = 1 + 0.0123\, T_6^{1/3} + 0.0109\, T_6^{2/3} + 0.0009\, T_6
+g_{11} = 1 + 0.0123\, T_6^{1/3} + 0.0109\, T_6^{2/3} + 0.0009\, T_6
 ```
+
+$`g_{11}`$ is a correction to the p + p reaction rate. The factor $`\psi`$ of the source formula, which
+accounts for the extra energy of the pp II and pp III branches (between 1 and about 1.5), is set to
+$`\psi = 1`$: only the pp I chain is counted.
 
 *CNO cycle*
 

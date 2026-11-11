@@ -16,8 +16,9 @@ gradient*:
 ```
 
 In a convective layer a rising blob that expands adiabatically stays hotter, and so lighter, than its
-surroundings, and keeps rising. The Ledoux criterion is not needed, because ZAMS models have no
-composition gradients.
+surroundings, and keeps rising. The Schwarzschild criterion is used throughout, also in evolved
+models that have composition gradients: their stabilising effect (Ledoux criterion, semiconvection) is
+neglected.
 
 ## Convective transport: mixing-length theory (MLT)
 

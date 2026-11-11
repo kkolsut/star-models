@@ -128,16 +128,16 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "nuc_pp",
-        tex: "\\varepsilon_{pp} = 2.38\\times10^{6}\\;\\rho\\, X^2\\, f_{1}\\, \\psi\\; T_6^{-2/3}\\, \\exp\\!\\left(-33.80\\, T_6^{-1/3}\\right)",
+        tex: "\\varepsilon_{pp} = 2.38\\times10^{6}\\;\\rho\\, X^2\\, f_{1}\\, g_{11}\\; T_6^{-2/3}\\, \\exp\\!\\left(-33.80\\, T_6^{-1/3}\\right)",
         svg: include_bytes!("../assets/equations/nuc_pp.svg"),
-        width: 385.32,
+        width: 395.78,
         height: 30.53,
     },
     Equation {
         id: "nuc_psi",
-        tex: "\\psi = 1 + 0.0123\\, T_6^{1/3} + 0.0109\\, T_6^{2/3} + 0.0009\\, T_6",
+        tex: "g_{11} = 1 + 0.0123\\, T_6^{1/3} + 0.0109\\, T_6^{2/3} + 0.0009\\, T_6",
         svg: include_bytes!("../assets/equations/nuc_psi.svg"),
-        width: 336.22,
+        width: 346.68,
         height: 23.31,
     },
     Equation {
@@ -380,9 +380,9 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "evo_dt",
-        tex: "|\\Delta X| \\le \\min(0.01,\\ 0.3\\,X), \\qquad \\Delta t_{\\mathrm{next}} = \\Delta t \\cdot \\min\\!\\left(2,\\ \\max\\!\\left(\\tfrac{1}{2},\\ \\frac{0.02}{\\max|\\Delta \\ln r, \\Delta\\ln P, \\Delta\\ln T, \\Delta\\ln L|}\\right)\\right)",
+        tex: "|\\Delta X| \\le \\min\\!\\left(0.01,\\ \\max(0.3\\,X,\\ 10^{-5})\\right), \\qquad \\Delta t_{\\mathrm{next}} = \\Delta t \\cdot \\min\\!\\left(2,\\ \\max\\!\\left(\\tfrac{1}{2},\\ \\frac{0.02}{\\max|\\Delta \\ln r, \\Delta\\ln P, \\Delta\\ln T, \\Delta\\ln L|}\\right)\\right)",
         svg: include_bytes!("../assets/equations/evo_dt.svg"),
-        width: 736.14,
+        width: 831.59,
         height: 40.87,
     },
     Equation {

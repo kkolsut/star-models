@@ -40,11 +40,10 @@ functions of $`(P, T)`$ and the composition, given by the [microphysics](07-micr
 * ZAMS models are static: the gravitational energy term $`\varepsilon_{\mathrm{grav}} = -T\,ds/dt`$ is
   zero. During evolution $`\varepsilon_{\mathrm{grav}}`$ is added to $`\varepsilon`$ (see
   [Evolution in time](12-evolution.md)).
-* Chemically homogeneous: $`X`$, $`Y`$, $`Z`$ are the same everywhere (no burning history yet).
+* ZAMS models are chemically homogeneous: $`X`$, $`Y`$, $`Z`$ are the same everywhere. Evolved models
+  store a composition per mesh point, set by burning and convective mixing (see
+  [Evolution in time](12-evolution.md)).
 * No neutrino losses, rotation, magnetic fields, mass loss or element diffusion.
-
-> Composition is stored per mesh point, so composition gradients from evolution can be added later
-> without changing the solver.
 
 ---
 ← Previous: [Profile quantities & export](05-profiles-and-export.md) · [Contents](README.md) · Next: [Microphysics](07-microphysics.md) →

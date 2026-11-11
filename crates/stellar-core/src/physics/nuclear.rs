@@ -1,6 +1,8 @@
-//! Analytic nuclear energy generation rates (Carroll & Ostlie forms, CGS).
+//! Analytic nuclear energy generation rates (Kippenhahn & Weigert 1990 forms, CGS).
 //!
-//! * pp chain:  ε_pp  = 2.38e6 ρ X² f₁₁ ψ T₆^(−2/3) exp(−33.80 T₆^(−1/3))
+//! * pp chain:  ε_pp  = 2.38e6 ρ X² f₁₁ g₁₁ T₆^(−2/3) exp(−33.80 T₆^(−1/3)),
+//!   g₁₁ = 1 + 0.0123 T₆^(1/3) + 0.0109 T₆^(2/3) + 0.0009 T₆ (rate correction).
+//!   The pp II/III branching factor ψ of the source formula is taken as ψ = 1.
 //! * CNO cycle: ε_CNO = 8.67e27 ρ X X_CNO f₁₄ C T₆^(−2/3) exp(−152.28 T₆^(−1/3))
 //! * triple-α:  ε_3α  = 5.09e11 ρ² Y³ f T₈^(−3) exp(−44.027 / T₈)
 //!
@@ -35,8 +37,9 @@ impl Nuclear for AnalyticNuclear {
         let screen_base = 0.188 * zeta * rho.sqrt() * t6.powf(-1.5);
         let screen = |z1z2: f64| (z1z2 * screen_base).min(MAX_SCREENING_EXPONENT).exp();
 
-        let psi_pp = 1.0 + 0.0123 * t613 + 0.0109 * t623 + 0.0009 * t6;
-        let pp = 2.38e6 * rho * c.x * c.x * screen(1.0) * psi_pp * (-33.80 / t613).exp() / t623;
+        // g₁₁: correction to the p + p rate (not the branching factor ψ, which is 1 here).
+        let g11 = 1.0 + 0.0123 * t613 + 0.0109 * t623 + 0.0009 * t6;
+        let pp = 2.38e6 * rho * c.x * c.x * screen(1.0) * g11 * (-33.80 / t613).exp() / t623;
 
         let c_cno = (1.0 + 0.0027 * t613 - 0.00778 * t623 - 0.000149 * t6).max(0.0);
         let cno = 8.67e27 * rho * c.x * c.x_cno * screen(7.0) * c_cno * (-152.28 / t613).exp() / t623;
