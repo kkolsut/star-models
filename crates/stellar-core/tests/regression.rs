@@ -102,6 +102,20 @@ fn intermediate_and_massive_zams() {
             ("frac_cno", g.frac_cno, 0.89994527),
         ],
     );
+    let g = zams(5.0).globals;
+    check(
+        "5 M☉ ZAMS",
+        ZAMS_RTOL,
+        &[
+            ("L", g.luminosity, 558.50095),
+            ("R", g.radius, 2.5178081),
+            ("T_eff", g.teff, 17683.623),
+            ("T_c", g.tc, 2.6011231e7),
+            ("rho_c", g.rhoc, 18.111517),
+            ("conv. core q", g.conv_core_q, 0.23105858),
+            ("frac_cno", g.frac_cno, 0.98105383),
+        ],
+    );
     let g = zams(10.0).globals;
     check(
         "10 M☉ ZAMS",
@@ -113,6 +127,20 @@ fn intermediate_and_massive_zams() {
             ("T_c", g.tc, 3.0172342e7),
             ("rho_c", g.rhoc, 7.9662620),
             ("conv. core q", g.conv_core_q, 0.32945805),
+        ],
+    );
+    let g = zams(20.0).globals;
+    check(
+        "20 M☉ ZAMS",
+        ZAMS_RTOL,
+        &[
+            ("L", g.luminosity, 44392.604),
+            ("R", g.radius, 5.7509527),
+            ("T_eff", g.teff, 34936.898),
+            ("T_c", g.tc, 3.3980088e7),
+            ("rho_c", g.rhoc, 4.0594091),
+            ("conv. core q", g.conv_core_q, 0.47361827),
+            ("frac_cno", g.frac_cno, 0.99941744),
         ],
     );
 }
@@ -136,4 +164,10 @@ fn sun_at_present_age() {
 fn three_solar_masses_main_sequence_lifetime() {
     let g = evolve(zams(3.0), StopCondition::EndOfMainSequence).globals;
     check("3 M☉ end of main sequence", EVO_RTOL, &[("age [Myr]", g.age_yr / 1e6, 285.88946)]);
+}
+
+#[test]
+fn five_solar_masses_main_sequence_lifetime() {
+    let g = evolve(zams(5.0), StopCondition::EndOfMainSequence).globals;
+    check("5 M☉ end of main sequence", EVO_RTOL, &[("age [Myr]", g.age_yr / 1e6, 76.089140)]);
 }
