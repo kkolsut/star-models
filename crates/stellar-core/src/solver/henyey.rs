@@ -68,6 +68,21 @@ pub struct IterInfo {
     pub damping: f64,
 }
 
+/// Largest absolute residuals of a solution (see [`HenyeyNewton::residual_summary`]).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ResidualSummary {
+    /// Per difference equation (one entry per unknown), over all intervals.
+    pub interval: Vec<f64>,
+    /// Over all inner and outer boundary conditions.
+    pub boundary: f64,
+}
+
+impl ResidualSummary {
+    pub fn max(&self) -> f64 {
+        self.interval.iter().fold(self.boundary, |a, v| a.max(*v))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum StepOutcome {
     Continue(IterInfo),
@@ -133,6 +148,24 @@ impl<'a, P: BvpProblem + ?Sized> HenyeyNewton<'a, P> {
         }
         let r = self.row_outer();
         p.outer_bc(&y[nv * (np - 1)..], &mut f[r..r + (nv - ni)]);
+    }
+
+    /// Largest absolute residuals of the current solution, per difference
+    /// equation and for the boundary conditions. Unlike the correction size
+    /// used as the convergence test, this measures directly how well the
+    /// discretised equations are satisfied.
+    pub fn residual_summary(&self) -> ResidualSummary {
+        let mut f = vec![0.0; self.nv * self.np];
+        self.residual(&self.y, &mut f);
+        let mut interval = vec![0.0_f64; self.nv];
+        for k in 0..self.np - 1 {
+            let r = self.row_interval(k);
+            for (i, m) in interval.iter_mut().enumerate() {
+                *m = m.max(f[r + i].abs());
+            }
+        }
+        let boundary = f[..self.ni].iter().chain(&f[self.row_outer()..]).fold(0.0_f64, |a, v| a.max(v.abs()));
+        ResidualSummary { interval, boundary }
     }
 
     fn assemble_jacobian(&mut self) {

@@ -3,6 +3,8 @@
 //! The analytic (Kramers + H⁻) opacities are only qualitatively right, so the
 //! bands on L and R are wide. Structural features (radiative core, convective
 //! envelope, pp dominance) and the global consistency checks are strict.
+//! These are physical sanity checks; exact regression values are pinned in
+//! `regression.rs`.
 
 use stellar_core::{NoControl, Physics, StarParams, solve_model};
 
@@ -15,6 +17,7 @@ fn solar_model_structure() {
     // Global consistency of the discretised solution.
     assert!((g.virial_ratio - 1.0).abs() < 1e-3, "virial ratio {}", g.virial_ratio);
     assert!((g.energy_ratio - 1.0).abs() < 1e-3, "energy ratio {}", g.energy_ratio);
+    assert!(g.residuals.max() < 1e-10, "residuals {:?}", g.residuals);
 
     // Loose physical bands (analytic opacity).
     assert!(g.luminosity > 0.3 && g.luminosity < 1.0, "L = {}", g.luminosity);

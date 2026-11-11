@@ -24,5 +24,5 @@ pub mod structure;
 pub use composition::Composition;
 pub use physics::Physics;
 pub use structure::evolve::{Evolution, EvolutionOptions, EvolutionStep, StopCondition, fmt_age};
-pub use structure::model::{ConvectiveZone, Globals, Phase, Profile, StarModel, StarParams};
+pub use structure::model::{ConvectiveZone, Globals, Phase, Profile, Residuals, StarModel, StarParams};
 pub use structure::solve::{NoControl, SolveControl, SolveError, SolveEvent, solve_model};

@@ -86,7 +86,7 @@ for Newton, and the luminosity unknown is re-scaled to the current luminosity ev
 |---|---|
 | End of main sequence | central hydrogen is below $`10^{-3}`$ |
 | Age | the chosen age is reached; the last step is shortened to land on it |
-| As far as possible | $`T_{\mathrm{eff}}`$ drops below 2600 K (outside the range of the analytic opacities), $`T_c`$ exceeds $`3 \times 10^8`$ K, or the solver cannot continue even with tiny steps |
+| As far as possible | $`T_{\mathrm{eff}}`$ drops below 2600 K (outside the range of the analytic opacities), $`T_c`$ exceeds $`3 \times 10^8`$ K, or the solver cannot continue even with tiny steps. Results after the main sequence are qualitative only (see [Accuracy & limitations](15-limitations.md#evolution)) |
 | Safety limits (always) | 3000 steps, or an age of 30 Gyr |
 
 ## Checks
@@ -101,6 +101,36 @@ For the Sun evolved to 4.57 Gyr the ratio is 0.995; an automated test checks it.
 
 * the virial check stays at 1 to about $`10^{-4}`$;
 * the energy check, which includes $`\varepsilon_{\mathrm{grav}}`$, stays at 1.
+
+### Time-step convergence
+
+The same tracks were run with the step targets halved repeatedly: structural change 2%, 1%, 0.5% and
+0.25%, with the hydrogen limit $`\Delta X`$ halved alongside. The results converge at **first order**,
+as expected from burning explicitly with the previous model's rates: each halving roughly halves the
+difference.
+
+| Quantity | 2% (default) | 1% | 0.5% | 0.25% |
+|---|---:|---:|---:|---:|
+| 1 M☉ at 4.57 Gyr: $`L`$ [L☉] | 0.52123 | 0.52155 | 0.52171 | 0.52180 |
+| 1 M☉ at 4.57 Gyr: $`X_c`$ | 0.51311 | 0.51290 | 0.51279 | 0.51273 |
+| 3 M☉ main-sequence lifetime [Myr] | 285.89 | 285.06 | 284.61 | 284.38 |
+| 3 M☉ convective core at $`X_c = 0.3`$ [$`m/M`$] | 0.11280 | 0.11276 | 0.11289 | 0.11286 |
+| Steps (3 M☉ to the end of the main sequence) | 138 | 279 | 561 | 1125 |
+
+At the default settings the errors are small compared with the physics uncertainties:
+
+* 1 M☉ at 4.57 Gyr: $`L`$, $`R`$ and $`T_c`$ within about 0.1%;
+* 3 M☉: main-sequence lifetime within about 0.6% of the extrapolated value (about 284.2 Myr);
+* values exactly at the end of the main sequence scatter by up to about 1%, because the last step lands
+  anywhere below $`X_c = 10^{-3}`$.
+
+A step is rejected when it changes the structure by more than $`4\times`$ the target. In these runs the
+step-size control keeps every step well below that, so a stricter threshold ($`1.5\times`$) changes
+nothing. Reproduce the table with:
+
+```sh
+cargo run --release -p stellar-core --example timestep_study
+```
 
 ## In the app
 

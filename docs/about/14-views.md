@@ -65,7 +65,9 @@ surface and central values.
   * Overlays use an exact ray test against the cut-away geometry, so they are hidden correctly behind
     the sphere and the core.
 
-> Animation speeds are illustrative, not to scale. In the Sun a photon needs of order $`10^4`$–$`10^5`$
+> The cross-section and the 3D view are visualisations of a **1D** model. Photon paths, convection
+> cells, granulation and boiling are illustrative: their size, shape and speed are not computed, and
+> this is not a 3D radiation-hydrodynamics simulation. Animation speeds are illustrative, not to scale. In the Sun a photon needs of order $`10^4`$–$`10^5`$
 > years to diffuse out of the radiative zone. Convective turnover takes from minutes (granules) to about
 > a month (base of the envelope).
 

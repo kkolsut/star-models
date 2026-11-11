@@ -42,6 +42,18 @@ Period and pulsation constant:
 and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours. The observed solar value is about
 1 hour.
 
+## What is calculated and what is not
+
+| | |
+|---|---|
+| **Calculated** | the fundamental adiabatic radial mode: period, $`\Omega^2`$, $`Q`$ and the mode shape $`\xi(r)`$ |
+| **Empirical inference** | membership of the instability strip, from the model's position in the HR diagram |
+| **Scaling relations** | $`\nu_{\max}`$ and $`\Delta\nu`$, estimated from $`g`$, $`T_{\mathrm{eff}}`$ and the mean density |
+| **Not modelled** | driving and damping (growth rates), the excitation mechanism, amplitudes, overtones and non-radial modes |
+
+δ Scuti stars in particular usually pulsate in several radial and non-radial modes at once, which a
+fundamental radial-mode solver cannot represent.
+
 ## Which stars pulsate: the instability strip
 
 Whether a mode is actually driven needs a non-adiabatic analysis, which is not done here. In real stars
