@@ -15,6 +15,9 @@ is constant: there is no mass loss. Each time step has two parts:
 \frac{\partial X}{\partial t} = -\frac{\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{H}}}, \qquad Q_{\mathrm{H}} = 6.27\times10^{18}\ \mathrm{erg\,g^{-1}}
 ```
 
+$`Q_{\mathrm{H}}`$ is the pp-chain value (26.2 MeV per helium nucleus formed). The same value is used
+for the CNO cycle, whose energy per helium nucleus deposited in the star is slightly lower.
+
 *Helium burning* (triple-α); the carbon it produces counts as metals
 
 ```math
@@ -58,16 +61,18 @@ for Newton, and the luminosity unknown is re-scaled to the current luminosity ev
 ## Time steps
 
 ```math
-|\Delta X| \le \min(0.01,\ 0.3\,X), \qquad \Delta t_{\mathrm{next}} = \Delta t \cdot \min\!\left(2,\ \max\!\left(\tfrac{1}{2},\ \frac{0.02}{\max|\Delta \ln r, \Delta\ln P, \Delta\ln T, \Delta\ln L|}\right)\right)
+|\Delta X| \le \min\!\left(0.01,\ \max(0.3\,X,\ 10^{-5})\right), \qquad \Delta t_{\mathrm{next}} = \Delta t \cdot \min\!\left(2,\ \max\!\left(\tfrac{1}{2},\ \frac{0.02}{\max|\Delta \ln r, \Delta\ln P, \Delta\ln T, \Delta\ln L|}\right)\right)
 ```
 
 * **Burning limit:** no shell may lose more than 0.01 of $`X`$, or more than 30% of its hydrogen, in
-  one step. A convective zone counts as a single shell.
+  one step. A convective zone counts as a single shell. The 30% rule has a floor of
+  $`\Delta X = 10^{-5}`$, and shells with $`X \le 10^{-8}`$ are skipped, so the step does not shrink
+  without bound as hydrogen runs out.
 * **Structural limit:** the step grows or shrinks so that $`\ln r`$, $`\ln P`$, $`\ln T`$ and
   $`\ln L`$ change by about 0.02 per step. A step that changes them by more than 0.08 is rejected and
   repeated with half the time step.
-* **Newton failure:** the step is divided by 3 and retried, up to 12 times. The smallest step is
-  1 year.
+* **Newton failure** (no convergence within 40 iterations): the step is divided by 3 and retried, up
+  to 12 times. The smallest step is 1 year.
 * **First step:** 10% of the burning limit, at most $`10^6`$ years.
 
 ## Evolutionary phases

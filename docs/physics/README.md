@@ -64,5 +64,6 @@ About page as the plan describes.
   `` $`…`$ ``.
 * Symbols are listed in [Constants, symbols and references](12-constants-and-references.md).
 
-> **Branch note.** The implemented parts describe `main` at commit `3d48f6e`. The unmerged branch
-> `quick-wins` adds diagnostics and tests but changes none of the physics equations given here.
+> **Code note.** The implemented parts describe `main` at commit `954b6d3`, which includes the
+> former `quick-wins` branch (diagnostics and tests, no change to the physics equations given here).
+> Every **[measured]** number was re-run on that commit (task 0.1, 2026-11-11) and none moved.

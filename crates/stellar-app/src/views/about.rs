@@ -206,7 +206,7 @@ pub fn show(ui: &mut Ui, state: &mut AboutState, params: &StarParams, physics: &
         section(ui, 2, &mut |ui| parameters(ui, dark, params));
         section(ui, 3, &mut |ui| results(ui, dark));
         section(ui, 4, &mut |ui| profiles(ui, dark));
-        section(ui, 5, &mut |ui| equations(ui, dark));
+        section(ui, 5, &mut |ui| equations(ui));
         section(ui, 6, &mut |ui| microphysics(ui, dark));
         section(ui, 7, &mut |ui| transport(ui, dark));
         section(ui, 8, &mut |ui| boundaries(ui, dark));
@@ -549,8 +549,9 @@ fn results(ui: &mut Ui, dark: bool) {
     term(
         ui,
         "Virial check:",
-        "for any star in hydrostatic equilibrium the virial theorem makes this ratio exactly 1, so any deviation \
-         measures the discretisation error (typically 10⁻⁵ to 10⁻⁴):",
+        "for any star in hydrostatic equilibrium the virial theorem makes this ratio 1, up to the surface pressure \
+         term 4πR³P_ph and the central cut at m₀ (both far below 10⁻⁵), so any deviation measures the \
+         discretisation error (typically 10⁻⁵ to 10⁻⁴):",
     );
     math(ui, "res_virial", "");
     term(
@@ -666,7 +667,7 @@ fn profiles(ui: &mut Ui, dark: bool) {
     );
 }
 
-fn equations(ui: &mut Ui, dark: bool) {
+fn equations(ui: &mut Ui) {
     p(
         ui,
         "The model solves the classical equations of stellar structure for a spherical star in hydrostatic and thermal \
@@ -689,13 +690,12 @@ fn equations(ui: &mut Ui, dark: bool) {
         "ZAMS models are static: the gravitational energy term ε_grav = −T ds/dt is zero. During evolution ε_grav is \
          added to ε (see \"Evolution in time\").",
     );
-    bullet(ui, "Chemically homogeneous: X, Y, Z are the same everywhere (no burning history yet).");
-    bullet(ui, "No neutrino losses, rotation, magnetic fields, mass loss or element diffusion.");
-    muted(
+    bullet(
         ui,
-        dark,
-        "Composition is stored per mesh point, so composition gradients from evolution can be added later without changing the solver.",
+        "ZAMS models are chemically homogeneous: X, Y, Z are the same everywhere. Evolved models store a composition \
+         per mesh point, set by burning and convective mixing (see \"Evolution in time\").",
     );
+    bullet(ui, "No neutrino losses, rotation, magnetic fields, mass loss or element diffusion.");
 }
 
 fn microphysics(ui: &mut Ui, dark: bool) {
@@ -729,17 +729,24 @@ fn microphysics(ui: &mut Ui, dark: bool) {
          • The H⁻/Kramers blend is smooth: where the two are equal (log T ≈ 4.18 at log R = −1.5) it gives half of each, \
          a dip of at most a factor of 2 with no discontinuity.\n\
          • Too high in the core: κ ≈ 2.7 at the centre of the 1 M☉ ZAMS model, against roughly 1.2–1.5 in standard solar \
-         models with OPAL/OP opacities. Since L ∝ 1/κ in a radiative core, this is the main reason the analytic Sun is \
-         underluminous.\n\
+         models with OPAL/OP opacities. Since L ∝ 1/κ in a radiative core (a homology argument), this is the leading \
+         suspect for the underluminous analytic Sun; its share has not been isolated.\n\
          • Too low below the convection zone: about 9 at the present Sun's convection-zone base (2.2 × 10⁶ K, \
          0.19 g cm⁻³) against roughly 20, so the convective envelope ends too shallow.\n\
          • No line opacity or ionisation bumps (such as the Z bump near log T ≈ 5.3): Kramers laws are smooth power laws.",
     );
 
     sub(ui, "Nuclear energy generation [erg g⁻¹ s⁻¹]");
+    p(ui, "The rate coefficients (2.38 × 10⁶, 8.67 × 10²⁷, 5.09 × 10¹¹) are those of Kippenhahn & Weigert (1990).");
     math(ui, "nuc_t6", "");
     math(ui, "nuc_pp", "pp chain");
     math(ui, "nuc_psi", "");
+    p(
+        ui,
+        "g₁₁ is a correction to the p + p reaction rate. The factor ψ of the source formula, which accounts for the \
+         extra energy of the pp II and pp III branches (between 1 and about 1.5), is set to ψ = 1: only the pp I chain \
+         is counted.",
+    );
     math(ui, "nuc_cno", "CNO cycle");
     math(ui, "nuc_c", "");
     math(ui, "nuc_3a", "triple-α");
@@ -766,7 +773,8 @@ fn transport(ui: &mut Ui, dark: bool) {
     p(
         ui,
         "In a convective layer a rising blob that expands adiabatically stays hotter, and so lighter, than its surroundings, \
-         and keeps rising. The Ledoux criterion is not needed, because ZAMS models have no composition gradients.",
+         and keeps rising. The Schwarzschild criterion is used throughout, also in evolved models that have composition \
+         gradients: their stabilising effect (Ledoux criterion, semiconvection) is neglected.",
     );
     sub(ui, "Convective transport: mixing-length theory (MLT)");
     p(ui, "Following Böhm-Vitense (1958) in the formulation of Kippenhahn, Weigert & Weiss (2012, §7):");
@@ -871,8 +879,8 @@ fn numerics(ui: &mut Ui, dark: bool) {
     bullet(
         ui,
         "Convergence: the largest correction is below 10⁻⁸ with an undamped step (λ = 1). This typically takes 10–30 \
-         iterations, with quadratic convergence at the end. The limit is 250 iterations from a cold start and 60 from a \
-         warm start. A small correction alone does not prove the equations are satisfied, so the residuals of the \
+         iterations, with quadratic convergence at the end. The limit is 250 iterations from a cold start, 60 from a \
+         warm start and 40 for each evolution step. A small correction alone does not prove the equations are satisfied, so the residuals of the \
          converged solution are also evaluated; converged models reach about 10⁻¹⁴.",
     );
     bullet(
@@ -966,6 +974,11 @@ fn evolution(ui: &mut Ui, dark: bool) {
     math(ui, "evo_mix", "instant mixing");
     p(
         ui,
+        "Q_H is the pp-chain value (26.2 MeV per helium nucleus formed). The same value is used for the CNO cycle, \
+         whose energy per helium nucleus deposited in the star is slightly lower.",
+    );
+    p(
+        ui,
         "Burning uses the energy-generation rates of the previous model (an explicit step, kept small by the time-step \
          limits below). The CNO catalyst abundance X_CNO = f_CNO · Z keeps its initial value. Mixing uses the \
          Schwarzschild convective zones of the previous model, so a convective core that shrinks during the main \
@@ -987,14 +1000,19 @@ fn evolution(ui: &mut Ui, dark: bool) {
     bullet(
         ui,
         "Burning limit: no shell may lose more than 0.01 of X, or more than 30% of its hydrogen, in one step. A \
-         convective zone counts as a single shell.",
+         convective zone counts as a single shell. The 30% rule has a floor of ΔX = 10⁻⁵, and shells with \
+         X ≤ 10⁻⁸ are skipped, so the step does not shrink without bound as hydrogen runs out.",
     );
     bullet(
         ui,
         "Structural limit: the step grows or shrinks so that ln r, ln P, ln T and ln L change by about 0.02 per step. \
          A step that changes them by more than 0.08 is rejected and repeated with half the time step.",
     );
-    bullet(ui, "If Newton fails, the step is divided by 3 and retried, up to 12 times; the smallest step is 1 year.");
+    bullet(
+        ui,
+        "If Newton does not converge within 40 iterations, the step is divided by 3 and retried, up to 12 times; the \
+         smallest step is 1 year.",
+    );
     bullet(ui, "First step: 10% of the burning limit, at most 10⁶ years.");
     sub(ui, "Evolutionary phases");
     term(ui, "Zero-age main sequence:", "age 0, homogeneous composition.");
@@ -1109,7 +1127,9 @@ fn pulsation(ui: &mut Ui, dark: bool) {
     math(ui, "puls_homogeneous", "");
     p(
         ui,
-        "and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours (the observed solar value is about 1 hour).",
+        "and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours. This mode is not observed in the Sun; \
+         standard solar models give about an hour. The agreement is partly a coincidence, since the model Sun has \
+         R = 1.11 R☉.",
     );
     sub(ui, "What is calculated and what is not");
     term(ui, "Calculated:", "the fundamental adiabatic radial mode: period, Ω², Q and the mode shape ξ(r).");
@@ -1301,8 +1321,9 @@ fn limitations(ui: &mut Ui, dark: bool) {
         ui,
         "It is not quantitatively solar. With X = 0.70 and Z = 0.02 the 1 M☉ model has L ≈ 0.42 L☉, R ≈ 1.11 R☉, \
          T_eff ≈ 4400 K and a thin convective envelope (base at 0.97 R). A detailed ZAMS Sun has L ≈ 0.7 L☉, \
-         R ≈ 0.89 R☉ and its envelope base near 0.71 R. The textbook Kramers opacity is too high in the core and far \
-         too low at 10⁵–10⁶ K, and the EOS has no ionisation zones.",
+         R ≈ 0.89 R☉ and its envelope base near 0.71 R. The leading suspects, whose shares have not been isolated: the \
+         textbook Kramers opacity is too high in the core (the leading suspect for the low luminosity) and far too low \
+         at 10⁵–10⁶ K, and the EOS has no ionisation zones.",
     );
     p(
         ui,
@@ -1446,8 +1467,13 @@ fn references(ui: &mut Ui, dark: bool) {
     );
     term(
         ui,
+        "Kippenhahn & Weigert (1990),",
+        "Stellar Structure and Evolution, 1st ed., Springer: the analytic pp, CNO and triple-α rate formulas.",
+    );
+    term(
+        ui,
         "Carroll & Ostlie (2017),",
-        "An Introduction to Modern Astrophysics, 2nd ed., Cambridge University Press: the analytic opacity and nuclear-rate formulas, and the StatStar model.",
+        "An Introduction to Modern Astrophysics, 2nd ed., Cambridge University Press: the analytic opacity formulas and the StatStar model.",
     );
     term(ui, "Hansen, Kawaler & Trimble (2004),", "Stellar Interiors, 2nd ed., Springer.");
     term(ui, "Henyey, Forbes & Gould (1964),", "ApJ 139, 306: the relaxation method for stellar structure.");

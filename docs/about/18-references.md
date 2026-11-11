@@ -4,8 +4,10 @@
 
 * **Kippenhahn, Weigert & Weiss (2012)**, *Stellar Structure and Evolution*, 2nd ed., Springer: the
   structure equations, mixing-length formulation, Henyey method and polytropes.
+* **Kippenhahn & Weigert (1990)**, *Stellar Structure and Evolution*, 1st ed., Springer: the analytic
+  pp, CNO and triple-α rate formulas.
 * **Carroll & Ostlie (2017)**, *An Introduction to Modern Astrophysics*, 2nd ed., Cambridge University
-  Press: the analytic opacity and nuclear-rate formulas, and the StatStar model.
+  Press: the analytic opacity formulas and the StatStar model.
 * **Hansen, Kawaler & Trimble (2004)**, *Stellar Interiors*, 2nd ed., Springer.
 * **Henyey, Forbes & Gould (1964)**, ApJ 139, 306: the relaxation method for stellar structure.
 * **Böhm-Vitense (1958)**, Zeitschrift für Astrophysik 46, 108: mixing-length theory.

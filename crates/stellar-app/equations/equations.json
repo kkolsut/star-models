@@ -65,11 +65,11 @@
   },
   {
     "id": "nuc_pp",
-    "tex": "\\varepsilon_{pp} = 2.38\\times10^{6}\\;\\rho\\, X^2\\, f_{1}\\, \\psi\\; T_6^{-2/3}\\, \\exp\\!\\left(-33.80\\, T_6^{-1/3}\\right)"
+    "tex": "\\varepsilon_{pp} = 2.38\\times10^{6}\\;\\rho\\, X^2\\, f_{1}\\, g_{11}\\; T_6^{-2/3}\\, \\exp\\!\\left(-33.80\\, T_6^{-1/3}\\right)"
   },
   {
     "id": "nuc_psi",
-    "tex": "\\psi = 1 + 0.0123\\, T_6^{1/3} + 0.0109\\, T_6^{2/3} + 0.0009\\, T_6"
+    "tex": "g_{11} = 1 + 0.0123\\, T_6^{1/3} + 0.0109\\, T_6^{2/3} + 0.0009\\, T_6"
   },
   {
     "id": "nuc_cno",
@@ -209,7 +209,7 @@
   },
   {
     "id": "evo_dt",
-    "tex": "|\\Delta X| \\le \\min(0.01,\\ 0.3\\,X), \\qquad \\Delta t_{\\mathrm{next}} = \\Delta t \\cdot \\min\\!\\left(2,\\ \\max\\!\\left(\\tfrac{1}{2},\\ \\frac{0.02}{\\max|\\Delta \\ln r, \\Delta\\ln P, \\Delta\\ln T, \\Delta\\ln L|}\\right)\\right)"
+    "tex": "|\\Delta X| \\le \\min\\!\\left(0.01,\\ \\max(0.3\\,X,\\ 10^{-5})\\right), \\qquad \\Delta t_{\\mathrm{next}} = \\Delta t \\cdot \\min\\!\\left(2,\\ \\max\\!\\left(\\tfrac{1}{2},\\ \\frac{0.02}{\\max|\\Delta \\ln r, \\Delta\\ln P, \\Delta\\ln T, \\Delta\\ln L|}\\right)\\right)"
   },
   {
     "id": "puls_lawe",

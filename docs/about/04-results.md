@@ -29,8 +29,10 @@ L = 4\pi R^2 \sigma T_{\mathrm{eff}}^4, \qquad \log g = \log_{10} \frac{G M}{R^2
 
 ## Virial check
 
-For any star in hydrostatic equilibrium the virial theorem makes this ratio exactly 1. Any deviation
-measures the discretisation error, typically $`10^{-5}`$ to $`10^{-4}`$.
+For any star in hydrostatic equilibrium the virial theorem makes this ratio 1, up to the surface
+pressure term $`4\pi R^3 P_{\mathrm{ph}}`$ and the central cut at $`m_0`$; both are far below
+$`10^{-5}`$. Any deviation therefore measures the discretisation error, typically $`10^{-5}`$ to
+$`10^{-4}`$.
 
 ```math
 \frac{\displaystyle\int_0^M \frac{3P}{\rho}\, dm}{\displaystyle\int_0^M \frac{G m}{r}\, dm} = 1 \qquad \text{(virial theorem)}

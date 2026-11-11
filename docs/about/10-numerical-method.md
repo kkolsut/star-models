@@ -72,7 +72,7 @@ elimination with partial pivoting in banded storage, so the cost grows linearly 
 undamped step ($`\lambda = 1`$).
 
 * This typically takes 10–30 iterations, with quadratic convergence at the end.
-* The limit is 250 iterations from a cold start and 60 from a warm start.
+* The limit is 250 iterations from a cold start, 60 from a warm start and 40 for each evolution step.
 * A small correction alone does not prove the equations are satisfied, so the residuals of the
   converged solution are evaluated as well. They are dimensionless (differences of $`\ln r`$,
   $`\ln P`$, $`\ln T`$ and of $`L`$ in units of the luminosity scale). Converged models reach about

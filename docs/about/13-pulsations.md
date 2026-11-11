@@ -39,8 +39,9 @@ Period and pulsation constant:
 \Omega^2 = 3\Gamma_1 - 4 \qquad \text{(uniform-density sphere, } \xi = \text{const)}
 ```
 
-and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours. The observed solar value is about
-1 hour.
+and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours. This mode is not observed in the
+Sun; standard solar models give about an hour. The agreement is partly a coincidence, since the model
+Sun has $`R = 1.11\,R_\odot`$.
 
 ## What is calculated and what is not
 

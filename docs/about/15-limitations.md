@@ -14,9 +14,11 @@ It is **not quantitatively solar**. With $`X = 0.70`$ and $`Z = 0.02`$:
 | This model | ≈ 0.42 L☉ | ≈ 1.11 R☉ | $`0.97\,R`$ (thin) |
 | Detailed ZAMS Sun | ≈ 0.7 L☉ | ≈ 0.89 R☉ | ≈ $`0.71\,R`$ |
 
-This model also has $`T_{\mathrm{eff}} \approx 4400`$ K. Two things cause the difference:
+This model also has $`T_{\mathrm{eff}} \approx 4400`$ K. The leading suspects for the difference are
+listed below; their shares have not been isolated:
 
-* the textbook Kramers opacity is too high in the core and far too low at $`10^5`$–$`10^6`$ K;
+* the textbook Kramers opacity is too high in the core (the leading suspect for the low luminosity) and
+  far too low at $`10^5`$–$`10^6`$ K;
 * the EOS has no ionisation zones.
 
 With $`Z = 0.008`$ the same physics reproduces the classic StatStar Sun of Carroll & Ostlie
