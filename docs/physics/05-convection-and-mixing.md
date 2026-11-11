@@ -1,0 +1,215 @@
+# 5. Convection and mixing
+
+This page covers three things: where energy is carried by convection, what the temperature gradient
+is there, and how convection mixes the composition.
+
+## Implemented
+
+Source: `crates/stellar-core/src/structure/local.rs` (radiative gradient),
+`crates/stellar-core/src/physics/convection.rs` (mixing-length theory),
+`crates/stellar-core/src/structure/evolve.rs` (mixing).
+
+### Radiative gradient
+
+The gradient needed to carry the whole luminosity by radiation:
+
+```math
+\nabla_{\mathrm{rad}} = \frac{3\,\kappa\, L\, P}{16\pi\, a\, c\, G\, m\, T^4}
+```
+
+### Schwarzschild criterion
+
+```math
+\nabla_{\mathrm{rad}} > \nabla_{\mathrm{ad}} \;\Rightarrow\; \text{convective}, \qquad \nabla_{\mathrm{rad}} \le \nabla_{\mathrm{ad}} \;\Rightarrow\; \text{radiative},\; \nabla = \nabla_{\mathrm{rad}}
+```
+
+It is applied locally, in ZAMS and evolved models alike. Composition gradients are not taken into
+account (no Ledoux criterion).
+
+### Mixing-length theory
+
+Formulation of Kippenhahn, Weigert & Weiss (2012, §7), after Böhm-Vitense (1958).
+
+*Gravity, pressure scale height, mixing length*
+
+```math
+g = \frac{G m}{r^2}, \qquad H_P = \frac{P}{\rho\, g}, \qquad \ell = \alpha_{\mathrm{MLT}}\, H_P
+```
+
+*Efficiency parameter and driving*
+
+```math
+U = \frac{3\, a\, c\, T^3}{c_P\, \rho^2\, \kappa\, \ell^2}\sqrt{\frac{8 H_P}{g\, \delta}}, \qquad W = \nabla_{\mathrm{rad}} - \nabla_{\mathrm{ad}}
+```
+
+*The cubic*, and the form solved in the code with $`\eta = \xi - U \ge 0`$
+
+```math
+(\xi - U)^3 + \frac{8U}{9}\left(\xi^2 - U^2 - W\right) = 0 \quad\Longleftrightarrow\quad \eta^3 + \frac{8U}{9}\left(\eta^2 + 2U\eta - W\right) = 0
+```
+
+Newton's method starts from the upper bound $`\eta_{\max} = \sqrt{U^2 + W} - U`$ and converges
+monotonically.
+
+*Gradient, velocity and flux fraction*
+
+```math
+\nabla = \nabla_{\mathrm{ad}} + \eta\,(\eta + 2U), \qquad v_{\mathrm{conv}} = \eta\, \ell \sqrt{\frac{g\, \delta}{8 H_P}}, \qquad \frac{F_{\mathrm{conv}}}{F} = \frac{\nabla_{\mathrm{rad}} - \nabla}{\nabla_{\mathrm{rad}}}
+```
+
+Limits: $`U \ll 1`$ gives $`\nabla \to \nabla_{\mathrm{ad}}`$ (efficient, deep interior);
+$`U \gg 1`$ gives $`\nabla \to \nabla_{\mathrm{rad}}`$ (inefficient, just below the photosphere).
+
+### Mixing
+
+After each burning step, every convective zone of the previous model is mixed completely:
+
+```math
+X \;\leftarrow\; \bar X_{\mathrm{zone}} = \frac{\int_{\mathrm{zone}} X\, dm}{\int_{\mathrm{zone}} dm} \qquad \text{(same for } Y, Z\text{)}
+```
+
+There is no mixing outside the Schwarzschild boundaries.
+
+### How good this is **[measured]**
+
+* **Gradient.** Deep convection is adiabatic: $`\nabla - \nabla_{\mathrm{ad}} \le 1.4\times10^{-7}`$
+  in the 5 M☉ core. In the Sun it peaks at 0.115 at $`r = 0.9997\,R`$.
+* **$`\alpha_{\mathrm{MLT}}`$ has almost no effect today.** For 1 M☉, $`\alpha = 1.0, 1.8, 2.5`$
+  gives $`R = 1.1207, 1.1133, 1.1106`$ R☉. The cause is the shallow convective envelope
+  ($`2\times10^{-6}`$ of the mass), which comes from the opacity and the EOS, not from the
+  convection theory.
+* **Instant mixing is justified.** Gas crosses the 5 M☉ core in about a month
+  ($`v_{\mathrm{conv}} \approx 10^4`$ cm/s); the main sequence lasts 76 Myr.
+* **The mixing length is unbounded at the centre**, because $`H_P \to \infty`$ as $`g \to 0`$:
+  $`\alpha H_P / r = 4900`$ at the innermost point of the 5 M☉ core. Only the plotted velocity is
+  affected.
+* **Missing overshoot** is the largest convection-related error in the evolution results.
+
+## Planned
+
+### Bounded scale height (C9, plan 1.4) **[check source]**
+
+Finite at the centre, and needs no extra input:
+
+```math
+\tilde H_P = \min\!\left(\frac{P}{\rho\, g},\ \sqrt{\frac{P}{G\,\rho^{2}}}\right), \qquad \ell = \alpha_{\mathrm{MLT}}\,\tilde H_P
+```
+
+### Step overshoot of convective cores (D16, plan 2.1)
+
+Applied in the mixing step only; the temperature gradient in the extension stays radiative.
+$`r_{\mathrm{cc}}`$ is the Schwarzschild boundary of the core.
+
+```math
+r_{\mathrm{ov}} = r_{\mathrm{cc}} + \alpha_{\mathrm{ov}}\,\min\!\left(H_P(r_{\mathrm{cc}}),\ r_{\mathrm{cc}}\right), \qquad \alpha_{\mathrm{ov}} \approx 0.2
+```
+
+### Ledoux criterion and semiconvection (D17, plan phase 8)
+
+```math
+\nabla_{\mathrm{L}} = \nabla_{\mathrm{ad}} + \frac{\varphi}{\delta}\,\nabla_\mu, \qquad \nabla_\mu = \frac{d\ln\mu}{d\ln P}, \qquad \varphi = \left(\frac{\partial\ln\rho}{\partial\ln\mu}\right)_{P,T}
+```
+
+A layer with $`\nabla_{\mathrm{ad}} < \nabla_{\mathrm{rad}} < \nabla_{\mathrm{L}}`$ is semiconvective:
+unstable by Schwarzschild, stabilised by the composition gradient, and mixed slowly.
+$`\varphi = 1`$ for the implemented EOS.
+
+*General composition term.* $`\varphi\,\nabla_\mu`$ assumes the composition enters the EOS only
+through one mean molecular weight. That holds for the implemented EOS. It does not for the planned
+ones, where $`\rho`$ depends separately on the ion and electron abundances, on ionisation and later
+on non-ideal terms. The general form, with the sum over independent species (one mass fraction is
+eliminated by $`\sum_i X_i = 1`$):
+
+```math
+B = \sum_i \left(\frac{\partial\ln\rho}{\partial X_i}\right)_{P,T,X_{j\ne i}} \frac{dX_i}{d\ln P}, \qquad \nabla_{\mathrm{L}} = \nabla_{\mathrm{ad}} + \frac{B}{\delta}
+```
+
+Reading of the derivative: when an independent $`X_i`$ is varied, the eliminated species varies by
+the opposite amount so that the sum stays 1, and all other independent $`X_j`$ are held fixed. It
+is not a derivative with every other mass fraction fixed.
+
+Convention: this $`B`$ equals $`\delta`$ times the $`B`$ of Paxton et al. (2013, §3.3, eqs. 5–8),
+where $`N^2 = (g^2\rho/P)\,\delta\,(\nabla_{\mathrm{ad}} - \nabla + B_{\mathrm{MESA}})`$. The two
+forms were compared and are equivalent.
+
+$`B`$ reduces to $`\varphi\nabla_\mu`$ for an ideal mixture. The partial derivatives come from the
+EOS (by differences at fixed $`P`$, $`T`$). From phase 6 on, $`B`$ is the production expression, in
+the Ledoux criterion and in $`N^2`$ ([Pulsations](09-pulsations.md)).
+
+### Mixing as diffusion (plan phase 8) **[check source]**
+
+Replaces instant mixing; solved implicitly on the mass mesh for each species:
+
+```math
+\frac{\partial X_i}{\partial t} = \frac{\partial}{\partial m}\left[\left(4\pi r^{2}\rho\right)^{2} D\,\frac{\partial X_i}{\partial m}\right]
+```
+
+*Diffusion coefficients*: convection, and exponential overshoot beyond a reference point $`r_0`$
+(Herwig 2000, $`f \approx 0.016`$)
+
+```math
+D_{\mathrm{conv}} = \tfrac{1}{3}\,v_{\mathrm{conv}}\,\ell, \qquad D_{\mathrm{ov}}(r) = D_0\,\exp\!\left(-\frac{2\,|r - r_0|}{f\,H_{P,0}}\right)
+```
+
+*Where $`D_0`$ is taken.* Not at the boundary itself: mixing-length theory gives
+$`v_{\mathrm{conv}} \to 0`$ there, so $`D_0`$ would vanish and with it the overshoot. $`D_0`$ is
+taken at a reference point $`r_0`$ inside the convective zone, a distance $`f_0 H_P`$ from the
+Schwarzschild boundary $`r_{\mathrm{b}}`$ (on the convective side):
+
+```math
+|r_0 - r_{\mathrm{b}}| = f_0\,H_P(r_{\mathrm{b}}), \qquad D_0 = D_{\mathrm{conv}}(r_0), \qquad H_{P,0} = H_P(r_0)
+```
+
+The exponential of the formula above starts at $`r_0`$, with scale $`f\,H_{P,0}`$. Between $`r_0`$
+and the far side it replaces $`D_{\mathrm{conv}}`$. $`f`$ and $`f_0`$ are two separate calibrated
+parameters; $`f_0`$ does not modify the scale ($`f_0 \approx 0.005`$ is a common choice
+**[check source]**). An exponential has no fixed reach: how far the mixing is effective depends on
+the time available, and in the code on a cut-off, below which $`D`$ is set to zero (a stated
+parameter; a relative one such as $`D < 10^{-10} D_0`$ is a modelling choice of these pages, while
+Herwig 2000 uses an absolute $`10^{-2}`$ cm² s⁻¹). Two sources, cited separately: the
+exponential, its factor 2, a normalisation near the boundary and the absolute cut-off are Herwig's
+(2000, §2, eq. 2) **[compared]**; the explicit reference point a distance $`f_0 H_P`$ inside the
+zone, with the exponential starting there, is the convention of the MESA code (its `overshoot_f0`
+control) **[compared]**, not Herwig's own boundary-distance definition. The value
+$`f_0 \approx 0.005`$ itself remains unverified. $`H_P`$ is the bounded scale height $`\tilde H_P`$
+for small cores.
+
+*The parameters are not universal.* $`f \approx 0.016`$ and $`\alpha_{\mathrm{ov}} \approx 0.2`$ are
+typical calibrations for intermediate-mass main-sequence stars; observations suggest a dependence on
+mass. The two are not interchangeable by a fixed factor (a rough guide is
+$`\alpha_{\mathrm{ov}} \sim 10 f`$), and they give different composition profiles: a step produces a
+sharp edge, the exponential a smooth one. Both stay user parameters.
+
+Instant mixing is the limit $`D \to \infty`$ inside convective zones and $`D = 0`$ elsewhere; the
+new step must reproduce it. Rotational mixing ([Rotation](08-rotation.md)) adds further terms to
+$`D`$.
+
+### Gravitational settling (F1, plan phase 8)
+
+Helium and metals sink slowly relative to hydrogen. An advection term with the diffusion velocity
+$`w_i`$ of each species, from Thoul, Bahcall & Loeb (1994):
+
+```math
+\frac{\partial X_i}{\partial t} = -\frac{\partial}{\partial m}\left(4\pi r^{2}\rho\, X_i\, w_i\right)
+```
+
+Size in the Sun over 4.6 Gyr: surface $`Y`$ falls by about 0.03 and $`Z`$ by about 10%.
+
+### Mixing-length cubic in the atmosphere (D13, plan phase 3)
+
+With a non-grey $`T(\tau)`$ relation the cubic above changes near the surface: its coefficient and
+its driving term take the Hopf factor $`A = 1 + q'(\tau)`$, and optically thin elements need a
+separate loss parameter. The equations are in
+[Boundary conditions](06-boundary-conditions.md); they reduce to the cubic of this page for
+$`A = 1`$.
+
+### Not planned
+
+* A different convection theory (full-spectrum turbulence, 3D-calibrated $`\alpha`$, time-dependent
+  convection). They change only the thin superadiabatic layer and bring nothing before the opacity
+  and EOS upgrades.
+* Turbulent pressure. It is about 10% of the pressure at the top of the solar convection zone and
+  shifts oscillation frequencies, but hardly changes $`R`$ or $`L`$.
+
+---
+Previous: [Nuclear burning](04-nuclear-burning.md) · [Contents](README.md) · Next: [Boundary conditions](06-boundary-conditions.md)

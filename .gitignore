@@ -2,3 +2,5 @@
 *.png
 *.csv
 !docs/*.png
+
+.claude/
