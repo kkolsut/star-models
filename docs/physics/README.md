@@ -49,6 +49,8 @@ blanket verification of everything marked **[check source]**.
 * [`../physics-review.md`](../physics-review.md) explains why each upgrade is proposed and how large
   the effect is. [`../implementation-plan.md`](../implementation-plan.md) says in what order and in
   which files.
+* [`../execution-plan.md`](../execution-plan.md) is the plan to work from: one task per planned
+  block of these pages, with files, tests and the ticket number.
 
 When an upgrade is implemented: move its block from "Planned" to "Implemented" here, and update the
 About page as the plan describes.
