@@ -106,8 +106,25 @@ cargo run --release -p stellar-core --example opacity_map -- docs/about/images/o
 
 ## Nuclear energy generation [erg g⁻¹ s⁻¹]
 
-The rate coefficients ($`2.38\times10^{6}`$, $`8.67\times10^{27}`$, $`5.09\times10^{11}`$) are those of
-Kippenhahn & Weigert (1990).
+The pp and CNO rates are built from the reaction rates of Solar Fusion III (Acharya et al. 2025).
+The rate of each reaction is the thermal average of its cross section, written with the astrophysical
+factor $`S(E)`$ and the values $`S(0)`$, $`S'(0)`$, $`S''(0)`$ recommended in their Table I ($`\mu`$ is
+the reduced mass, $`b`$ sets the Coulomb barrier):
+
+```math
+\langle\sigma v\rangle = \sqrt{\frac{8}{\pi\mu}}\,(kT)^{-3/2} \int_0^\infty S(E)\, \exp\!\left(-\frac{E}{kT} - \frac{b}{\sqrt{E}}\right) dE, \qquad b = \pi\alpha_{\mathrm{fs}} Z_1 Z_2 \sqrt{2\mu c^2}, \qquad S(E) = S(0) + S'(0)\,E + \tfrac12 S''(0)\,E^2
+```
+
+| Reaction | $`S(0)`$ [MeV b] | $`S'(0)`$ [b] | $`S''(0)`$ [b MeV⁻¹] |
+|---|---|---|---|
+| p + p | $`4.09\times10^{-25}`$ | $`4.5\times10^{-24}`$ | $`9.9\times10^{-23}`$ |
+| ³He + ³He | 5.21 | −4.90 | 22.42 |
+| ³He + ⁴He | $`5.61\times10^{-4}`$ | $`-3.03\times10^{-4}`$ | – |
+| p + ¹⁴N | $`1.68\times10^{-3}`$ | – | – |
+
+The integrals are computed once, tabulated against temperature and interpolated smoothly. Compared
+with the formulas of Kippenhahn & Weigert (1990) used before, the p + p rate is 5–7% higher and the
+p + ¹⁴N rate about half.
 
 ```math
 T_6 = \frac{T}{10^6\,\mathrm{K}}, \qquad T_8 = \frac{T}{10^8\,\mathrm{K}}
@@ -116,16 +133,12 @@ T_6 = \frac{T}{10^6\,\mathrm{K}}, \qquad T_8 = \frac{T}{10^8\,\mathrm{K}}
 *pp chain*
 
 ```math
-\varepsilon_{pp} = \psi\,\varepsilon_{pp,\mathrm{I}}, \qquad \varepsilon_{pp,\mathrm{I}} = 2.38\times10^{6}\;\rho\, X^2\, f_{1}\, g_{11}\; T_6^{-2/3}\, \exp\!\left(-33.80\, T_6^{-1/3}\right)
+\varepsilon_{pp} = \psi\,\varepsilon_{pp,\mathrm{I}}, \qquad \varepsilon_{pp,\mathrm{I}} = \frac{r_{11}}{2}\,\frac{E_{\mathrm{I}}}{\rho}, \qquad r_{11} = \tfrac12\, n_p^2\, \langle\sigma v\rangle_{11}\, f_1
 ```
 
-```math
-g_{11} = 1 + 0.0123\, T_6^{1/3} + 0.0109\, T_6^{2/3} + 0.0009\, T_6
-```
-
-$`g_{11}`$ is a correction to the p + p reaction rate. $`\varepsilon_{pp,\mathrm{I}}`$ counts the pp I
-chain only. Once helium is abundant, ³He also burns with ⁴He (the pp II chain), which makes more
-helium per p + p reaction; $`\psi`$ accounts for it (pp III is neglected):
+$`\varepsilon_{pp,\mathrm{I}}`$ counts the pp I chain only: two p + p reactions per helium nucleus,
+26.20 MeV deposited. Once helium is abundant, ³He also burns with ⁴He (the pp II chain), which makes
+more helium per p + p reaction; $`\psi`$ accounts for it (pp III is neglected):
 
 ```math
 \alpha = \left(\frac{Y}{4X}\right)^{2} \frac{\langle\sigma v\rangle_{34}^{\,2}}{\langle\sigma v\rangle_{11}\,\langle\sigma v\rangle_{33}}, \qquad \phi = 1 + \frac{2}{\sqrt{1 + 2/\alpha} + 1}, \qquad F_{\mathrm{II}} = \frac{2\,(\phi - 1)}{\phi}, \qquad \psi = \phi\,\left(1 - 0.021\,F_{\mathrm{II}}\right)
@@ -133,26 +146,21 @@ helium per p + p reaction; $`\psi`$ accounts for it (pp III is neglected):
 
 * $`\phi`$ (1 to 2) is the number of helium nuclei made per pp I chain, $`F_{\mathrm{II}}`$ the share
   made through pp II, which deposits 2.1% less energy per helium nucleus.
-* The reaction rates $`\langle\sigma v\rangle`$ of p + p, ³He + ³He and ³He + ⁴He are integrated
-  numerically from the astrophysical factors $`S(0)`$ of Solar Fusion III (Acharya et al. 2025),
-  tabulated once and interpolated smoothly; the screening factors are included.
-* This is a hybrid: the pp I rate is still the 1990 fit, which is about 8% below the Solar Fusion III
-  p + p rate. The energy-dependence of $`S`$ ($`S'`$, $`S''`$) is not included yet.
-* $`\psi`$ is near 1 on the ZAMS ($`\phi = 1.03`$ at the Sun's centre) and grows as helium builds
-  up: at 4.57 Gyr $`\phi = 1.10`$ at the centre, where 19% of the helium is made through pp II.
+* $`\alpha`$ uses the same Solar Fusion III rates, with the screening factors.
+* $`\psi`$ is near 1 on the ZAMS and grows as helium builds up: φ = 1.02 at the ZAMS Sun's centre, 1.10 at 4.57 Gyr, where 17% of the helium is made through pp II.
 * The hydrogen consumed per unit energy changes with it; see [Evolution in time](12-evolution.md).
 
-*CNO cycle*
+*CNO cycle.* The slowest step, p + ¹⁴N, sets the rate.
 
 ```math
-\varepsilon_{\mathrm{CNO}} = 8.67\times10^{27}\;\rho\, X\, X_{\mathrm{CNO}}\, f_{7}\, C\; T_6^{-2/3}\, \exp\!\left(-152.28\, T_6^{-1/3}\right)
+\varepsilon_{\mathrm{CNO}} = n_p\, n_{14}\, \langle\sigma v\rangle_{1,14}\, f_7\, \frac{E_{\mathrm{CNO}}}{\rho}
 ```
 
 ```math
-C = 1 + 0.0027\, T_6^{1/3} - 0.00778\, T_6^{2/3} - 0.000149\, T_6, \qquad X_{\mathrm{CNO}} = f_{\mathrm{CNO}}\, Z
+n_p = \frac{\rho X}{m_{\mathrm{H}}}, \qquad n_{14} = \frac{\rho X_{\mathrm{CNO}}}{m_{14}}, \qquad X_{\mathrm{CNO}} = f_{\mathrm{CNO}}\, Z, \qquad E_{\mathrm{I}} = 26.20\ \mathrm{MeV}, \qquad E_{\mathrm{CNO}} = 25.03\ \mathrm{MeV}
 ```
 
-*Triple-α*
+*Triple-α* (Kippenhahn & Weigert 1990)
 
 ```math
 \varepsilon_{3\alpha} = 5.09\times10^{11}\;\rho^2\, Y^3\, f_{4}\, f_{8}\; T_8^{-3}\, \exp\!\left(-\frac{44.027}{T_8}\right)

@@ -49,8 +49,8 @@ away at high temperature.
 
 ### Accuracy
 
-* At the centre of the ZAMS Sun ($`T = 1.26\times10^{7}`$ K, $`\rho = 64`$ g cm⁻³) the formulas give
-  $`\kappa = 2.72`$ **[measured]**. Detailed solar models have roughly half that at
+* At the centre of the ZAMS Sun ($`T = 1.25\times10^{7}`$ K, $`\rho = 62`$ g cm⁻³) the formulas give
+  $`\kappa = 2.74`$ **[measured]**. Detailed solar models have roughly half that at
   their own centre (literature value). This is a comparison between centres of different models,
   not at the same state: the test still to be made is the analytic formula against a table at
   identical $`(\rho, T, X, Z)`$. The high opacity is the leading suspect for the model Sun's

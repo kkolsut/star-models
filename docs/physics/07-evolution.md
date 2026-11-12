@@ -96,8 +96,8 @@ and helium burning break it by design. It used to be called the "energy budget" 
 About page; it is now called fuel accounting everywhere, and the app and CLI show it next to the
 total-energy check.
 
-**[measured]** 1 M☉ to 4.57 Gyr: 0.9899 (0.9949 with halved time steps); 1.8, 3 and 5 M☉ to the end
-of the main sequence: 0.9967, 0.9965, 0.9965 (5 M☉: 0.9992 with halved time steps). Halving the steps
+**[measured]** 1 M☉ to 4.57 Gyr: 0.9897 (0.9949 with halved time steps); 1.8, 3 and 5 M☉ to the end
+of the main sequence: 0.9960, 0.9964, 0.9965 (5 M☉: 0.9993 with halved time steps). Halving the steps
 halves the deviation: it is the first-order time error of the explicit burning step, not a missing
 energy (before stage 1 the Sun gave 0.9947 with the single $`Q_{\mathrm{H}}`$). The burning step itself
 removes exactly the hydrogen implied by the per-channel rates, to $`10^{-9}`$ per step
@@ -149,9 +149,9 @@ term is planned; this residual measures it.
 
 | Run | $`\mathcal{R}`$ | $`\mathcal{R}_{\mathrm{comp}}`$ | $`\mathcal{R}_{\mathrm{num}}`$ |
 |---|---|---|---|
-| 1 M☉ to 4.57 Gyr | $`-4.49 \to -4.51\times10^{-4}`$ | $`-4.48 \to -4.51\times10^{-4}`$ | $`-9.1 \to -4.7\times10^{-7}`$ |
-| 5 M☉ to the end of the main sequence | $`-1.057 \to -1.062\times10^{-3}`$ | $`-1.059 \to -1.063\times10^{-3}`$ | $`2.1 \to 1.0\times10^{-6}`$ |
-| 1.8 M☉, 3 M☉ to the end of the main sequence | $`-7.7\times10^{-4}`$, $`-9.1\times10^{-4}`$ | | $`1.2\times10^{-6}`$, $`2.4\times10^{-6}`$ |
+| 1 M☉ to 4.57 Gyr | $`-4.46 \to -4.48\times10^{-4}`$ | $`-4.45 \to -4.48\times10^{-4}`$ | $`-9.3 \to -4.7\times10^{-7}`$ |
+| 5 M☉ to the end of the main sequence | $`-1.091 \to -1.096\times10^{-3}`$ | $`-1.093 \to -1.097\times10^{-3}`$ | $`2.1 \to 1.0\times10^{-6}`$ |
+| 1.8 M☉, 3 M☉ to the end of the main sequence | $`-7.8\times10^{-4}`$, $`-9.4\times10^{-4}`$ | | $`1.1\times10^{-6}`$, $`2.4\times10^{-6}`$ |
 
 The numerical part halves with the time step (first order); the composition part converges. So on
 the main sequence the check closes to the composition term of $`\varepsilon_{\mathrm{grav}}`$, a few

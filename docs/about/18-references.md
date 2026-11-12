@@ -5,7 +5,7 @@
 * **Kippenhahn, Weigert & Weiss (2012)**, *Stellar Structure and Evolution*, 2nd ed., Springer: the
   structure equations, mixing-length formulation, Henyey method and polytropes.
 * **Kippenhahn & Weigert (1990)**, *Stellar Structure and Evolution*, 1st ed., Springer: the analytic
-  pp, CNO and triple-α rate formulas.
+  triple-α rate formula (and the pp and CNO formulas used before the Solar Fusion III rates).
 * **Carroll & Ostlie (2017)**, *An Introduction to Modern Astrophysics*, 2nd ed., Cambridge University
   Press: the analytic opacity formulas and the StatStar model.
 * **Hansen, Kawaler & Trimble (2004)**, *Stellar Interiors*, 2nd ed., Springer.
@@ -15,7 +15,8 @@
   rates and weak screening.
 * **Asplund, Grevesse, Sauval & Scott (2009)**, ARA&A 47, 481: the AGSS09 solar composition preset.
 * **Acharya et al. (2025)**, Rev. Mod. Phys. 97, 035002 ("Solar Fusion III"): the astrophysical
-  factors $`S(0)`$ behind the pp II branching factor $`\psi`$.
+  factors $`S(0)`$, $`S'(0)`$, $`S''(0)`$ behind the pp and CNO rates and the pp II branching factor
+  $`\psi`$.
 * **Paxton et al. (2011)**, ApJS 192, 3 (MESA), §5.1: the bounded pressure scale height in the mixing
   length.
 * **Choi et al. (2016)**, ApJ 823, 102 (MIST), §3.1: $`Y_p`$ and $`\Delta Y/\Delta Z`$ of the "helium follows

@@ -59,7 +59,7 @@ and every mesh point with $`r \le r_{\mathrm{ov}}`$ is mixed with the core.
   $`\min(H_P, r_{\mathrm{cc}})`$ keeps the extension finite for small cores.
 * Mixing only: the temperature gradient in the extension stays radiative.
 * The mixed core feeds more hydrogen into the burning region. With $`\alpha_{\mathrm{ov}} = 0.2`$ the
-  main sequence lasts 344 Myr instead of 273 Myr for 3 M☉ (+26%) and 89.5 Myr instead of 72.7 Myr
+  main sequence lasts 338 Myr instead of 269 Myr for 3 M☉ (+26%) and 88.6 Myr instead of 72.0 Myr
   for 5 M☉ (+23%). A 1.1 M☉ star, which has no convective core, is unaffected.
 * $`\alpha_{\mathrm{ov}} \approx 0.2`$ is a typical calibration for intermediate-mass stars; it depends
   on mass and is not universal.
@@ -139,9 +139,9 @@ The residual has two parts, reported separately:
   does not shrink with the time step.
 * The rest is numerical and shrinks with the time step.
 
-For the Sun evolved to 4.57 Gyr the residual is $`-4.5\times10^{-4}`$: $`-4.48\times10^{-4}`$ is the
+For the Sun evolved to 4.57 Gyr the residual is $`-4.5\times10^{-4}`$: $`-4.45\times10^{-4}`$ is the
 composition term and $`-9\times10^{-7}`$ numerical (halved by halving the time steps). For 5 M☉ to the
-end of the main sequence they are $`-1.06\times10^{-3}`$ and $`2\times10^{-6}`$. Automated tests
+end of the main sequence they are $`-1.09\times10^{-3}`$ and $`2\times10^{-6}`$. Automated tests
 require below 1% and check both parts on halving the steps.
 
 **Fuel accounting.** The hydrogen burnt, each step with the effective energy per gram of the model it
@@ -171,16 +171,16 @@ difference.
 
 | Quantity | 2% (default) | 1% | 0.5% | 0.25% |
 |---|---:|---:|---:|---:|
-| 1 M☉ at 4.57 Gyr: $`L`$ [L☉] | 0.51703 | 0.51732 | 0.51748 | 0.51756 |
-| 1 M☉ at 4.57 Gyr: $`X_c`$ | 0.50706 | 0.50676 | 0.50660 | 0.50652 |
-| 3 M☉ main-sequence lifetime [Myr] | 273.30 | 272.48 | 272.10 | 271.89 |
-| 3 M☉ convective core at $`X_c = 0.3`$ [$`m/M`$] | 0.11247 | 0.11242 | 0.11247 | 0.11250 |
-| Steps (3 M☉ to the end of the main sequence) | 137 | 278 | 559 | 1120 |
+| 1 M☉ at 4.57 Gyr: $`L`$ [L☉] | 0.51296 | 0.51326 | 0.51341 | 0.51349 |
+| 1 M☉ at 4.57 Gyr: $`X_c`$ | 0.50958 | 0.50931 | 0.50917 | 0.50910 |
+| 3 M☉ main-sequence lifetime [Myr] | 268.56 | 267.70 | 267.32 | 267.09 |
+| 3 M☉ convective core at $`X_c = 0.3`$ [$`m/M`$] | 0.11221 | 0.11210 | 0.11215 | 0.11221 |
+| Steps (3 M☉ to the end of the main sequence) | 137 | 276 | 556 | 1114 |
 
 At the default settings the errors are small compared with the physics uncertainties:
 
 * 1 M☉ at 4.57 Gyr: $`L`$, $`R`$ and $`T_c`$ within about 0.1%;
-* 3 M☉: main-sequence lifetime within about 0.6% of the extrapolated value (about 271.7 Myr);
+* 3 M☉: main-sequence lifetime within about 0.6% of the extrapolated value (about 266.9 Myr);
 * values exactly at the end of the main sequence scatter by up to about 1%, because the last step lands
   anywhere below $`X_c = 10^{-3}`$.
 

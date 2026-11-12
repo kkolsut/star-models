@@ -115,20 +115,20 @@ There is no other mixing outside the Schwarzschild boundaries.
 ### How good this is **[measured]**
 
 * **Gradient.** Deep convection is adiabatic: $`\nabla - \nabla_{\mathrm{ad}} \le 1.4\times10^{-7}`$
-  in the 5 M☉ core. In the Sun it peaks at 0.114 at $`r = 0.9997\,R`$.
+  in the 5 M☉ core. In the Sun it peaks at 0.111 at $`r = 0.9997\,R`$.
 * **$`\alpha_{\mathrm{MLT}}`$ has almost no effect today.** For 1 M☉, $`\alpha = 1.0, 1.8, 2.5`$
-  gives $`R = 1.1219, 1.1146, 1.1119`$ R☉. The cause is the shallow convective envelope
+  gives $`R = 1.1293, 1.1218, 1.1191`$ R☉. The cause is the shallow convective envelope
   ($`2\times10^{-6}`$ of the mass), which comes from the opacity and the EOS, not from the
   convection theory.
 * **Instant mixing is justified.** Gas crosses the 5 M☉ core in about a month
-  ($`v_{\mathrm{conv}} \approx 10^4`$ cm/s); the main sequence lasts 73 Myr.
+  ($`v_{\mathrm{conv}} \approx 10^4`$ cm/s); the main sequence lasts 72 Myr.
 * **The mixing length is bounded at the centre** since plan 1.4. With the ordinary $`H_P`$ it was
   $`\alpha H_P / r = 4900`$ at the innermost point of the 5 M☉ core; only the plotted velocity was
   affected, and no regression value moved when the bound was added.
 * **Overshoot lengthens the main sequence.** Main-sequence lifetime for
-  $`\alpha_{\mathrm{ov}} = 0, 0.1, 0.2`$: 273.3, 309.4, 344.2 Myr for 3 M☉ and 72.7, 81.4, 89.5 Myr for
+  $`\alpha_{\mathrm{ov}} = 0, 0.1, 0.2`$: 268.6, 304.0, 338.3 Myr for 3 M☉ and 72.0, 80.6, 88.6 Myr for
   5 M☉ (+26% and +23% at 0.2; re-measured after stage 1). The largest mixed core of the 3 M☉ run
-  grows from 0.175 to 0.242 of the mass. 1.1 M☉, which keeps a radiative core, is bit-identical with
+  grows from 0.173 to 0.241 of the mass. 1.1 M☉, which keeps a radiative core, is bit-identical with
   and without overshoot to 5 Gyr. Fuel accounting closes to 0.4% in all six runs
   (`tests/overshoot.rs`). The default stays 0 until
   the joint assessment (plan 7.7).

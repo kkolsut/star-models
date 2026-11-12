@@ -36,7 +36,7 @@ displacement and $`p`$ the relative pressure perturbation:
 \omega_{\mathrm{ac}} = \frac{c_s}{2 H_P} \ \ \text{at the photosphere}, \qquad \text{flagged if } \omega/\omega_{\mathrm{ac}} > 0.5
 ```
 
-For the ZAMS Sun $`\omega/\omega_{\mathrm{ac}} = 0.096`$.
+For the ZAMS Sun $`\omega/\omega_{\mathrm{ac}} = 0.095`$.
 
 Period and pulsation constant:
 
@@ -58,9 +58,9 @@ and its overtones (Pekeris 1938), which the library computes with a given number
 
 to $`10^{-3}`$ for $`k = 0`$–3. Polytropes of index 1.5 and 3 give fundamental $`\Omega^2 = 2.706`$ and
 9.254, close to the classical values. Doubling the mesh from 800 to 1600 points changes the solar period
-by $`4\times10^{-5}`$. The ZAMS Sun's fundamental radial mode comes out at 0.99 hours. This mode is not observed in the
+by $`4\times10^{-5}`$. The ZAMS Sun's fundamental radial mode comes out at 1.00 hours. This mode is not observed in the
 Sun; the standard solar model Model S (Christensen-Dalsgaard et al. 1996) gives 64.6 minutes
-(258 μHz). The agreement is partly a coincidence, since the model Sun has $`R = 1.11\,R_\odot`$.
+(258 μHz). The agreement is partly a coincidence, since the model Sun has $`R = 1.12\,R_\odot`$.
 
 ## What is calculated and what is not
 
@@ -142,7 +142,7 @@ N^2 = \frac{g^2 \rho}{P}\left[\delta\left(\nabla_{\mathrm{ad}} - \nabla\right) +
 ```
 
 * $`\Delta\nu`$ from the interior replaces the scaling relation by a value that depends on the
-  structure. For the ZAMS Sun the two agree to 1% (115.8 against 114.8 μHz).
+  structure. For the ZAMS Sun the two agree to 1% (114.8 against 113.7 μHz).
 * $`\Delta\Pi_1`$ is computed separately for every connected $`N^2 > 0`$ region: a radiative core, the
   radiative zone between a convective core and envelope, or a radiative envelope. Regions are never
   summed. The value over the whole region is the low-frequency limit.

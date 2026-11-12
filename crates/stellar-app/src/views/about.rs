@@ -810,33 +810,40 @@ fn microphysics(ui: &mut Ui, dark: bool) {
     );
 
     sub(ui, "Nuclear energy generation [erg g⁻¹ s⁻¹]");
-    p(ui, "The rate coefficients (2.38 × 10⁶, 8.67 × 10²⁷, 5.09 × 10¹¹) are those of Kippenhahn & Weigert (1990).");
-    math(ui, "nuc_t6", "");
-    math(ui, "nuc_pp", "pp chain");
-    math(ui, "nuc_psi", "");
     p(
         ui,
-        "g₁₁ is a correction to the p + p reaction rate. ε_pp,I counts the pp I chain only. Once helium is abundant, \
-         ³He also burns with ⁴He (the pp II chain), which makes more helium per p + p reaction; ψ accounts for it \
-         (pp III is neglected):",
+        "The pp and CNO rates are built from the reaction rates of Solar Fusion III (Acharya et al. 2025). The rate of \
+         each reaction is the thermal average of its cross section, written with the astrophysical factor S(E) and the \
+         values S(0), S′(0), S″(0) recommended in their Table I (μ is the reduced mass, b sets the Coulomb barrier):",
+    );
+    math(ui, "nuc_sigmav", "thermal reaction rate");
+    p(
+        ui,
+        "S(0) in MeV b: p + p 4.09 × 10⁻²⁵, ³He + ³He 5.21, ³He + ⁴He 5.61 × 10⁻⁴, p + ¹⁴N 1.68 × 10⁻³ (for the last \
+         only S(0) is recommended). The integrals are computed once, tabulated against temperature and interpolated \
+         smoothly. Compared with the formulas of Kippenhahn & Weigert (1990) used before, the p + p rate is 5–7% higher \
+         and the p + ¹⁴N rate about half.",
+    );
+    math(ui, "nuc_t6", "");
+    math(ui, "nuc_pp", "pp chain");
+    p(
+        ui,
+        "ε_pp,I counts the pp I chain only: two p + p reactions per helium nucleus, 26.20 MeV deposited. Once helium is \
+         abundant, ³He also burns with ⁴He (the pp II chain), which makes more helium per p + p reaction; ψ accounts for \
+         it (pp III is neglected):",
     );
     math(ui, "nuc_branch", "pp II branching");
     p(
         ui,
         "• φ (1 to 2) is the number of helium nuclei made per pp I chain, F_II the share made through pp II, which \
          deposits 2.1% less energy per helium nucleus.\n\
-         • The reaction rates ⟨σv⟩ of p + p, ³He + ³He and ³He + ⁴He are integrated numerically from the astrophysical \
-         factors S(0) of Solar Fusion III (Acharya et al. 2025), tabulated once and interpolated smoothly; the \
-         screening factors are included.\n\
-         • This is a hybrid: the pp I rate is still the 1990 fit, which is about 8% below the Solar Fusion III p + p \
-         rate. The energy-dependence of S (S′, S″) is not included yet.\n\
-         • ψ is near 1 on the ZAMS (φ = 1.03 at the Sun's centre) and grows as helium builds up: at 4.57 Gyr φ = 1.10 \
-         at the centre, where 19% of the helium is made through pp II.\n\
+         • α uses the same Solar Fusion III rates, with the screening factors.\n\
+         • ψ is near 1 on the ZAMS and grows as helium builds up: φ = 1.02 at the ZAMS Sun's centre, 1.10 at 4.57 Gyr, where 17% of the helium is made through pp II.\n\
          • The hydrogen consumed per unit energy changes with it; see \"Evolution in time\".",
     );
-    math(ui, "nuc_cno", "CNO cycle");
+    math(ui, "nuc_cno", "CNO cycle: the slowest step, p + ¹⁴N, sets the rate");
     math(ui, "nuc_c", "");
-    math(ui, "nuc_3a", "triple-α");
+    math(ui, "nuc_3a", "triple-α (Kippenhahn & Weigert 1990)");
     p(ui, "Weak electron screening (Salpeter / Clayton):");
     math(ui, "nuc_screen", "");
     p(
@@ -1088,7 +1095,7 @@ fn evolution(ui: &mut Ui, dark: bool) {
         "H_P(r_cc) is interpolated between the mesh points around the boundary; min(H_P, r_cc) keeps the extension finite \
          for small cores. The overshoot is applied to the mixing only: the temperature gradient in the extension stays \
          radiative. The mixed core feeds more hydrogen into the burning region. With α_ov = 0.2 the main sequence of \
-         3 M☉ lasts 344 Myr instead of 273 Myr (+26%), and of 5 M☉ 89.5 Myr instead of 72.7 Myr (+23%). A 1.1 M☉ star, \
+         3 M☉ lasts 338 Myr instead of 269 Myr (+26%), and of 5 M☉ 88.6 Myr instead of 72.0 Myr (+23%). A 1.1 M☉ star, \
          which has no convective core, is unaffected. α_ov ≈ 0.2 is a typical calibration for intermediate-mass stars; \
          it depends on mass and is not universal.",
     );
@@ -1166,8 +1173,8 @@ fn evolution(ui: &mut Ui, dark: bool) {
         "The residual has two parts, reported separately. The ε_grav of the solver leaves out the heat from the change of \
          composition at fixed P and T; the run adds that term up (the change of the enthalpy u + P/ρ), and it does not \
          shrink with the time step. The rest is numerical and shrinks with the time step. For the Sun evolved to \
-         4.57 Gyr the residual is −4.5 × 10⁻⁴, of which −4.48 × 10⁻⁴ is the composition term and −9 × 10⁻⁷ numerical \
-         (halved by halving the time steps); for 5 M☉ to the end of the main sequence −1.06 × 10⁻³ and 2 × 10⁻⁶. \
+         4.57 Gyr the residual is −4.5 × 10⁻⁴, of which −4.45 × 10⁻⁴ is the composition term and −9 × 10⁻⁷ numerical \
+         (halved by halving the time steps); for 5 M☉ to the end of the main sequence −1.09 × 10⁻³ and 2 × 10⁻⁶. \
          Automated tests require below 1% and check both parts on halving the steps.",
     );
     p(
@@ -1192,7 +1199,7 @@ fn evolution(ui: &mut Ui, dark: bool) {
          explicitly with the previous model's rates: each halving roughly halves the difference. At the default \
          settings the errors are small compared with the physics uncertainties:\n\
          • 1 M☉ at 4.57 Gyr: L, R and T_c within about 0.1%.\n\
-         • 3 M☉: main-sequence lifetime within about 0.6% (273.3 Myr against about 271.7 Myr extrapolated); \
+         • 3 M☉: main-sequence lifetime within about 0.6% (268.6 Myr against about 266.9 Myr extrapolated); \
          convective-core mass at X_c = 0.3 within 0.1%.\n\
          • Values exactly at the end of the main sequence scatter by up to about 1%, because the last step lands \
          anywhere below X_c = 10⁻³.\n\
@@ -1267,7 +1274,7 @@ fn pulsation(ui: &mut Ui, dark: bool) {
          every mode, and a warning appears above 0.5:",
     );
     math(ui, "puls_cutoff", "");
-    p(ui, "For the ZAMS Sun ω/ω_ac = 0.096. Period and pulsation constant:");
+    p(ui, "For the ZAMS Sun ω/ω_ac = 0.095. Period and pulsation constant:");
     math(ui, "puls_period", "");
     p(ui, "Validation: for a uniform-density sphere the solver reproduces the exact result");
     math(ui, "puls_homogeneous", "");
@@ -1277,9 +1284,9 @@ fn pulsation(ui: &mut Ui, dark: bool) {
         ui,
         "to 10⁻³ for k = 0–3. Polytropes of index 1.5 and 3 give fundamental Ω² = 2.706 and 9.254, close to the classical \
          values. Doubling the mesh from 800 to 1600 points changes the solar period by 4 × 10⁻⁵. The ZAMS Sun's \
-         fundamental radial mode comes out at 0.99 hours. This mode is not observed in the Sun; \
+         fundamental radial mode comes out at 1.00 hours. This mode is not observed in the Sun; \
          the standard solar model Model S gives 64.6 minutes (258 μHz). The agreement is partly a coincidence, since the model Sun has \
-         R = 1.11 R☉.",
+         R = 1.12 R☉.",
     );
     sub(ui, "What is calculated and what is not");
     term(ui, "Calculated:", "the fundamental adiabatic radial mode: period, Ω², Q and the mode shape ξ(r).");
@@ -1347,7 +1354,7 @@ fn pulsation(ui: &mut Ui, dark: bool) {
     p(
         ui,
         "Δν from the interior replaces the scaling relation by a value that depends on the structure; for the ZAMS Sun \
-         the two agree to 1% (115.8 against 114.8 μHz). ΔΠ₁ is computed separately for every connected N² > 0 region \
+         the two agree to 1% (114.8 against 113.7 μHz). ΔΠ₁ is computed separately for every connected N² > 0 region \
          (a candidate g-mode cavity: a radiative core, the radiative zone between a convective core and envelope, a \
          radiative envelope); regions are never summed. The value over the whole region is the low-frequency limit. \
          Both are asymptotic estimates (high radial order), not computed spectra, and Δν carries the model's surface \
@@ -1498,8 +1505,8 @@ fn limitations(ui: &mut Ui, dark: bool) {
     );
     p(
         ui,
-        "It is not quantitatively solar. With X = 0.70 and Z = 0.02 the 1 M☉ model has L ≈ 0.42 L☉, R ≈ 1.11 R☉, \
-         T_eff ≈ 4400 K and a thin convective envelope (base at 0.97 R). A detailed ZAMS Sun has L ≈ 0.7 L☉, \
+        "It is not quantitatively solar. With X = 0.70 and Z = 0.02 the 1 M☉ model has L ≈ 0.42 L☉, R ≈ 1.12 R☉, \
+         T_eff ≈ 4380 K and a thin convective envelope (base at 0.97 R). A detailed ZAMS Sun has L ≈ 0.7 L☉, \
          R ≈ 0.89 R☉ and its envelope base near 0.71 R. The leading suspects, whose shares have not been isolated: the \
          textbook Kramers opacity is too high in the core (the leading suspect for the low luminosity) and far too low \
          at 10⁵–10⁶ K, and the EOS has no ionisation zones.",
@@ -1519,8 +1526,8 @@ fn limitations(ui: &mut Ui, dark: bool) {
     bullet(
         ui,
         "Main-sequence lifetimes follow the model luminosities. The analytic Sun is underluminous (0.42 L☉ at the ZAMS), \
-         so it burns slowly and leaves the main sequence after about 14.4 Gyr instead of about 10 Gyr. Intermediate-mass \
-         and massive stars come out within about 25% of detailed models (for example 1.36 Gyr for 1.8 M☉ and 73 Myr \
+         so it burns slowly and leaves the main sequence after about 15.1 Gyr instead of about 10 Gyr. Intermediate-mass \
+         and massive stars come out within about 25% of detailed models (for example 1.32 Gyr for 1.8 M☉ and 72 Myr \
          for 5 M☉, against roughly 1.2–1.5 Gyr and 90–100 Myr).",
     );
     bullet(
@@ -1666,7 +1673,8 @@ fn references(ui: &mut Ui, dark: bool) {
     term(
         ui,
         "Kippenhahn & Weigert (1990),",
-        "Stellar Structure and Evolution, 1st ed., Springer: the analytic pp, CNO and triple-α rate formulas.",
+        "Stellar Structure and Evolution, 1st ed., Springer: the triple-α rate formula (and the pp and CNO formulas \
+         used before the Solar Fusion III rates).",
     );
     term(
         ui,
@@ -1685,8 +1693,8 @@ fn references(ui: &mut Ui, dark: bool) {
     term(
         ui,
         "Acharya et al. (2025),",
-        "Rev. Mod. Phys. 97, 035002 (\"Solar Fusion III\"): the astrophysical factors S(0) behind the pp II branching \
-         factor ψ.",
+        "Rev. Mod. Phys. 97, 035002 (\"Solar Fusion III\"): the astrophysical factors S(0), S′(0), S″(0) behind the \
+         pp and CNO rates and the pp II branching factor ψ.",
     );
     term(
         ui,

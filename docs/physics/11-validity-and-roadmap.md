@@ -6,11 +6,11 @@
 
 | 1 M☉ ZAMS | This model | Detailed ZAMS models (approximate) | Suspected contributors (none isolated) |
 |---|---|---|---|
-| $`L`$ | 0.4195 L☉ | 0.7 L☉ | interior opacity; pp rate; composition |
-| $`R`$ | 1.1146 R☉ | 0.89 R☉ | opacity, EOS without ionisation, atmosphere |
-| $`T_{\mathrm{eff}}`$ | 4400 K | 5600 K | follows from $`L`$ and $`R`$ |
-| Convective envelope base | 0.968 R | about 0.73 R | envelope opacity, ionisation, atmosphere entropy |
-| Central $`\kappa`$ | 2.72 cm² g⁻¹ | roughly half | Kramers formulas |
+| $`L`$ | 0.4165 L☉ | 0.7 L☉ | interior opacity; pp rate; composition |
+| $`R`$ | 1.1218 R☉ | 0.89 R☉ | opacity, EOS without ionisation, atmosphere |
+| $`T_{\mathrm{eff}}`$ | 4378 K | 5600 K | follows from $`L`$ and $`R`$ |
+| Convective envelope base | 0.967 R | about 0.73 R | envelope opacity, ionisation, atmosphere entropy |
+| Central $`\kappa`$ | 2.74 cm² g⁻¹ | roughly half | Kramers formulas |
 
 How to read this table:
 
@@ -41,7 +41,7 @@ the implementation, not the physics.
 |---|---|---|
 | EOS (ideal gas + radiation) | 0.4–100 M☉ interiors on the main sequence | below 0.4 M☉; envelopes of cool stars; helium cores |
 | Opacity (analytic) | hot interiors of massive stars | Sun-like stars (factor 2); below 2600 K |
-| Nuclear rates | main-sequence hydrogen burning (pp II share included through $`\psi`$) | pp III share; late burning stages; screening beyond the weak regime (reported) |
+| Nuclear rates | main-sequence hydrogen burning (Solar Fusion III rates; pp II share included through $`\psi`$) | pp III share; late burning stages; screening beyond the weak regime (reported) |
 | Mixing-length theory | deep, efficient convection, where $`\nabla \to \nabla_{\mathrm{ad}}`$ whatever the theory | superadiabatic surface layers (result depends on the free parameter $`\alpha_{\mathrm{MLT}}`$); boundaries (local theory; core overshoot only as an optional step in the mixing); anything time-dependent |
 | Convective boundaries | Sun-like stars | stars with convective cores (overshoot only as an optional, uncalibrated step, off by default); layers with composition gradients (no Ledoux criterion; $`N^2`$ shows them as a diagnostic) |
 | Atmosphere | hot stars | cool stars (one $`\kappa`$, grey) |
@@ -74,7 +74,7 @@ The degeneracy coefficient is where $`P_{\mathrm{nd}} = P_{\mathrm{nr}}`$ in the
 | Mass loss (E1) | 1% of $`M`$ at 20 M☉, 10–20% at 60 M☉ on the main sequence | planned, phase 4 |
 | Rotation (E3) | a few % in structure, 20–30% in lifetime for fast rotators | planned, phases 5 and 8 |
 | Integrated, non-grey atmosphere (D13, F3) | about 100 K in $`T_{\mathrm{eff}}`$ of cool stars | planned, phase 3 |
-| pp branching and newer rates (D11) | pp rate 8% low, plus up to 50% from $`\psi`$; measured: ZAMS Sun $`L`$ −0.3%, 1 M☉ main sequence +2.6% | $`\psi`$ done (phase 1, hybrid with the 1990 pp rate); rates from Solar Fusion III with $`S'`$, $`S''`$ still planned |
+| pp branching and newer rates (D11) | pp rate 5–7% low, CNO rate about 2× high, plus up to 50% from $`\psi`$; measured with the per-channel $`Q`$ and the other stage-1 changes: ZAMS Sun $`L`$ −1.0%, 1 M☉ main sequence 14.03 → 15.12 Gyr, 3 M☉ 285.9 → 268.6 Myr | done, phase 1: $`\psi`$, pp and ¹⁴N(p,γ) rates from Solar Fusion III |
 | Separate $`Q`$ for CNO (D12) | CNO-burning lifetimes 4% too long; measured −4.3% (3 M☉), −4.4% (5 M☉) | done, phase 1 |
 | Element settling (F1) | Sun: surface $`Y`$ −0.03, $`Z`$ −10% in 4.6 Gyr | planned, phase 8 |
 | Molecular hydrogen (F2) | decides full convection at 0.1–0.5 M☉ | with phase 6 |

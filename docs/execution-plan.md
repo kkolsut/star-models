@@ -131,12 +131,11 @@ Details and source locations: the table "Source comparisons recorded" in
 
 Order: 1.1, 1.2, 1.5 → 1.10 → 1.4, 1.3, 1.8, 1.11, 1.7 → 1.6 → 1.9.
 
-*Status (2026-11-12, branch `agent/small-corrections`).* Done: 1.1–1.5, 1.7, 1.8, 1.10, 1.11, 1.9.
-1.6 done as the allowed hybrid: φ, ψ and Q_pp^eff with α from its definition, by quadrature of eq. 3
-of Solar Fusion III with the verified S(0) values (tabulated, C¹), the 1990 pp I rate kept.
-Still open in 1.6: S′(0) and S″(0) of Table I (not recorded in `physics/` and not checkable offline,
-so left out by rule 6), and with them the pp and ¹⁴N(p,γ) rates rebuilt from Solar Fusion III. The
-measured changes of default results are in `physics/04` and `07` and in the commit message.
+*Status (2026-11-12, branch `agent/small-corrections`).* Done: 1.1–1.11. For 1.6 the S′(0), S″(0)
+of Solar Fusion III Table I were checked against the source on 2026-11-12 (recorded in `physics/04`
+and `12`); the pp and ¹⁴N(p,γ) rates and α are built from them by quadrature of eq. 3, tabulated
+with C¹ interpolation, so no hybrid remains (¹⁴N(p,γ): Table I gives S(0) only). The measured
+changes of default results are in `physics/04`, `07`, `11` and in the commit messages.
 
 * **1.10 comes early on purpose.** Every later stage is judged with it. Conventions as on p. 7: u
   is thermal only, ε_nuc already excludes reaction neutrinos, ε_ν is thermal neutrinos only (zero

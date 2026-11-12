@@ -40,7 +40,7 @@ acoustic cut-off frequency of the atmosphere, $`\omega_{\mathrm{ac}} \approx c_s
 is usually, but not always, true of the fundamental mode. It is not assumed: the solver reports
 $`\omega/\omega_{\mathrm{ac}}`$ at the photosphere (`RadialMode::omega_over_ac`, results panel, CLI,
 track CSV) and flags the result when the ratio is above 0.5 (plan 1.3). The condition is not adequate
-for high overtones. **[measured]** ZAMS Sun: 0.096 for the fundamental, 0.121 and 0.150 for the first
+for high overtones. **[measured]** ZAMS Sun: 0.095 for the fundamental, 0.121 and 0.150 for the first
 two overtones.
 
 *What the calculation does not say.* The equations are adiabatic: they give a period for every
@@ -74,7 +74,7 @@ r_{k+1/2} = \sqrt{r_k\,r_{k+1}}, \qquad P_{k+1/2} = \sqrt{P_k\,P_{k+1}}, \qquad 
   $`\Omega^2 = 2.706`$, 12.54, 26.58 for 0, 1, 2 nodes; $`n = 3`$ gives 9.254, 16.98, 28.48. The
   fundamental values are compared with 2.712 and 9.26 to 0.5%; these reference values are quoted
   from memory of the standard tables (Cox 1980) **[check source]**, so the test tolerance is loose.
-* Solar ZAMS fundamental period at 400, 800, 1600 points: 0.98736, 0.98753, 0.98757 h. Between 800
+* Solar ZAMS fundamental period at 400, 800, 1600 points: 0.99832, 0.99848, 0.99853 h. Between 800
   and 1600 points it changes by $`4.2\times10^{-5}`$ (relative); with arithmetic midpoints it changed
   by $`1.36\times10^{-4}`$.
 * The same fundamental mode is found from every mesh and from the previous mode as a guess; the
@@ -195,12 +195,12 @@ layers, so $`\Delta\nu`$ carries the model's surface errors.
   $`|\Delta A| = 7\times10^{-4}`$ in the nearly adiabatic radiative layers just below the photosphere.
 * **Schwarzschild and Ledoux** differ in evolved models: in the same model one layer at the edge of the
   shrinking core is Schwarzschild-unstable but has $`N^2 > 0`$ (149 against 148 points).
-* **Δν.** ZAMS Sun: 115.79 μHz asymptotic against 114.81 μHz scaling (+0.9%). The ratio falls with
+* **Δν.** ZAMS Sun: 114.79 μHz asymptotic against 113.70 μHz scaling (+1.0%). The ratio falls with
   mass, to 0.91 for 3 and 5 M☉ ZAMS models.
-* **ΔΠ₁.** ZAMS Sun: one cavity, the radiative core to 0.967 R (the envelope base), ΔΠ₁ = 3233 s,
-  plus a thin surface layer. 1.5 M☉: the zone between core and envelope, 3563 s. 3 M☉: the radiative
-  envelope, 5656 s. All tests in `tests/seismic.rs`. (Re-measured after stage 1, which moved them by
-  under 1.5% through the pp branching; N² checks unchanged in kind.)
+* **ΔΠ₁.** ZAMS Sun: one cavity, the radiative core to 0.967 R (the envelope base), ΔΠ₁ = 3269 s,
+  plus a thin surface layer. 1.5 M☉: the zone between core and envelope, 3434 s. 3 M☉: the radiative
+  envelope, 5410 s. All tests in `tests/seismic.rs`. (Re-measured after stage 1, which moved them by
+  2–4% through the new pp and CNO rates; the N² checks were not re-measured and pass unchanged.)
 
 ## Planned
 

@@ -86,7 +86,7 @@ Examples:
 |---|---|
 | Sun to 4.57 Gyr | 27 steps, 0.3 s; L 0.42 → 0.52 L☉, X_c 0.70 → 0.51 |
 | 1.8 M☉ | δ Scuti on the main sequence (P ≈ 0.05–0.15 d); the convective-core "hook" at 1.4 Gyr |
-| 5 M☉ | main sequence to 73 Myr, then crosses the Cepheid strip (P ≈ 1.5–2.6 d at ~1000 L☉) |
+| 5 M☉ | main sequence to 72 Myr, then crosses the Cepheid strip (P ≈ 1.5–2.6 d at ~1000 L☉) |
 | 10 M☉ | reaches core helium burning as a red supergiant |
 
 Every evolution run carries a total-energy check: energy radiated against nuclear energy released and the change of thermal and gravitational energy. For the Sun at 4.57 Gyr it closes to 5 × 10⁻⁴, almost all of it the composition term that ε_grav omits; the numerical part is 10⁻⁶. The fuel accounting (hydrogen burnt × Q_H against the energy radiated) closes to 1%. After the main sequence the analytic physics is only qualitative: there is no degeneracy, ionisation or molecular opacity, so low-mass stars do not climb the red giant branch.
@@ -116,8 +116,9 @@ Code layout: `crates/stellar-core` holds the physics and solver (no GUI dependen
 * **EOS:** fully ionized ideal gas plus radiation pressure (β, ∇_ad, c_P, δ).
 * **Opacity:** analytic. Electron scattering + Kramers free–free and bound–free (with guillotine
   factor) + H⁻ + a molecular floor.
-* **Nuclear:** analytic pp chain (with the pp II branching factor ψ), CNO cycle and triple-α rates
-  with weak screening; separate energies per gram of hydrogen for pp and CNO.
+* **Nuclear:** pp chain (with the pp II branching factor ψ) and CNO cycle from the Solar Fusion III
+  reaction rates (S(0), S′, S″ integrated over the Gamow peak), analytic triple-α; weak screening;
+  separate energies per gram of hydrogen for pp and CNO.
 * **Boundary conditions:** central expansions at m₀ = 10⁻⁶ M, and a grey Eddington photosphere at
   τ = ⅔ at the surface.
 * **Solver:** Henyey relaxation, i.e. Newton–Raphson on the full discretized system.
@@ -141,7 +142,7 @@ The analytic microphysics gets the **qualitative** structure right:
 * massive stars (where electron scattering dominates the opacity) close to detailed ZAMS models
 
 It is **not quantitatively solar**. With X = 0.70 and Z = 0.02 the 1 M☉ model has L ≈ 0.42 L☉,
-R ≈ 1.11 R☉ and a thin convective envelope (base at 0.97 R). A detailed ZAMS Sun has L ≈ 0.7 L☉,
+R ≈ 1.12 R☉ and a thin convective envelope (base at 0.97 R). A detailed ZAMS Sun has L ≈ 0.7 L☉,
 R ≈ 0.89 R☉ and its envelope base near 0.71 R. Two things cause this:
 
 * The textbook Kramers opacity is too high in the core and far too low at 10⁵–10⁶ K.
