@@ -153,10 +153,10 @@ are the best-known case). The per-cavity values are diagnostics, not predicted s
 Both formulas are asymptotic (high radial order). The integrand $`1/c_s`$ is dominated by the outer
 layers, so $`\Delta\nu`$ carries the model's surface errors.
 
-### Non-radial modes, Cowling approximation (E4 stage 2, plan 9.1) **[check source]**
+### Non-radial modes, Cowling approximation (E4 stage 2, plan 9.1)
 
-Neglecting the perturbation of the gravitational potential (Unno et al. 1989), for the radial
-displacement $`\xi_r`$ and the Eulerian pressure perturbation $`p'`$ of a mode of degree $`l`$:
+Neglecting the perturbation of the gravitational potential, for the radial displacement $`\xi_r`$
+and the Eulerian pressure perturbation $`p'`$ of a mode of degree $`l`$:
 
 ```math
 \frac{d\xi_r}{dr} = -\left(\frac{2}{r} - \frac{g}{c_s^{2}}\right)\xi_r + \frac{1}{\rho\,c_s^{2}}\left(\frac{S_l^{2}}{\omega^{2}} - 1\right)p'
@@ -166,24 +166,44 @@ displacement $`\xi_r`$ and the Eulerian pressure perturbation $`p'`$ of a mode o
 \frac{dp'}{dr} = \rho\left(\omega^{2} - N^{2}\right)\xi_r - \frac{g}{c_s^{2}}\,p'
 ```
 
+*Source.* Compared (task 0.3, 2026-11-11) with Christensen-Dalsgaard, *Lecture Notes on Stellar
+Oscillations*, 5th ed. (2014), §5.2.2, eqs. 5.12–5.14, p. 75, which give the same pair with the
+coefficient $`\Gamma_1^{-1} H_p^{-1}`$, $`H_p^{-1} = -d\ln p/dr`$, in place of $`g/c_s^2`$. The two are
+equal by hydrostatic equilibrium and $`c_s^2 = \Gamma_1 P/\rho`$. The notes obtain them from the full
+equations (eqs. 4.61–4.62, pp. 65–66) by dropping $`\Phi'`$; their $`N^2`$ (eq. 4.63) and $`S_l^2`$
+(eq. 4.60) are the definitions used above. *Decided 2026-11-12:* these lecture notes are the reference for
+the Cowling equations and their boundary conditions. Unno et al. (1989), which the notes cite for
+the boundary conditions (§18.1), could not be obtained and is not needed for this task.
+
 *Boundary conditions*
 
 ```math
 \frac{p'}{\rho} = \frac{\omega^{2}\,r\,\xi_r}{l} \;\; (\text{centre}), \qquad p' = \rho\,g\,\xi_r \;\; (\text{surface})
 ```
 
+Both follow from the same notes: the centre from $`\xi_r \simeq l\,\xi_h`$ (eq. 4.65, p. 67) with
+$`\xi_h = p'/(\rho r \omega^2)`$ (eq. 4.39, p. 62, with $`\Phi' = 0`$); the surface from
+$`\delta p = p' + \xi_r\,dp/dr = 0`$ (eq. 4.68, p. 67) with $`dp/dr = -\rho g`$.
+
 The central condition holds for $`l \ge 1`$ only (it divides by $`l`$). Radial modes ($`l = 0`$)
 have their own regularity condition and are the subject of the implemented solver; a comparison of
 the two at $`l = 0`$ must use that condition.
 
 Two unknowns plus the eigenvalue: the same size as the radial problem. Accurate for high-order or
-high-$`l`$ modes; several percent off for the lowest ones.
+high-$`l`$ modes, where the notes cite numerical confirmation (§5.2.1, p. 75); for low-order,
+low-$`l`$ modes it can fail badly (the notes single out the $`l = 1`$ f mode, "drastically
+different" from the full equations). The earlier statement "several percent off for the lowest
+ones" was not from a source and is withdrawn; the size of the error is to be measured against
+plan 9.2.
 
 ### Non-radial modes, full problem (E4 stage 3, plan 9.2)
 
-Four unknowns plus the eigenvalue, including the perturbed gravitational potential. Use the
-dimensionless variables $`y_1 \dots y_4`$ of Unno et al. (1989, §18); the equations are to be copied
-from there when the task starts.
+Four unknowns plus the eigenvalue, including the perturbed gravitational potential. *Decided
+2026-11-12:* take the equations and boundary conditions from the same, available lecture notes
+(Christensen-Dalsgaard 2014, eqs. 4.61–4.62, with the central and surface conditions around
+eqs. 4.65–4.68, p. 67; the dimensionless form $`y_1 \dots y_4`$ is set up from them when the task
+starts) instead of Unno et al. (1989), which was not available. Check the result against the Cowling limit above and against
+the radial solver at $`l = 0`$.
 
 ### Finding the modes
 

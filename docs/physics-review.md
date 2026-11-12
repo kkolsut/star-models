@@ -116,6 +116,10 @@ Schwarzschild criterion is used throughout and that the stabilising effect of co
 mode is not observed in the Sun; about 63 minutes is the value computed for standard solar models.
 The agreement of 0.99 h is also partly a coincidence, since the model has $`R = 1.11\,R_\odot`$.
 *Fix:* "standard solar models give about 63 minutes".
+*Checked 2026-11-11:* Model S (`fgong.l5bi.d.15`, users-phys.au.dk/jcd/solar_models) gives
+258.0 μHz = 64.6 min for the radial fundamental (exact radial wave equation, linear finite elements on
+the model mesh; the same code reproduces the BiSON l = 0 frequencies of Broomhall et al. 2009, Table 1,
+to 0.1–0.4 μHz for n = 6–12). The About text quotes 64.6 min.
 
 **B5. Details of section 12 that are in the code but not in the text [read].**
 * Evolution steps allow 40 Newton iterations (`evolve.rs`, `Evolution::step`); section 10 lists only
@@ -735,7 +739,7 @@ example $`3.75 \le \log T \le 4.0`$.
 ### 8.7 Mass loss (E1)
 
 The two rate formulas are in section 5. Metallicity scaling of hot-star winds **[source]**:
-$`\dot M \propto (Z/0.02)^{0.7}`$ (Vink, de Koter & Lamers 2001).
+$`\dot M \propto (Z/0.019)^{0.69}`$ (Vink, de Koter & Lamers 2001, eqs. 21–22; corrected in task 0.3 from $`(Z/0.02)^{0.7}`$).
 
 **Moving mesh [derived].** With $`m_k = q_k\,M(t)`$, a quantity $`f`$ followed at fixed mass obeys
 

@@ -39,6 +39,13 @@ These pages went through four rounds of external review on 2026-11-11 (theory on
 not part of it). The source comparisons made there cover the listed items only and are not a
 blanket verification of everything marked **[check source]**.
 
+Task 0.3 (2026-11-11 and 2026-11-12) worked through every remaining marker: most were compared with
+the original, and the rest were settled by a recorded decision where the original was not
+available (a verified substitute source, independent reproductions, or dropping the item from the
+plan). No marker is left. Which items rest on a decision rather than the original is listed at the
+end of [page 12](12-constants-and-references.md). New planned formulas quoted from memory get the
+marker again.
+
 ## How this relates to the other documents
 
 * [`../about/`](../about/README.md) mirrors the in-app About page. It describes the app as it is
