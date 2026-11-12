@@ -57,7 +57,8 @@ and its overtones (Pekeris 1938), which the library computes with a given number
 ```
 
 to $`10^{-3}`$ for $`k = 0`$–3. Polytropes of index 1.5 and 3 give fundamental $`\Omega^2 = 2.706`$ and
-9.254, close to the classical values. Doubling the mesh from 800 to 1600 points changes the solar period
+9.254, in agreement to $`10^{-4}`$ with an independent calculation (the same equation solved by
+shooting in Lane–Emden variables). Doubling the mesh from 800 to 1600 points changes the solar period
 by $`4\times10^{-5}`$. The ZAMS Sun's fundamental radial mode comes out at 1.00 hours. This mode is not observed in the
 Sun; the standard solar model Model S (Christensen-Dalsgaard et al. 1996) gives 64.6 minutes
 (258 μHz). The agreement is partly a coincidence, since the model Sun has $`R = 1.12\,R_\odot`$.

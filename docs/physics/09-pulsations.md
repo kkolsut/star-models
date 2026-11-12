@@ -70,10 +70,19 @@ r_{k+1/2} = \sqrt{r_k\,r_{k+1}}, \qquad P_{k+1/2} = \sqrt{P_k\,P_{k+1}}, \qquad 
 
 * Uniform sphere, $`\Gamma_1 = 5/3`$: the overtones with 1, 2, 3 nodes give $`\Omega^2 = 12.667`$, 31.001,
   56.004 against $`\Gamma_1 (k+1)(2k+3) - 4 = 12.667`$, 31, 56 (Pekeris 1938).
-* Polytropes, $`\Gamma_1 = 5/3`$ (3000 points, surface cut at $`\theta = 10^{-5}`$): $`n = 1.5`$ gives
-  $`\Omega^2 = 2.706`$, 12.54, 26.58 for 0, 1, 2 nodes; $`n = 3`$ gives 9.254, 16.98, 28.48. The
-  fundamental values are compared with 2.712 and 9.26 to 0.5%; these reference values are quoted
-  from memory of the standard tables (Cox 1980) **[check source]**, so the test tolerance is loose.
+* Polytropes, $`\Gamma_1 = 5/3`$. Reference: the same wave equation written in Lane–Emden
+  variables and solved by shooting (RK4 from the centre and from the surface to $`z_1/2`$, no mesh,
+  no surface cut; `tests/pulsation.rs`), which reproduces the uniform sphere ($`n = 0`$) to
+  $`10^{-6}`$. It gives $`\Omega^2 = 2.70587`$, 12.5356, 26.5820 for $`n = 1.5`$ and 9.25471,
+  16.9845, 28.4825 for $`n = 3`$ (0, 1, 2 nodes). The Henyey solver on 3000 points with the surface
+  cut at $`\theta = 10^{-5}`$ agrees to $`4\times10^{-5}`$ ($`n = 1.5`$) and $`1.1\times10^{-4}`$
+  ($`n = 3`$); the test requires $`3\times10^{-4}`$.
+* Literature values for the fundamental, $`\Omega^2 \approx 2.712`$ ($`n = 1.5`$) and 9.26 ($`n = 3`$),
+  were quoted from memory **[check source]**; the likely sources are Hurley, Roberts & Wright
+  (1966, ApJ 143, 535), Cox (1980), Schwarzschild (1941, ApJ 94, 245) for $`n = 3`$, and
+  Christensen-Dalsgaard & Mullan (1994, MNRAS 270, 921) for precise values. The independent
+  calculation agrees with 9.26 to 0.06% but differs from 2.712 by 0.23%, so the remembered
+  $`n = 1.5`$ value is probably wrong. Neither is used in a test.
 * Solar ZAMS fundamental period at 400, 800, 1600 points: 0.99832, 0.99848, 0.99853 h. Between 800
   and 1600 points it changes by $`4.2\times10^{-5}`$ (relative); with arithmetic midpoints it changed
   by $`1.36\times10^{-4}`$.

@@ -72,23 +72,139 @@ fn polytrope(n: f64, points: usize) -> StarModel {
     model
 }
 
-/// Fundamental radial modes of polytropes with Γ₁ = 5/3 against the classical
-/// values Ω² ≈ 2.712 (n = 1.5) and 9.26 (n = 3). These reference values are
-/// quoted from memory of the standard tables (Cox 1980), not yet compared with
-/// the source; the tolerance (0.5%) is set accordingly. Overtones: the right
-/// node counts, increasing Ω².
+/// Independent reference for the polytrope modes: the same adiabatic wave
+/// equation written in Lane–Emden variables and solved by shooting, with no
+/// mesh and no surface cut. With r = a z, θ(z) the Lane–Emden function of index
+/// n, z₁ its first zero and w₁ = −z₁²θ′(z₁), the equations of `pulsation.rs`
+/// become
+///
+///   dξ/dz = −(3ξ + p/Γ₁)/z,
+///   dp/dz = −(n + 1)(θ′/θ) [(4 + Ω² (z/z₁)³ w₁/(−z²θ′)) ξ + p],
+///
+/// regular at the centre (3ξ + p/Γ₁ = 0) and at the surface (p + (4 + Ω²)ξ = 0).
+/// Both regular solutions are integrated (RK4) to z₁/2, from the centre outward
+/// and from the surface inward: the irregular solutions decay in both
+/// directions. Eigenvalues are the zeros of ξ_out p_in − ξ_in p_out there.
+struct Shooter {
+    n: f64,
+    gamma1: f64,
+    z1: f64,
+    dtheta1: f64,
+}
+
+impl Shooter {
+    fn new(n: f64, gamma1: f64) -> Self {
+        let (le, z1) = lane_emden(n);
+        let (zl, _, dl) = le[le.len() - 1];
+        // θ'' = −2θ'/z − θⁿ at the surface, where θⁿ is 0, or 1 for n = 0.
+        let surf = if n == 0.0 { 1.0 } else { 0.0 };
+        let dtheta1 = dl + (-2.0 * dl / zl - surf) * (z1 - zl);
+        Self { n, gamma1, z1, dtheta1 }
+    }
+
+    fn derivs(&self, om2: f64, z: f64, y: [f64; 4]) -> [f64; 4] {
+        let [th, dth, xi, p] = y;
+        let w1 = -self.z1 * self.z1 * self.dtheta1;
+        let ddth = -th.max(0.0).powf(self.n) - 2.0 * dth / z;
+        let dxi = -(3.0 * xi + p / self.gamma1) / z;
+        let coeff = 4.0 + om2 * (z / self.z1).powi(3) * w1 / (-z * z * dth);
+        let dp = -(self.n + 1.0) * (dth / th) * (coeff * xi + p);
+        [dth, ddth, dxi, dp]
+    }
+
+    /// RK4 from z to z_end; the step adapts near the surface, where θ′/θ grows.
+    fn integrate(&self, om2: f64, mut z: f64, mut y: [f64; 4], z_end: f64) -> [f64; 4] {
+        let dir = (z_end - z).signum();
+        while (z_end - z) * dir > 0.0 {
+            let h = (1e-4_f64).min(0.01 * (self.z1 - z).abs().max(1e-12)).min((z_end - z).abs()) * dir;
+            let add = |y: [f64; 4], k: [f64; 4], f: f64| [0, 1, 2, 3].map(|i| y[i] + f * k[i]);
+            let k1 = self.derivs(om2, z, y);
+            let k2 = self.derivs(om2, z + h / 2.0, add(y, k1, h / 2.0));
+            let k3 = self.derivs(om2, z + h / 2.0, add(y, k2, h / 2.0));
+            let k4 = self.derivs(om2, z + h, add(y, k3, h));
+            y = [0, 1, 2, 3].map(|i| y[i] + h / 6.0 * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]));
+            z += h;
+        }
+        y
+    }
+
+    fn mismatch(&self, om2: f64) -> f64 {
+        let (n, zm) = (self.n, 0.5 * self.z1);
+        let z0: f64 = 1e-4;
+        let centre =
+            [1.0 - z0 * z0 / 6.0 + n * z0.powi(4) / 120.0, -z0 / 3.0 + n * z0.powi(3) / 30.0, 1.0, -3.0 * self.gamma1];
+        let out = self.integrate(om2, z0, centre, zm);
+        let d = 1e-8 * self.z1;
+        let ddth1 = -2.0 * self.dtheta1 / self.z1 - if n == 0.0 { 1.0 } else { 0.0 };
+        let surface = [-self.dtheta1 * d, self.dtheta1 - ddth1 * d, 1.0, -(4.0 + om2)];
+        let inn = self.integrate(om2, self.z1 - d, surface, zm);
+        out[2] * inn[3] - inn[2] * out[3]
+    }
+
+    /// The first `count` eigenvalues Ω², by scanning and bisection.
+    fn eigenvalues(&self, count: usize) -> Vec<f64> {
+        let mut roots = Vec::new();
+        let (mut lo, mut f_lo) = (0.05, self.mismatch(0.05));
+        while roots.len() < count && lo < 200.0 {
+            let hi = lo * 1.04;
+            let f_hi = self.mismatch(hi);
+            if f_lo.signum() != f_hi.signum() {
+                let (mut a, mut b, mut fa) = (lo, hi, f_lo);
+                for _ in 0..60 {
+                    let m = 0.5 * (a + b);
+                    let fm = self.mismatch(m);
+                    if fm.signum() == fa.signum() {
+                        a = m;
+                        fa = fm;
+                    } else {
+                        b = m;
+                    }
+                }
+                roots.push(0.5 * (a + b));
+            }
+            (lo, f_lo) = (hi, f_hi);
+        }
+        roots
+    }
+}
+
+/// The shooting reference reproduces the uniform sphere (n = 0) exactly:
+/// Ω²_k = Γ₁ (k + 1)(2k + 3) − 4 (Pekeris 1938).
+#[test]
+fn shooting_reference_reproduces_the_uniform_sphere() {
+    let g1 = 5.0 / 3.0;
+    let w = Shooter::new(0.0, g1).eigenvalues(3);
+    for (k, w) in w.iter().enumerate() {
+        let exact = g1 * ((k + 1) * (2 * k + 3)) as f64 - 4.0;
+        assert!((w / exact - 1.0).abs() < 1e-6, "k = {k}: Ω² = {w}, exact {exact}");
+    }
+}
+
+/// Radial modes of the n = 1.5 and n = 3 polytropes (Γ₁ = 5/3): the Henyey
+/// solver on a 3000-point model (surface cut at θ = 10⁻⁵) against the shooting
+/// reference above (agreement 4e-5 for n = 1.5 and 1.1e-4 for n = 3), for the fundamental and the first two overtones, with the
+/// right node counts.
+///
+/// Literature values for comparison: Ω² ≈ 2.712 (n = 1.5) and 9.26 (n = 3) for
+/// the fundamental, quoted from memory of the classical tables (Hurley, Roberts
+/// & Wright 1966; Cox 1980; for n = 3 Schwarzschild 1941; precise values in
+/// Christensen-Dalsgaard & Mullan 1994) and not yet compared with a source
+/// [check source]. They are printed, not tested; the shooting reference gives
+/// 2.70587 and 9.25471, so the remembered 2.712 is probably wrong.
 #[test]
 fn polytrope_radial_modes() {
-    for (n, reference) in [(1.5, 2.712), (3.0, 9.26)] {
+    for (n, literature) in [(1.5, 2.712), (3.0, 9.26)] {
+        let reference = Shooter::new(n, 5.0 / 3.0).eigenvalues(3);
         let model = polytrope(n, 3000);
         let modes: Vec<_> = (0..3).map(|k| radial_mode(&model, k, None).unwrap()).collect();
-        let w: Vec<f64> = modes.iter().map(|m| m.omega2).collect();
-        eprintln!("polytrope n = {n}: Ω² = {:.4}, {:.4}, {:.4}", w[0], w[1], w[2]);
+        eprintln!(
+            "polytrope n = {n}: shooting Ω² = {:.5}, {:.5}, {:.5}; Henyey {:.5}, {:.5}, {:.5}; literature (unchecked) {literature}",
+            reference[0], reference[1], reference[2], modes[0].omega2, modes[1].omega2, modes[2].omega2
+        );
         for (k, m) in modes.iter().enumerate() {
             assert_eq!(m.nodes, k);
+            assert!((m.omega2 / reference[k] - 1.0).abs() < 3e-4, "n = {n}, k = {k}: {} vs {}", m.omega2, reference[k]);
         }
-        assert!(w[0] < w[1] && w[1] < w[2]);
-        assert!((w[0] / reference - 1.0).abs() < 5e-3, "n = {n}: Ω² = {} against {reference}", w[0]);
     }
 }
 
