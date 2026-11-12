@@ -32,12 +32,14 @@ Every model provides these quantities at every mesh point, from the centre to th
 | 25 | `X` | hydrogen mass fraction (uniform in ZAMS models, depleted by burning during evolution) |
 | 26 | `Y` | helium mass fraction |
 | 27 | `Z` | metal mass fraction |
+| 28 | `c_s_cm_s` | adiabatic sound speed $`c_s = \sqrt{\Gamma_1 P/\rho}`$ [cm s⁻¹] |
+| 29 | `N2_s-2` | buoyancy frequency squared $`N^2`$ [s⁻²]; negative where the layer is Ledoux-unstable |
 
 ## Summary JSON
 
 | Key | Contents |
 |---|---|
-| `params` | the input parameters: `mass`, `x`, `z`, `alpha_mlt`, `f_cno`, `n_points` |
+| `params` | the input parameters: `mass`, `x`, `z`, `alpha_mlt`, `f_cno`, `n_points`, `alpha_ov` |
 | `physics` | the description of the physics used |
 | `globals` | every quantity of [Results: global quantities](04-results.md), plus `newton_iterations`, `max_correction` and `residuals` |
 | `convective_zones` | one entry per zone, with `q_inner`, `q_outer`, `r_inner` and `r_outer` ($`r`$ in units of $`R`$) |

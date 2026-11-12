@@ -28,6 +28,8 @@ pub struct TrackPoint {
     pub y_c: f64,
     pub he_core_q: f64,
     pub conv_core_q: f64,
+    /// Convective core plus step overshoot.
+    pub mixed_core_q: f64,
     pub conv_env_base_r: Option<f64>,
     /// Shares of the surface luminosity from pp, CNO, 3α and gravitational energy.
     pub l_pp: f64,
@@ -36,6 +38,10 @@ pub struct TrackPoint {
     pub l_grav: f64,
     pub nu_max: f64,
     pub delta_nu: f64,
+    /// Asymptotic Δν from the interior [μHz].
+    pub delta_nu_asym: f64,
+    /// ΔΠ₁ of the largest candidate g-mode cavity [s], if any.
+    pub delta_pi1: Option<f64>,
     pub phase: Phase,
     pub period_days: Option<f64>,
     pub pulsator: Option<PulsatorType>,
@@ -58,6 +64,7 @@ impl TrackPoint {
             y_c: g.y_c,
             he_core_q: g.he_core_q,
             conv_core_q: g.conv_core_q,
+            mixed_core_q: g.mixed_core_q,
             conv_env_base_r: g.conv_env_base_r,
             l_pp: g.frac_pp * nuc,
             l_cno: g.frac_cno * nuc,
@@ -65,6 +72,8 @@ impl TrackPoint {
             l_grav: g.frac_grav,
             nu_max: g.nu_max_uhz,
             delta_nu: g.delta_nu_uhz,
+            delta_nu_asym: g.delta_nu_asym_uhz,
+            delta_pi1: stellar_core::seismic::main_cavity(&g.g_cavities).map(|c| c.delta_pi1_s),
             phase: g.phase,
             period_days: m.pulsation.as_ref().map(|p| p.period_days()),
             pulsator: pulsation::classify(g.teff, g.luminosity),
@@ -76,13 +85,14 @@ impl TrackPoint {
 pub fn history_csv(track: &[TrackPoint]) -> String {
     use std::fmt::Write as _;
     let mut s = String::from(
-        "step,age_yr,phase,L_lsun,R_rsun,Teff_K,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,conv_env_base_r,\
-         L_pp_frac,L_cno_frac,L_3a_frac,L_grav_frac,P_fund_days,pulsator,nu_max_uHz,delta_nu_uHz\n",
+        "step,age_yr,phase,L_lsun,R_rsun,Teff_K,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,mixed_core_q,\
+         conv_env_base_r,L_pp_frac,L_cno_frac,L_3a_frac,L_grav_frac,P_fund_days,pulsator,nu_max_uHz,delta_nu_uHz,\
+         delta_nu_asym_uHz,delta_Pi1_s\n",
     );
     for (i, t) in track.iter().enumerate() {
         let _ = writeln!(
             s,
-            "{i},{:.6e},{:?},{:.6e},{:.6e},{:.2},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{},{},{:.4},{:.4}",
+            "{i},{:.6e},{:?},{:.6e},{:.6e},{:.2},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{},{},{:.4},{:.4},{:.4},{}",
             t.age_yr,
             t.phase,
             t.lum,
@@ -95,6 +105,7 @@ pub fn history_csv(track: &[TrackPoint]) -> String {
             t.y_c,
             t.he_core_q,
             t.conv_core_q,
+            t.mixed_core_q,
             t.conv_env_base_r.map(|r| format!("{r:.5}")).unwrap_or_default(),
             t.l_pp,
             t.l_cno,
@@ -104,6 +115,8 @@ pub fn history_csv(track: &[TrackPoint]) -> String {
             t.pulsator.map(|p| p.label()).unwrap_or(""),
             t.nu_max,
             t.delta_nu,
+            t.delta_nu_asym,
+            t.delta_pi1.map(|p| format!("{p:.2}")).unwrap_or_default(),
         );
     }
     s

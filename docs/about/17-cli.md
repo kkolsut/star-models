@@ -14,6 +14,7 @@ cargo run --release -p stellar-cli -- [options]
 | `--alpha <α>` | mixing-length parameter (default 1.8) |
 | `--f-cno <f>` | CNO fraction of $`Z`$ (default 0.7) |
 | `--points <N>` | mesh points (default 800) |
+| `--alpha-ov <α>` | step overshoot of a convective core, 0–0.5 (default 0; mixing only, used by `--evolve`) |
 | `-o, --output <file>` | write the profile CSV |
 | `--json <file>` | write the summary JSON |
 | `--sweep <M1,M2,…>` | solve a ZAMS sequence by continuation and print a table |
@@ -32,6 +33,7 @@ stellar-cli --sweep 0.5,1,2,5,10,20
 stellar-cli --mass 3 --z 0.008 -v
 stellar-cli --mass 1 --evolve --until age --max-age 4.57
 stellar-cli --mass 5 --evolve --until max --track track.csv -o final_profile.csv
+stellar-cli --mass 3 --evolve --alpha-ov 0.2
 ```
 
 The CLI and the app both use the `stellar-core` library, so identical parameters give the same model to

@@ -145,13 +145,31 @@ z = \frac{G M}{R\,c^{2}}, \qquad v_z = c\,z = \frac{G M}{R\,c}
 
 See [Rotation](08-rotation.md).
 
-### Helium tied to metallicity (F5, plan 1.7) **[check source]**
+### Helium tied to metallicity (F5, plan 1.7)
 
-An optional input mode, not a change of the physics:
+An optional input mode, not a change of the physics. The parameters are those of the MIST models
+(Choi et al. 2016, §3.1, eqs. 1–3):
 
 ```math
-Y = Y_p + \frac{\Delta Y}{\Delta Z}\,Z, \qquad Y_p \approx 0.248, \quad \frac{\Delta Y}{\Delta Z} \approx 1.5, \qquad X = 1 - Y - Z
+Y = Y_p + \frac{\Delta Y}{\Delta Z}\,Z, \qquad Y_p = 0.249, \quad \frac{\Delta Y}{\Delta Z} = \frac{Y_{\odot,\mathrm{proto}} - Y_p}{Z_{\odot,\mathrm{proto}}} = 1.5, \qquad X = 1 - Y - Z
 ```
+
+with the Asplund et al. (2009) protosolar $`Y = 0.2703`$, $`Z = 0.0142`$ (Choi et al. 2016,
+Table 1), so that at $`Z = 0.0142`$ the mode reproduces the protosolar preset of the code
+($`X = 0.7154`$) to within rounding. *Changed:* the page gave $`Y_p \approx 0.248`$ without a source;
+no source read gives that value together with 1.5. The pairs found are:
+
+| Source | $`Y_p`$ | $`\Delta Y/\Delta Z`$ | Location |
+|---|---|---|---|
+| Choi et al. 2016 (MIST), from Planck 2015 | 0.249 | 1.5 | §3.1, eqs. 1–2 |
+| Bressan et al. 2012 (PARSEC), $`Y_p`$ from Komatsu et al. 2011 | 0.2485 | 1.78 | §3 (from its solar calibration), used in §4 |
+| Planck 2018 VI, BBN (PArthENoPE) at the Planck baryon density | 0.2454 | – | §2.1; Table 2 caption |
+| Aver et al. 2021, H II regions (measured) | 0.2453 ± 0.0034 | – | abstract |
+
+Current determinations of $`Y_p`$ are lower than 0.249 by about 0.004. With $`Y_p = 0.2453`$ and the
+same protosolar anchor the slope would be $`(0.2703 - 0.2453)/0.0142 = 1.76`$; the two pairs agree
+at $`Z = 0.0142`$ and differ by at most 0.0037 in $`Y`$ (at $`Z = 0`$) for $`Z \le 0.0142`$. Either pair may be
+offered; the default follows MIST so that both numbers come from one source.
 
 ---
 Previous: [Pulsations](09-pulsations.md) · [Contents](README.md) · Next: [Validity, limits and order of work](11-validity-and-roadmap.md)

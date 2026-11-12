@@ -45,12 +45,20 @@ At break-up ($`\omega = 1`$) the equatorial radius is 1.5 times the polar radius
 g_r = -\frac{G M}{R^{2}} + \Omega^{2} R \sin^{2}\theta, \qquad g_\theta = \Omega^{2} R \sin\theta\cos\theta, \qquad g_{\mathrm{eff}} = \sqrt{g_r^{2} + g_\theta^{2}}
 ```
 
-*Gravity darkening* (von Zeipel 1924) **[check source]**: exponent 0.25 for radiative envelopes,
-about 0.08 for convective ones. The constant is fixed by the luminosity.
+*Gravity darkening*: $`T_{\mathrm{eff}} \propto g_{\mathrm{eff}}^{\beta_{\mathrm{gd}}}`$ with $`\beta_{\mathrm{gd}} = 0.25`$ for
+radiative envelopes (von Zeipel 1924, eq. 37, p. 675: $`T_e^4 = (4/aC)\,d\Phi/dn_i`$, the flux
+proportional to the effective gravity $`d\Phi/dn`$, centrifugal term included) and
+$`\beta_{\mathrm{gd}} \approx 0.08`$ for convective ones (Lucy 1967, eqs. 3 and 6, pp. 90–91; his table gives
+0.069–0.088 for envelopes near 1 M☉, and he warns that other mixing-length formulations may give
+different values). The constant is fixed by the luminosity (von Zeipel's eq. 38, p. 676, relates
+his $`C`$ to $`L`$):
 
 ```math
-T_{\mathrm{eff}}(\theta) \propto g_{\mathrm{eff}}^{1/4}, \qquad \oint \sigma\, T_{\mathrm{eff}}^{4}(\theta)\, dA = L
+T_{\mathrm{eff}}(\theta) \propto g_{\mathrm{eff}}^{\beta_{\mathrm{gd}}}, \qquad \oint \sigma\, T_{\mathrm{eff}}^{4}(\theta)\, dA = L
 ```
+
+*Changed:* the convective value was attributed to von Zeipel and the formula showed only the
+exponent 1/4; it is now written with $`\beta_{\mathrm{gd}}`$ and the 0.08 attributed to Lucy (1967).
 
 ### Stage 2: structure (E3, plan 5.2)
 

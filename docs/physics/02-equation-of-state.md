@@ -148,7 +148,8 @@ momentum:
 x_F = \frac{p_F}{m_e c} = \frac{h}{m_e c}\left(\frac{3\,n_e}{8\pi}\right)^{1/3}
 ```
 
-$`K_1`$, $`K_2`$ are given below.
+$`K_1`$, $`K_2`$ are the closed forms given below for the Paczyński model, but with $`m_u`$ in place of
+$`m_{\mathrm{H}}`$ (consistent with $`n_e = \rho/\mu_e m_u`$): $`1.0036\times10^{13}`$ and $`1.2435\times10^{15}`$ (cgs).
 
 *Admissible input.* $`T > 0`$ and $`P > P_{\mathrm{rad}}(T) = aT^4/3`$. Outside it there is no
 solution; the call returns an error, not a clamped state.
@@ -175,10 +176,13 @@ partial ionisation, pressure ionisation. The last three need a separate extensio
 derived from a free energy (next sections); adding them as independent corrections to $`P`$ or
 $`h`$ would break the consistency this choice was made for.
 
-### Comparison model: Paczyński interpolation **[check source]**
+### Comparison model: Paczyński interpolation
 
 Optional, selectable for comparison; not used as the basis of evolution runs. Interpolation formula
-of Paczyński (1983):
+of Paczyński (1983, ApJ 267, 315, eq. 4 on p. 317; compared with the original in task 0.3). The
+paper writes it for a hydrogen-free He/C/Mg mixture, $`1/\mu_i = X_4/4 + X_{12}/12 + X_{24}/24`$
+and $`\mu_e = 2`$, with a mass unit $`H`$ in $`P_i`$ and $`P_{\mathrm{nd}}`$ that it does not
+define. The general $`1/\mu_i`$ below and the use of $`m_u`$ are generalisations of these pages:
 
 ```math
 P = P_{\mathrm{ion}} + P_e + P_{\mathrm{rad}}, \qquad P_{\mathrm{ion}} = \frac{\rho\,k\,T}{\mu_i\,m_u}, \qquad \frac{1}{\mu_i} = X + \frac{Y}{4} + \frac{Z}{\langle A\rangle}
@@ -191,18 +195,44 @@ P_e = \sqrt{P_{\mathrm{nd}}^{2} + P_{\mathrm{d}}^{2}}, \qquad P_{\mathrm{nd}} = 
 *Non-relativistic and relativistic limits of complete degeneracy*
 
 ```math
-P_{\mathrm{nr}} = K_1\left(\frac{\rho}{\mu_e}\right)^{5/3}, \qquad K_1 = \frac{(3\pi^2)^{2/3}\,\hbar^2}{5\,m_e\,m_u^{5/3}} = 1.0036\times10^{13}
+P_{\mathrm{nr}} = K_1\left(\frac{\rho}{\mu_e}\right)^{5/3}, \qquad K_1 = \frac{(3\pi^2)^{2/3}\,\hbar^2}{5\,m_e\,m_{\mathrm{H}}^{5/3}} = 9.91\times10^{12}
 ```
 
 ```math
-P_{\mathrm{r}} = K_2\left(\frac{\rho}{\mu_e}\right)^{4/3}, \qquad K_2 = \frac{(3\pi^2)^{1/3}\,\hbar c}{4\,m_u^{4/3}} = 1.2435\times10^{15}
+P_{\mathrm{r}} = K_2\left(\frac{\rho}{\mu_e}\right)^{4/3}, \qquad K_2 = \frac{(3\pi^2)^{1/3}\,\hbar c}{4\,m_{\mathrm{H}}^{4/3}} = 1.231\times10^{15}
 ```
+
+The numbers are the published ones (cgs; the paper writes $`K_1 = 9.91\times10^{12}\,\mu_e^{-5/3}`$,
+$`K_2 = 1.231\times10^{15}\,\mu_e^{-4/3}`$ with $`\rho`$ in place of $`\rho/\mu_e`$). The
+paper gives no closed form; the closed forms reproduce the published numbers (9.906×10¹²,
+1.2306×10¹⁵) with the mass of the hydrogen atom $`m_{\mathrm{H}}`$, and give 1.0036×10¹³ and
+1.2435×10¹⁵ with $`m_u`$. *Corrected in task 0.3:* this page previously quoted the $`m_u`$ values
+as Paczyński's. A reproduction of the paper uses the published values; with $`m_u`$ the
+degenerate pressure is 1.3% (non-relativistic) and 1.0% (relativistic) higher at given
+$`\rho/\mu_e`$.
 
 *Internal energy of the electrons* (enters $`h`$)
 
+The paper gives only the temperature derivative of the specific electron energy at fixed density,
+together with $`f`$:
+
 ```math
-u_e = \frac{P_e}{(f - 1)\,\rho}, \qquad f = \frac{d\ln P_{\mathrm{d}}}{d\ln\rho} = \frac{5}{3}\left(\frac{P_{\mathrm{d}}}{P_{\mathrm{nr}}}\right)^{2} + \frac{4}{3}\left(\frac{P_{\mathrm{d}}}{P_{\mathrm{r}}}\right)^{2}
+\left(\frac{\partial u_e}{\partial\ln T}\right)_{\!\rho} = \frac{1}{f - 1}\,\frac{P_e}{\rho}\left(\frac{\partial\ln P_e}{\partial\ln T}\right)_{\!\rho}, \qquad f = \frac{d\ln P_{\mathrm{d}}}{d\ln\rho} = \frac{5}{3}\left(\frac{P_{\mathrm{d}}}{P_{\mathrm{nr}}}\right)^{2} + \frac{4}{3}\left(\frac{P_{\mathrm{d}}}{P_{\mathrm{r}}}\right)^{2}
 ```
+
+and says that eq. 4 "combined with standard thermodynamic relations" gives all quantities needed.
+This page uses
+
+```math
+u_e = \frac{P_e}{(f - 1)\,\rho}
+```
+
+Since $`f`$ depends on $`\rho`$ only, this has exactly the published temperature derivative. Its
+temperature-independent part, $`P_{\mathrm{d}}/((f-1)\rho)`$ at $`T = 0`$, is a choice of these
+pages and is not in the paper. The other energies of eq. 4 are $`u_{\mathrm{ion}} = \tfrac32
+P_{\mathrm{ion}}/\rho`$ and $`u_{\mathrm{rad}} = 3P_{\mathrm{rad}}/\rho`$. The paper states
+worst errors of 5% in total pressure or adiabatic gradient in small areas of the
+$`(\rho, T)`$ plane, and below 1% in most cases, for $`T < 10^{9.5}`$ K.
 
 The `Eos` trait takes $`(P,T)`$, so $`\rho`$ is found by a one-dimensional root search ($`P`$ is
 monotonic in $`\rho`$).
@@ -214,14 +244,14 @@ $`f \to 4/3`$, $`u_e = 3P_e/\rho`$), but between them the pair does not satisfy 
 identity above, and $`f`$ is taken from the degenerate branch even where the thermal pressure
 dominates. (That regime is not itself an error: thermal pressure can dominate a relativistically
 degenerate branch only if $`kT \gtrsim m_e c^2`$, where $`u_e = 3P_e/\rho`$ is the correct limit.
-The concern is the lack of a common potential in between.) It has not been checked that the energy
-expression reproduces Paczyński's paper.
+The concern is the lack of a common potential in between.) The energy expression is checked against
+the paper only through its temperature derivative (above).
 
 Its role is therefore limited to comparison: run the consistency test on it, and compare
 $`\rho`$, $`\nabla_{\mathrm{ad}}`$ and $`\Gamma_1`$ with the Fermi–Dirac EOS along a model. The
 differences are recorded here when measured.
 
-### Ionisation of hydrogen and helium (D15a, plan 6.3) **[check source]**
+### Ionisation of hydrogen and helium (D15a, plan 6.3)
 
 *General condition.* The classical Saha equation assumes non-degenerate electrons and cannot be
 combined as it stands with the Fermi–Dirac gas above. Ionisation equilibrium for each step
@@ -266,11 +296,17 @@ the Saha equation:
 \frac{n_{j+1}\,n_e}{n_j} = \frac{2\,g_{j+1}}{g_j}\left(\frac{2\pi\,m_e\,k\,T}{h^{2}}\right)^{3/2} \exp\!\left(-\frac{\chi_j}{k\,T}\right)
 ```
 
-| Step | $`\chi`$ [eV] | $`2 g_{j+1}/g_j`$ |
-|---|---|---|
-| H → H⁺ | 13.598 | 1 |
-| He → He⁺ | 24.587 | 4 |
-| He⁺ → He²⁺ | 54.418 | 1 |
+| Step | $`\chi`$ [eV] | Ground levels | $`2 g_{j+1}/g_j`$ |
+|---|---|---|---|
+| H → H⁺ | 13.598 | H I ²S₁/₂ ($`g = 2`$) → bare ($`g = 1`$) | 1 |
+| He → He⁺ | 24.587 | He I ¹S₀ ($`g = 1`$) → He II ²S₁/₂ ($`g = 2`$) | 4 |
+| He⁺ → He²⁺ | 54.418 | He II ²S₁/₂ ($`g = 2`$) → bare ($`g = 1`$) | 1 |
+
+Energies and ground levels compared with the NIST Atomic Spectra Database, ionisation energies
+(retrieved 2026-11-11): 13.598434599702, 24.587389011 and 54.4177655282 eV; $`g = 2J+1`$ of the
+ground level, electronic only (nuclear spin cancels in the ratios). The same weight factors
+($`\tfrac12`$, 2, $`\tfrac12`$ for $`n_{j+1}/n_j`$) appear in Pols et al. (1995, eqs. 14–16,
+p. 966), which use the rounded energies 13.60, 24.58 and 54.40 eV.
 
 With ionisation fractions $`x_{\mathrm{H}}`$, $`x_{\mathrm{He}1}`$ (singly ionised) and
 $`x_{\mathrm{He}2}`$ (doubly ionised):
@@ -304,10 +340,12 @@ condition stated at the end of this section: the stability scan must pass.
 *Why this form.* It is analytic, needs no table, and reuses the Fermi–Dirac inversion already
 required. It is empirical.
 
-*The term.* From Pols et al. (1995), as reproduced by Kovetz, Yaron & Prialnik (2009, §3.1,
-eq. 28) **[compared]** (the reproduction was read, not the original). Let $`n`$ be the number
-density of free electrons and $`n_0`$ that of all electrons, bound and free; $`m_{\mathrm{H}}`$ is
-the hydrogen mass, as in the source:
+*The term.* From Pols et al. (1995, MNRAS 274, 964, §2.2.2, eqs. 26–28, p. 967), compared with
+the original in task 0.3; it agrees with the reproduction of Kovetz, Yaron & Prialnik (2009, §3.1,
+eq. 28). Pols et al. write it per unit mass, $`\Delta F_{\mathrm{PI}} = -N_e kT\,g_{\mathrm{PI}}`$,
+and add $`\Delta F_{\mathrm{PI}}(N_e) - \Delta F_{\mathrm{PI}}(N_{e0})`$ to the free energy; the
+form below is the same per volume. Let $`n`$ be the number density of free electrons and $`n_0`$
+that of all electrons, bound and free; $`m_{\mathrm{H}}`$ is the hydrogen mass, as in the source:
 
 ```math
 x = m_{\mathrm{H}}\,n, \qquad g(n, T) = \exp\!\left[-\left(\frac{c_1}{x}\right)^{c_2}\right]\left[\frac{13.60\ \mathrm{eV}}{kT} + \eta(n, T) + c_3\,\ln\!\left(1 + \frac{x}{c_4}\right)\right]
@@ -318,7 +356,12 @@ F_{\mathrm{PI}} = kT\,V\left[n_0\,g(n_0, T) - n\,g(n, T)\right], \qquad (c_1, c_
 ```
 
 $`\eta(n,T)`$ is the ideal Fermi–Dirac degeneracy parameter that belongs to the density $`n`$ (the
-inversion of the $`n_e`$ formula above). The four constants are kept at their published values.
+inversion of the $`n_e`$ formula above). This is a departure from the source: Pols et al. (eq. 29,
+p. 968) evaluate $`\eta`$ in this term, for both $`n`$ and $`n_0`$, from a cruder approximation to
+the Fermi–Dirac integral, valid at large degeneracy, to avoid inverting it for $`n_0`$; their
+equilibrium $`\eta`$ elsewhere is the full one. The four constants are kept at their published
+values; Pols et al. call them adjustable and chose them for agreement with the MHD EOS on the
+location of the ionisation zones.
 
 *What follows from it* (derived in the review, re-derived here from
 $`\mu = \partial F/\partial N_e`$, $`P = -\partial F/\partial V`$,

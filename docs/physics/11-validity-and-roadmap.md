@@ -42,8 +42,8 @@ the implementation, not the physics.
 | EOS (ideal gas + radiation) | 0.4–100 M☉ interiors on the main sequence | below 0.4 M☉; envelopes of cool stars; helium cores |
 | Opacity (analytic) | hot interiors of massive stars | Sun-like stars (factor 2); below 2600 K |
 | Nuclear rates | main-sequence hydrogen burning | pp II/III share; late burning stages |
-| Mixing-length theory | deep, efficient convection, where $`\nabla \to \nabla_{\mathrm{ad}}`$ whatever the theory | superadiabatic surface layers (result depends on the free parameter $`\alpha_{\mathrm{MLT}}`$); boundaries (local theory, no overshoot); the centre (unbounded $`\ell`$); anything time-dependent |
-| Convective boundaries | Sun-like stars | stars with convective cores (no overshoot); layers with composition gradients (no Ledoux) |
+| Mixing-length theory | deep, efficient convection, where $`\nabla \to \nabla_{\mathrm{ad}}`$ whatever the theory | superadiabatic surface layers (result depends on the free parameter $`\alpha_{\mathrm{MLT}}`$); boundaries (local theory; core overshoot only as an optional step in the mixing); the centre (unbounded $`\ell`$); anything time-dependent |
+| Convective boundaries | Sun-like stars | stars with convective cores (overshoot only as an optional, uncalibrated step, off by default); layers with composition gradients (no Ledoux criterion; $`N^2`$ shows them as a diagnostic) |
 | Atmosphere | hot stars | cool stars (one $`\kappa`$, grey) |
 | Evolution | main sequence | after the main sequence (qualitative) |
 | Radial pulsation period | fundamental mode of a model in hydrostatic equilibrium, adiabatic, reflecting surface; as accurate as the model's $`R`$ and envelope | overtones near the acoustic cut-off; says nothing about driving |
@@ -70,7 +70,7 @@ The degeneracy coefficient is where $`P_{\mathrm{nd}} = P_{\mathrm{nr}}`$ in the
 | Tabulated opacity (D14) | central $`\kappa`$ twice the table value; expected to be the largest single error in solar $`L`$, size not isolated | planned, phase 7 |
 | Ionisation in the EOS (D15a) | $`\nabla_{\mathrm{ad}}`$ 0.4 → about 0.1 in the ionisation zones; deepens the envelope, by how much depends on opacity and atmosphere | planned, phase 6 |
 | Electron degeneracy (D15b) | enables < 0.4 M☉ and red giants | planned, phase 6 |
-| Core overshoot (D16) | main sequence 10–25% longer above 1.2 M☉ | planned, phase 2 |
+| Core overshoot (D16) | main sequence 10–25% longer above 1.2 M☉; measured +26% (3 M☉) and +23% (5 M☉) at $`\alpha_{\mathrm{ov}} = 0.2`$ | step overshoot done (phase 2, off by default); diffusive form phase 8 |
 | Mass loss (E1) | 1% of $`M`$ at 20 M☉, 10–20% at 60 M☉ on the main sequence | planned, phase 4 |
 | Rotation (E3) | a few % in structure, 20–30% in lifetime for fast rotators | planned, phases 5 and 8 |
 | Integrated, non-grey atmosphere (D13, F3) | about 100 K in $`T_{\mathrm{eff}}`$ of cool stars | planned, phase 3 |
@@ -78,7 +78,7 @@ The degeneracy coefficient is where $`P_{\mathrm{nd}} = P_{\mathrm{nr}}`$ in the
 | Separate $`Q`$ for CNO (D12) | CNO-burning lifetimes 4% too long | planned, phase 1 |
 | Element settling (F1) | Sun: surface $`Y`$ −0.03, $`Z`$ −10% in 4.6 Gyr | planned, phase 8 |
 | Molecular hydrogen (F2) | decides full convection at 0.1–0.5 M☉ | with phase 6 |
-| Non-radial modes (E4) | a new output, not a correction | planned, phases 2 and 9 |
+| Non-radial modes (E4) | a new output, not a correction | diagnostics ($`N^2`$, $`S_l`$, spacings) done in phase 2; modes planned, phase 9 |
 | General relativity (E2) | $`10^{-6}`$ to $`10^{-5}`$ | not planned; redshift output only |
 | Magnetic fields, spots (F6) | radii of active M dwarfs several % larger | note only |
 | Turbulent pressure | shifts mode frequencies | not planned |

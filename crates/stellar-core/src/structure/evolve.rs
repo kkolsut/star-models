@@ -3,7 +3,9 @@
 //! Each time step Δt:
 //! 1. Composition: hydrogen burns to helium, X ← X − ε_H Δt / Q_H, and helium
 //!    to carbon, Y ← Y − ε_3α Δt / Q_He. Each convective zone is then mixed
-//!    instantly to its mass-averaged composition.
+//!    instantly to its mass-averaged composition. A convective core is first
+//!    extended by step overshoot, r_ov = r_cc + α_ov min(H_P(r_cc), r_cc)
+//!    (mixing only; the temperature gradient there stays radiative).
 //! 2. Structure: the four structure equations are solved for the new
 //!    composition, with the gravitational energy term
 //!    ε_grav = −c_P T (Δ ln T − ∇_ad Δ ln P) / Δt evaluated implicitly
@@ -15,7 +17,7 @@
 //!    A rejected or failed step is retried with a smaller Δt.
 
 use super::equations::{I_L, I_LNP, I_LNR, I_LNT, NVAR, PrevStep};
-use super::model::{Phase, StarModel};
+use super::model::{ConvectiveZone, Phase, Profile, StarModel};
 use super::solve::{SolveControl, SolveError, solve_structure};
 use crate::composition::Composition;
 use crate::constants::{L_SUN, YEAR};
@@ -245,7 +247,7 @@ fn hydrogen_rates(model: &StarModel) -> Vec<f64> {
     let p = &model.profile;
     let mut rate: Vec<f64> = (0..p.len()).map(|k| (p.eps_pp[k] + p.eps_cno[k]) / Q_H).collect();
     let dm = point_masses(&p.m);
-    for (a, b) in convective_runs(&p.convective) {
+    for (a, b) in mixed_runs(model) {
         let mass: f64 = dm[a..=b].iter().sum();
         let avg = (a..=b).map(|k| rate[k] * dm[k]).sum::<f64>() / mass.max(f64::MIN_POSITIVE);
         rate[a..=b].iter_mut().for_each(|r| *r = avg);
@@ -284,7 +286,63 @@ fn convective_runs(conv: &[bool]) -> Vec<(usize, usize)> {
     runs
 }
 
-/// Burn for Δt [s], then mix every convective zone of `model`.
+/// Extent of the step-overshoot region above a convective core.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CoreOvershoot {
+    /// Schwarzschild boundary of the core [cm].
+    pub r_cc: f64,
+    /// Outer edge of the mixed region, r_cc + α_ov min(H_P(r_cc), r_cc) [cm].
+    pub r_ov: f64,
+    /// m/M at `r_ov` (linear interpolation in r).
+    pub q_ov: f64,
+    /// Last mesh point with r ≤ r_ov: the mixed run is 0..=k_ov.
+    pub k_ov: usize,
+}
+
+/// Step overshoot of a convective core that starts at the centre, for
+/// α_ov > 0. `None` without a convective core or with α_ov = 0.
+///
+/// H_P(r_cc) is interpolated linearly in r between the two mesh points around
+/// the boundary; min(H_P, r_cc) keeps the extension finite for small cores.
+pub fn core_overshoot(p: &Profile, zones: &[ConvectiveZone], alpha_ov: f64) -> Option<CoreOvershoot> {
+    if !(alpha_ov > 0.0) || p.is_empty() || !p.convective[0] {
+        return None;
+    }
+    let n = p.len();
+    let radius = p.r[n - 1];
+    let core = zones.first().filter(|z| z.q_inner <= p.q[0])?;
+    let r_cc = core.r_outer * radius;
+    let at = |v: &[f64], r: f64| -> f64 {
+        let i = p.r.partition_point(|&x| x < r).clamp(1, n - 1);
+        let w = ((r - p.r[i - 1]) / (p.r[i] - p.r[i - 1])).clamp(0.0, 1.0);
+        v[i - 1] + w * (v[i] - v[i - 1])
+    };
+    let hp = at(&p.hp, r_cc);
+    let r_ov = (r_cc + alpha_ov * hp.min(r_cc)).min(radius);
+    let last_conv = p.convective.iter().take_while(|&&c| c).count() - 1;
+    let k_ov = p.r.partition_point(|&r| r <= r_ov).saturating_sub(1).max(last_conv);
+    Some(CoreOvershoot { r_cc, r_ov, q_ov: at(&p.q, r_ov), k_ov })
+}
+
+/// Index ranges [a, b] mixed as one unit: the convective runs, with a
+/// convective core extended by step overshoot (runs it reaches are merged).
+fn mixed_runs(model: &StarModel) -> Vec<(usize, usize)> {
+    let p = &model.profile;
+    let mut runs = convective_runs(&p.convective);
+    if let Some(ov) = core_overshoot(p, &model.zones, model.params.alpha_ov) {
+        let mut b = runs[0].1.max(ov.k_ov);
+        let mut i = 1;
+        while i < runs.len() && runs[i].0 <= b + 1 {
+            b = b.max(runs[i].1);
+            i += 1;
+        }
+        runs.splice(0..i, [(0, b)]);
+    }
+    runs
+}
+
+/// Burn for Δt [s], then mix every convective zone of `model` (a convective
+/// core including its overshoot region).
 pub fn advance_composition(model: &StarModel, dt_s: f64) -> Vec<Composition> {
     let p = &model.profile;
     let n = p.len();
@@ -298,7 +356,7 @@ pub fn advance_composition(model: &StarModel, dt_s: f64) -> Vec<Composition> {
         z[k] += burnt_he;
     }
     let dm = point_masses(&p.m);
-    for (a, b) in convective_runs(&p.convective) {
+    for (a, b) in mixed_runs(model) {
         let mass: f64 = dm[a..=b].iter().sum::<f64>().max(f64::MIN_POSITIVE);
         let avg = |v: &[f64]| (a..=b).map(|k| v[k] * dm[k]).sum::<f64>() / mass;
         let (xa, ya, za) = (avg(&x), avg(&y), avg(&z));

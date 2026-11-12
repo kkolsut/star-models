@@ -441,6 +441,34 @@ pub static EQUATIONS: &[Equation] = &[
         width: 191.45,
         height: 44.80,
     },
+    Equation {
+        id: "evo_overshoot",
+        tex: "r_{\\mathrm{ov}} = r_{\\mathrm{cc}} + \\alpha_{\\mathrm{ov}}\\,\\min\\!\\left(H_P(r_{\\mathrm{cc}}),\\ r_{\\mathrm{cc}}\\right)",
+        svg: include_bytes!("../assets/equations/evo_overshoot.svg"),
+        width: 245.17,
+        height: 16.96,
+    },
+    Equation {
+        id: "seis_cs_lamb",
+        tex: "c_s^2 = \\frac{\\Gamma_1 P}{\\rho}, \\qquad S_l^2 = \\frac{l(l+1)\\,c_s^2}{r^2}",
+        svg: include_bytes!("../assets/equations/seis_cs_lamb.svg"),
+        width: 236.54,
+        height: 41.57,
+    },
+    Equation {
+        id: "seis_n2",
+        tex: "N^2 = \\frac{g^2 \\rho}{P}\\left[\\delta\\left(\\nabla_{\\mathrm{ad}} - \\nabla\\right) + \\varphi\\,\\nabla_\\mu\\right], \\qquad \\nabla_\\mu = \\frac{d\\ln\\mu}{d\\ln P}, \\qquad \\varphi = 1",
+        svg: include_bytes!("../assets/equations/seis_n2.svg"),
+        width: 450.73,
+        height: 37.43,
+    },
+    Equation {
+        id: "seis_asymptotic",
+        tex: "\\Delta\\nu = \\left[2\\int_0^R \\frac{dr}{c_s}\\right]^{-1}, \\qquad \\Delta\\Pi_1 = \\frac{2\\pi^2}{\\sqrt{2}}\\left[\\int_{r_1}^{r_2} N\\,\\frac{dr}{r}\\right]^{-1}",
+        svg: include_bytes!("../assets/equations/seis_asymptotic.svg"),
+        width: 386.20,
+        height: 47.32,
+    },
 ];
 
 /// Look up an equation by id.

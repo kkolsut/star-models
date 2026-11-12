@@ -242,5 +242,21 @@
   {
     "id": "evo_budget",
     "tex": "Q_{\\mathrm{H}}\\left[\\int X\\, dm\\right]_{t}^{0} = \\int_0^t L\\, dt'"
+  },
+  {
+    "id": "evo_overshoot",
+    "tex": "r_{\\mathrm{ov}} = r_{\\mathrm{cc}} + \\alpha_{\\mathrm{ov}}\\,\\min\\!\\left(H_P(r_{\\mathrm{cc}}),\\ r_{\\mathrm{cc}}\\right)"
+  },
+  {
+    "id": "seis_cs_lamb",
+    "tex": "c_s^2 = \\frac{\\Gamma_1 P}{\\rho}, \\qquad S_l^2 = \\frac{l(l+1)\\,c_s^2}{r^2}"
+  },
+  {
+    "id": "seis_n2",
+    "tex": "N^2 = \\frac{g^2 \\rho}{P}\\left[\\delta\\left(\\nabla_{\\mathrm{ad}} - \\nabla\\right) + \\varphi\\,\\nabla_\\mu\\right], \\qquad \\nabla_\\mu = \\frac{d\\ln\\mu}{d\\ln P}, \\qquad \\varphi = 1"
+  },
+  {
+    "id": "seis_asymptotic",
+    "tex": "\\Delta\\nu = \\left[2\\int_0^R \\frac{dr}{c_s}\\right]^{-1}, \\qquad \\Delta\\Pi_1 = \\frac{2\\pi^2}{\\sqrt{2}}\\left[\\int_{r_1}^{r_2} N\\,\\frac{dr}{r}\\right]^{-1}"
   }
 ]

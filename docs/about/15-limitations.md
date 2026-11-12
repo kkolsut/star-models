@@ -49,8 +49,10 @@ equations are solved accurately. They say nothing about how realistic the physic
   * Global results are converged at 800 points: for the 5 M☉ crossing, $`L`$ is within 0.2% of the
     3000-point value.
   * More mesh points resolve the shell's profile better.
-* **Not included:** convective overshooting, semiconvection, mass loss, rotational mixing, neutrino
-  losses.
+* **Core overshoot** is a step in the mixing only ($`\alpha_{\mathrm{ov}}`$, off by default); its value is
+  a calibration, not a prediction.
+* **Not included:** diffusive (exponential) overshoot, envelope overshoot, semiconvection, mass loss,
+  rotational mixing, neutrino losses.
 * **Pulsation:** the period is computed, but driving is not. The instability strip is an empirical band,
   so stars are flagged by position, not by a stability analysis.
 
@@ -60,7 +62,8 @@ equations are solved accurately. They say nothing about how realistic the physic
 * Electron degeneracy and Coulomb interactions, which matter below about 0.4 M☉.
 * Tabulated opacities (OPAL/OP, low-temperature molecular tables) and detailed model atmospheres; a grey
   Eddington atmosphere is used instead.
-* Neutrino losses, rotation, magnetic fields, mass loss, element diffusion and overshooting.
+* Neutrino losses, rotation, magnetic fields, mass loss, element diffusion and non-radial oscillation
+  modes.
 * Very massive stars (above about 50 M☉) approach the Eddington limit, where this simple treatment
   becomes crude.
 

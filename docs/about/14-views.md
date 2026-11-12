@@ -25,6 +25,9 @@
   drawn only in convective layers.
 * The $`\log P`$ axis puts the centre on the left. It helps because the outer 10% of the radius spans
   almost half of the pressure range (46% for the Sun), and the outer 1% still spans about a fifth.
+* Propagation diagram: $`N/2\pi`$ where $`N^2 > 0`$, and the Lamb frequencies $`S_1/2\pi`$ and
+  $`S_2/2\pi`$, in μHz. Below the plots, the asymptotic $`\Delta\nu`$ and every candidate g-mode cavity
+  with its $`\Delta\Pi_1`$.
 
 ## Cross-section
 

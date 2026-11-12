@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::equations::{I_L, I_LNP, I_LNR, I_LNT, NVAR, StructureProblem};
 use crate::composition::{Composition, CompositionError};
 use crate::constants::{FOUR_PI, G, L_SUN, M_SUN, R_SUN, TEFF_SUN};
+use crate::seismic::{self, GCavity};
 use crate::solver::ResidualSummary;
 
 /// User-facing model parameters.
@@ -22,6 +23,11 @@ pub struct StarParams {
     pub f_cno: f64,
     /// Number of mesh points.
     pub n_points: usize,
+    /// Step overshoot of a convective core, in units of min(H_P, r_cc) at the
+    /// Schwarzschild boundary r_cc. Mixing only: the temperature gradient in the
+    /// overshoot region stays radiative. Used by evolution runs only; 0 = off.
+    #[serde(default)]
+    pub alpha_ov: f64,
 }
 
 impl Default for StarParams {
@@ -33,10 +39,11 @@ impl Default for StarParams {
 impl StarParams {
     pub const MASS_RANGE: (f64, f64) = (0.1, 100.0);
     pub const POINTS_RANGE: (usize, usize) = (100, 5000);
+    pub const ALPHA_OV_RANGE: (f64, f64) = (0.0, 0.5);
 
     /// The Sun with the classic composition X = 0.70, Y = 0.28, Z = 0.02.
     pub fn sun() -> Self {
-        Self { mass: 1.0, x: 0.70, z: 0.02, alpha_mlt: 1.8, f_cno: 0.7, n_points: 800 }
+        Self { mass: 1.0, x: 0.70, z: 0.02, alpha_mlt: 1.8, f_cno: 0.7, n_points: 800, alpha_ov: 0.0 }
     }
 
     /// The Sun with AGSS09 protosolar composition (Asplund et al. 2009).
@@ -65,6 +72,10 @@ impl StarParams {
         if !(plo..=phi).contains(&self.n_points) {
             return Err(format!("mesh points must be in [{plo}, {phi}]"));
         }
+        let (olo, ohi) = Self::ALPHA_OV_RANGE;
+        if !(olo..=ohi).contains(&self.alpha_ov) {
+            return Err(format!("α_ov must be in [{olo}, {ohi}]"));
+        }
         Ok(())
     }
 
@@ -79,6 +90,7 @@ impl StarParams {
             alpha_mlt: l(self.alpha_mlt, other.alpha_mlt),
             f_cno: l(self.f_cno, other.f_cno),
             n_points: other.n_points,
+            alpha_ov: l(self.alpha_ov, other.alpha_ov),
         }
     }
 
@@ -123,6 +135,13 @@ pub struct Profile {
     pub x: Vec<f64>,
     pub y: Vec<f64>,
     pub z: Vec<f64>,
+    /// Adiabatic sound speed c_s = √(Γ₁ P / ρ) [cm s⁻¹].
+    #[serde(default)]
+    pub cs: Vec<f64>,
+    /// Buoyancy (Brunt–Väisälä) frequency squared N² [s⁻²], from
+    /// (g²ρ/P)[δ(∇_ad − ∇) + φ∇_μ]. Negative where the layer is Ledoux-unstable.
+    #[serde(default)]
+    pub n2: Vec<f64>,
 }
 
 impl Profile {
@@ -132,6 +151,22 @@ impl Profile {
 
     pub fn is_empty(&self) -> bool {
         self.q.is_empty()
+    }
+
+    /// Local gravity G m / r² at every point [cm s⁻²].
+    pub fn gravity(&self) -> Vec<f64> {
+        self.m.iter().zip(&self.r).map(|(m, r)| G * m / (r * r)).collect()
+    }
+
+    /// Schwarzschild instability at point `k`: ∇_rad > ∇_ad (the convective flag
+    /// of the model, which ignores composition).
+    pub fn schwarzschild_unstable(&self, k: usize) -> bool {
+        self.nabla_rad[k] > self.nabla_ad[k]
+    }
+
+    /// Ledoux instability at point `k`: N² < 0 (composition gradient included).
+    pub fn ledoux_unstable(&self, k: usize) -> bool {
+        self.n2[k] < 0.0
     }
 }
 
@@ -197,6 +232,13 @@ pub struct Globals {
     /// Asteroseismic scaling: large frequency separation [μHz].
     #[serde(default)]
     pub delta_nu_uhz: f64,
+    /// Asymptotic large frequency separation [2∫dr/c_s]⁻¹ from the interior [μHz].
+    #[serde(default)]
+    pub delta_nu_asym_uhz: f64,
+    /// Candidate g-mode cavities (connected N² > 0 regions), centre to surface,
+    /// each with its own asymptotic ΔΠ₁. Not summed.
+    #[serde(default)]
+    pub g_cavities: Vec<GCavity>,
     /// Fraction of the luminosity supplied by gravitational contraction (∫ε_grav dm / L).
     #[serde(default)]
     pub frac_grav: f64,
@@ -218,6 +260,13 @@ pub struct Globals {
     pub pc: f64,
     /// Mass fraction of the convective core (0 if radiative core).
     pub conv_core_q: f64,
+    /// Mass fraction of the mixed core: the convective core extended by step
+    /// overshoot (equal to `conv_core_q` when α_ov = 0).
+    #[serde(default)]
+    pub mixed_core_q: f64,
+    /// Radius of the mixed core [r/R].
+    #[serde(default)]
+    pub mixed_core_r: f64,
     /// Radius of the convective core [r/R].
     pub conv_core_r: f64,
     /// Base of the convective envelope [r/R], if any.
@@ -304,6 +353,7 @@ pub(crate) fn build_model(
 ) -> StarModel {
     let n = q.len();
     let mut pr = Profile::default();
+    let mut delta = Vec::with_capacity(n);
     for k in 0..n {
         let s = problem.local_at(k, &y[k * NVAR..(k + 1) * NVAR]);
         let c = &problem.comp[k];
@@ -333,6 +383,8 @@ pub(crate) fn build_model(
         pr.x.push(c.x);
         pr.y.push(c.y);
         pr.z.push(c.z);
+        pr.cs.push(seismic::sound_speed(s.eos.gamma1, s.p, s.rho()));
+        delta.push(s.eos.delta);
     }
     // The outermost point sits on the photosphere; there the local ∇ is
     // dominated by the boundary condition, not by transport, so classify it
@@ -340,6 +392,9 @@ pub(crate) fn build_model(
     if n >= 2 {
         pr.convective[n - 1] = pr.convective[n - 2];
     }
+    let gravity = pr.gravity();
+    pr.n2 = seismic::buoyancy_n2(&gravity, &pr.rho, &pr.p, &delta, &pr.nabla_ad, &pr.nabla, &pr.mu);
+    let g_cavities = seismic::g_cavities(&pr, &gravity);
 
     let radius = pr.r[n - 1];
     let lum = pr.l[n - 1];
@@ -348,6 +403,10 @@ pub(crate) fn build_model(
     let zones = find_zones(&pr, radius);
     let (conv_core_q, conv_core_r) =
         zones.first().filter(|z| z.q_inner <= q[0]).map(|z| (z.q_outer, z.r_outer)).unwrap_or((0.0, 0.0));
+    let (mixed_core_q, mixed_core_r) = match super::evolve::core_overshoot(&pr, &zones, params.alpha_ov) {
+        Some(ov) => (ov.q_ov, ov.r_ov / radius),
+        None => (conv_core_q, conv_core_r),
+    };
     let env = zones.last().filter(|z| z.q_outer >= 1.0 - 1e-6 && z.q_inner > q[0]);
 
     // Integrals with the trapezoid rule over mass.
@@ -387,6 +446,8 @@ pub(crate) fn build_model(
         mean_density,
         nu_max_uhz: 3090.0 * (g_surf / g_sun) * (pr.t[n - 1] / TEFF_SUN).powf(-0.5),
         delta_nu_uhz: 135.1 * (mean_density / rho_sun).sqrt(),
+        delta_nu_asym_uhz: seismic::delta_nu_asymptotic_uhz(&pr.r, &pr.cs),
+        g_cavities,
         frac_grav: e_grav / lum,
         mass: params.mass,
         radius: radius / R_SUN,
@@ -398,6 +459,8 @@ pub(crate) fn build_model(
         pc: pr.p[0],
         conv_core_q,
         conv_core_r,
+        mixed_core_q,
+        mixed_core_r,
         conv_env_base_r: env.map(|z| z.r_inner),
         conv_env_base_q: env.map(|z| z.q_inner),
         frac_pp: e_pp / e_tot,

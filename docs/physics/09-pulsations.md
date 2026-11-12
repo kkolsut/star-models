@@ -77,17 +77,10 @@ strip. Since the model's $`T_{\mathrm{eff}}`$ is itself off for cool stars
 
 These use only $`M`$, $`R`$ and $`T_{\mathrm{eff}}`$, not the interior.
 
-## Planned
-
-### Geometric means (C10, plan 1.3)
-
-For consistency with the structure solver, at interval midpoints:
-
-```math
-r_{k+1/2} = \sqrt{r_k\,r_{k+1}}, \qquad P_{k+1/2} = \sqrt{P_k\,P_{k+1}}, \qquad \rho_{k+1/2} = \sqrt{\rho_k\,\rho_{k+1}}
-```
-
 ### Characteristic frequencies (E4 stage 1, plan 2.2)
+
+Source: `crates/stellar-core/src/seismic.rs`; `Profile::cs`, `Profile::n2`; `Globals::delta_nu_asym_uhz`,
+`Globals::g_cavities`. Diagnostics only: nothing feeds back into the structure.
 
 *Sound speed, Lamb frequency and buoyancy (Brunt–Väisälä) frequency*
 
@@ -112,7 +105,10 @@ the planned EOS it is replaced by the general composition term $`B`$ of
 N^2 = \frac{g^2 \rho}{P}\left[\delta\left(\nabla_{\mathrm{ad}} - \nabla\right) + B\right]
 ```
 
-This is the production expression: it does not difference nearly equal numbers. The definition
+This is the production expression: it does not difference nearly equal numbers. $`\nabla_\mu`$ is
+taken by centred differences of $`\ln\mu`$ and $`\ln P`$ along the mesh (one-sided at the ends);
+$`\delta`$, $`\nabla_{\mathrm{ad}}`$ and the actual $`\nabla`$ come from the EOS and the MLT of the
+model. The definition
 itself serves as a cross-check on the same profile (it is noisy in the deep interior, so it is a
 test, not the output):
 
@@ -135,6 +131,16 @@ N^2 = g\left(\frac{1}{\Gamma_1}\frac{d\ln P}{dr} - \frac{d\ln\rho}{dr}\right)
 Both come from integrals over the existing profiles. The first replaces the $`\Delta\nu`$ scaling
 relation by a value that depends on the interior.
 
+*Implementation.* The $`\Delta\nu`$ integral uses the trapezoid rule in $`r`$, with
+$`r_0/c_{s,0}`$ for the part inside the innermost point. A cavity is a run of consecutive points with
+$`A = N^2 P/(g^2\rho) > 10^{-4}`$; the tolerance keeps the noise of nearly adiabatic layers (of either
+sign, $`|A| \lesssim 10^{-6}`$) from opening spurious cavities, while radiative zones have
+$`A \sim 0.1`$. Each cavity is reported with its edges in $`r/R`$ and $`m/M`$, $`\int N\,dr/r`$, its
+own $`\Delta\Pi_1`$, a location (core, between convective regions, reaching the surface) and a flag
+for thin layers ($`\ln(r_2/r_1) < 0.1`$ away from the centre, for example the radiative layer above a
+convective envelope). The single number shown in the results panel is the cavity with the largest
+$`\int N\,dr/r`$ that is not thin.
+
 *Limits of the g-mode integral.* $`r_1`$ to $`r_2`$ is one connected g-mode cavity, a radiative
 region with $`N^2 > 0`$. Disconnected regions are **not** summed: modes trapped in different
 cavities form separate sequences. The output is therefore one value per radiative region, labelled
@@ -153,10 +159,35 @@ are the best-known case). The per-cavity values are diagnostics, not predicted s
 Both formulas are asymptotic (high radial order). The integrand $`1/c_s`$ is dominated by the outer
 layers, so $`\Delta\nu`$ carries the model's surface errors.
 
-### Non-radial modes, Cowling approximation (E4 stage 2, plan 9.1) **[check source]**
+### How good this is **[measured]**
 
-Neglecting the perturbation of the gravitational potential (Unno et al. 1989), for the radial
-displacement $`\xi_r`$ and the Eulerian pressure perturbation $`p'`$ of a mode of degree $`l`$:
+* **N² against the convective flag** (ZAMS, 0.5–5 M☉): $`N^2 \le 0`$ at every convective point
+  ($`A \le -10^{-11}`$ at most) and $`A > 10^{-3}`$ at every interior radiative point.
+* **N² against its definition** (3 M☉ at 200 Myr, $`X_c \approx 0.3`$, away from composition jumps):
+  median relative difference $`2.4\times10^{-5}`$; worst 2.2% where $`A > 10^{-2}`$; worst
+  $`|\Delta A| = 7\times10^{-4}`$ in the nearly adiabatic radiative layers just below the photosphere.
+* **Schwarzschild and Ledoux** differ in evolved models: in the same model one layer at the edge of the
+  shrinking core is Schwarzschild-unstable but has $`N^2 > 0`$ (149 against 148 points).
+* **Δν.** ZAMS Sun: 115.96 μHz asymptotic against 115.01 μHz scaling (+0.8%). The ratio falls with
+  mass, to 0.91 for 3 and 5 M☉ ZAMS models.
+* **ΔΠ₁.** ZAMS Sun: one cavity, the radiative core to 0.967 R (the envelope base), ΔΠ₁ = 3206 s,
+  plus a thin surface layer. 1.5 M☉: the zone between core and envelope, 3512 s. 3 M☉: the radiative
+  envelope, 5646 s. All tests in `tests/seismic.rs`.
+
+## Planned
+
+### Geometric means (C10, plan 1.3)
+
+For consistency with the structure solver, at interval midpoints:
+
+```math
+r_{k+1/2} = \sqrt{r_k\,r_{k+1}}, \qquad P_{k+1/2} = \sqrt{P_k\,P_{k+1}}, \qquad \rho_{k+1/2} = \sqrt{\rho_k\,\rho_{k+1}}
+```
+
+### Non-radial modes, Cowling approximation (E4 stage 2, plan 9.1)
+
+Neglecting the perturbation of the gravitational potential, for the radial displacement $`\xi_r`$
+and the Eulerian pressure perturbation $`p'`$ of a mode of degree $`l`$:
 
 ```math
 \frac{d\xi_r}{dr} = -\left(\frac{2}{r} - \frac{g}{c_s^{2}}\right)\xi_r + \frac{1}{\rho\,c_s^{2}}\left(\frac{S_l^{2}}{\omega^{2}} - 1\right)p'
@@ -166,24 +197,44 @@ displacement $`\xi_r`$ and the Eulerian pressure perturbation $`p'`$ of a mode o
 \frac{dp'}{dr} = \rho\left(\omega^{2} - N^{2}\right)\xi_r - \frac{g}{c_s^{2}}\,p'
 ```
 
+*Source.* Compared (task 0.3, 2026-11-11) with Christensen-Dalsgaard, *Lecture Notes on Stellar
+Oscillations*, 5th ed. (2014), §5.2.2, eqs. 5.12–5.14, p. 75, which give the same pair with the
+coefficient $`\Gamma_1^{-1} H_p^{-1}`$, $`H_p^{-1} = -d\ln p/dr`$, in place of $`g/c_s^2`$. The two are
+equal by hydrostatic equilibrium and $`c_s^2 = \Gamma_1 P/\rho`$. The notes obtain them from the full
+equations (eqs. 4.61–4.62, pp. 65–66) by dropping $`\Phi'`$; their $`N^2`$ (eq. 4.63) and $`S_l^2`$
+(eq. 4.60) are the definitions used above. *Decided 2026-11-12:* these lecture notes are the reference for
+the Cowling equations and their boundary conditions. Unno et al. (1989), which the notes cite for
+the boundary conditions (§18.1), could not be obtained and is not needed for this task.
+
 *Boundary conditions*
 
 ```math
 \frac{p'}{\rho} = \frac{\omega^{2}\,r\,\xi_r}{l} \;\; (\text{centre}), \qquad p' = \rho\,g\,\xi_r \;\; (\text{surface})
 ```
 
+Both follow from the same notes: the centre from $`\xi_r \simeq l\,\xi_h`$ (eq. 4.65, p. 67) with
+$`\xi_h = p'/(\rho r \omega^2)`$ (eq. 4.39, p. 62, with $`\Phi' = 0`$); the surface from
+$`\delta p = p' + \xi_r\,dp/dr = 0`$ (eq. 4.68, p. 67) with $`dp/dr = -\rho g`$.
+
 The central condition holds for $`l \ge 1`$ only (it divides by $`l`$). Radial modes ($`l = 0`$)
 have their own regularity condition and are the subject of the implemented solver; a comparison of
 the two at $`l = 0`$ must use that condition.
 
 Two unknowns plus the eigenvalue: the same size as the radial problem. Accurate for high-order or
-high-$`l`$ modes; several percent off for the lowest ones.
+high-$`l`$ modes, where the notes cite numerical confirmation (§5.2.1, p. 75); for low-order,
+low-$`l`$ modes it can fail badly (the notes single out the $`l = 1`$ f mode, "drastically
+different" from the full equations). The earlier statement "several percent off for the lowest
+ones" was not from a source and is withdrawn; the size of the error is to be measured against
+plan 9.2.
 
 ### Non-radial modes, full problem (E4 stage 3, plan 9.2)
 
-Four unknowns plus the eigenvalue, including the perturbed gravitational potential. Use the
-dimensionless variables $`y_1 \dots y_4`$ of Unno et al. (1989, §18); the equations are to be copied
-from there when the task starts.
+Four unknowns plus the eigenvalue, including the perturbed gravitational potential. *Decided
+2026-11-12:* take the equations and boundary conditions from the same, available lecture notes
+(Christensen-Dalsgaard 2014, eqs. 4.61–4.62, with the central and surface conditions around
+eqs. 4.65–4.68, p. 67; the dimensionless form $`y_1 \dots y_4`$ is set up from them when the task
+starts) instead of Unno et al. (1989), which was not available. Check the result against the Cowling limit above and against
+the radial solver at $`l = 0`$.
 
 ### Finding the modes
 

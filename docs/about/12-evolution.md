@@ -36,6 +36,24 @@ X \;\leftarrow\; \bar X_{\mathrm{zone}} = \frac{\int_{\mathrm{zone}} X\, dm}{\in
 * Mixing uses the Schwarzschild convective zones of the previous model. A convective core that shrinks
   during the main sequence therefore leaves a hydrogen gradient behind.
 
+*Step overshoot* (input $`\alpha_{\mathrm{ov}}`$, default 0 = off). Before mixing, a convective core that
+starts at the centre is extended from its Schwarzschild boundary $`r_{\mathrm{cc}}`$ to
+
+```math
+r_{\mathrm{ov}} = r_{\mathrm{cc}} + \alpha_{\mathrm{ov}}\,\min\!\left(H_P(r_{\mathrm{cc}}),\ r_{\mathrm{cc}}\right)
+```
+
+and every mesh point with $`r \le r_{\mathrm{ov}}`$ is mixed with the core.
+
+* $`H_P(r_{\mathrm{cc}})`$ is interpolated between the mesh points around the boundary;
+  $`\min(H_P, r_{\mathrm{cc}})`$ keeps the extension finite for small cores.
+* Mixing only: the temperature gradient in the extension stays radiative.
+* The mixed core feeds more hydrogen into the burning region. With $`\alpha_{\mathrm{ov}} = 0.2`$ the
+  main sequence lasts 360 Myr instead of 286 Myr for 3 M☉ (+26%) and 93.7 Myr instead of 76.1 Myr
+  for 5 M☉ (+23%). A 1.1 M☉ star, which has no convective core, is unaffected.
+* $`\alpha_{\mathrm{ov}} \approx 0.2`$ is a typical calibration for intermediate-mass stars; it depends
+  on mass and is not universal.
+
 ## Structure with gravitational energy
 
 The energy equation gains the gravitational term:

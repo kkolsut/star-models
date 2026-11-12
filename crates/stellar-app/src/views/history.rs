@@ -453,6 +453,11 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut HistoryState) -> Opt
                 &[
                     Curve { name: "helium core (X < 0.001)", slot: 0, get: |t| Some(t.he_core_q) },
                     Curve { name: "convective core", slot: 1, get: |t| Some(t.conv_core_q) },
+                    Curve {
+                        name: "mixed core (with overshoot)",
+                        slot: 2,
+                        get: |t| (t.mixed_core_q > t.conv_core_q).then_some(t.mixed_core_q),
+                    },
                 ],
                 h,
                 false,
@@ -503,12 +508,13 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut HistoryState) -> Opt
             take(panel(
                 &mut cols[1],
                 &f,
-                "Solar-like oscillations (scaling relations)",
+                "Solar-like oscillations: scaling relations and asymptotic Δν",
                 "frequency [μHz]",
                 true,
                 &[
                     Curve { name: "ν_max", slot: 0, get: |t| Some(t.nu_max) },
-                    Curve { name: "Δν", slot: 1, get: |t| Some(t.delta_nu) },
+                    Curve { name: "Δν (scaling)", slot: 1, get: |t| Some(t.delta_nu) },
+                    Curve { name: "Δν (asymptotic, interior)", slot: 2, get: |t| Some(t.delta_nu_asym) },
                 ],
                 h,
                 false,

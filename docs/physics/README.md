@@ -16,11 +16,11 @@ the upgrades agreed in the review of 2026-11-10. Each page covers one topic and 
 | 2 | [Equation of state](02-equation-of-state.md) | ideal gas + radiation, fully ionised | degeneracy, ionisation, H₂ |
 | 3 | [Opacity](03-opacity.md) | analytic Kramers + H⁻ + scattering | tables, conduction |
 | 4 | [Nuclear burning](04-nuclear-burning.md) | pp, CNO, triple-α, weak screening | pp branching, newer fits, C/O, neutrinos |
-| 5 | [Convection and mixing](05-convection-and-mixing.md) | Schwarzschild, mixing-length theory, instant mixing | overshoot, Ledoux, diffusion, settling |
+| 5 | [Convection and mixing](05-convection-and-mixing.md) | Schwarzschild, mixing-length theory, instant mixing, step core overshoot | bounded $`H_P`$, Ledoux, diffusion, settling |
 | 6 | [Boundary conditions](06-boundary-conditions.md) | centre expansion, grey Eddington photosphere | integrated atmosphere, non-grey $`T(\tau)`$ |
 | 7 | [Evolution in time](07-evolution.md) | burning, $`\varepsilon_{\mathrm{grav}}`$, time steps, phases | burning fixes, mass loss, pre-main sequence |
 | 8 | [Rotation](08-rotation.md) | none | shape, gravity darkening, structure, mixing |
-| 9 | [Pulsations](09-pulsations.md) | radial fundamental mode, strip, scaling relations | buoyancy frequency, asymptotics, non-radial modes |
+| 9 | [Pulsations](09-pulsations.md) | radial fundamental mode, strip, scaling relations, $`N^2`$, $`S_l`$, asymptotic spacings | geometric means, non-radial modes |
 | 10 | [Numerical method and checks](10-numerics-and-checks.md) | mesh, Henyey solver, starting model, self-checks | redshift output |
 | 11 | [Validity, limits and order of work](11-validity-and-roadmap.md) | measured accuracy | what is deliberately left out |
 | 12 | [Constants, symbols and references](12-constants-and-references.md) | | |
@@ -38,6 +38,13 @@ the upgrades agreed in the review of 2026-11-10. Each page covers one topic and 
 These pages went through four rounds of external review on 2026-11-11 (theory only; the code was
 not part of it). The source comparisons made there cover the listed items only and are not a
 blanket verification of everything marked **[check source]**.
+
+Task 0.3 (2026-11-11 and 2026-11-12) worked through every remaining marker: most were compared with
+the original, and the rest were settled by a recorded decision where the original was not
+available (a verified substitute source, independent reproductions, or dropping the item from the
+plan). No marker is left. Which items rest on a decision rather than the original is listed at the
+end of [page 12](12-constants-and-references.md). New planned formulas quoted from memory get the
+marker again.
 
 ## How this relates to the other documents
 
@@ -67,3 +74,6 @@ About page as the plan describes.
 > **Code note.** The implemented parts describe `main` at commit `954b6d3`, which includes the
 > former `quick-wins` branch (diagnostics and tests, no change to the physics equations given here).
 > Every **[measured]** number was re-run on that commit (task 0.1, 2026-11-11) and none moved.
+> Stage 2 (plan 2.1 step overshoot, plan 2.2 seismic diagnostics) is implemented on branch
+> `agent/convective`, ahead of stage 1; its **[measured]** numbers were taken there (2026-11-12)
+> and do not change the default results.
