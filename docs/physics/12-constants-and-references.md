@@ -112,12 +112,18 @@ Planned upgrades (each to be checked when used):
 * **Caughlan & Fowler (1988)**, At. Data Nucl. Data Tables 40, 283–334: reaction rates.
 * **Angulo et al. (1999)**, Nucl. Phys. A 656, 3–183 (NACRE; not obtained).
 * **Wang et al. (2021)**, Chin. Phys. C 45, 030003 (AME2020 tables): reaction Q values.
+* **Kunz et al. (2002)**, ApJ 567, 643; **deBoer et al. (2017)**, Rev. Mod. Phys. 89, 035007:
+  alternative and current ¹²C(α,γ) evaluations (not read; named as options).
+* **MESA source code** (MESAHub/mesa, `main`, read 2026-11-12): `rates/private/ratelib.f90`
+  (`rate_c12ag_fxt`, CF88 reproduction) and `net/private/net_screen.f90` (`eval_screen_triple`).
+* **McDonald & Zijlstra (2015)**, MNRAS 448, 502–521: calibration of Reimers' $`\eta`$.
 * **Iglesias & Rogers (1996)**, ApJ 464, 943–953 (OPAL); **Iglesias & Rogers (1993)**, ApJ 412, 752
   (C/O-enhanced tables); **Ferguson et al. (2005)**, ApJ 623, 585–596: opacity tables.
   **Grevesse & Noels (1993)**, in *Origin and Evolution of the Elements*, CUP: mixture of the
   ready-made tables.
-* **Cassisi, Potekhin, Pietrinferni, Catelan & Salaris (2007)**, ApJ 661, 1094–1104: electron
-  conduction (candidate).
+* **Cassisi, Potekhin, Pietrinferni, Catelan & Salaris (2007)**, ApJ 661, 1094–1104;
+  **Cassisi, Potekhin, Salaris & Pietrinferni (2021)**, A&A 654, A149; **Potekhin, Pons & Page
+  (2015)**, Space Sci. Rev. 191, 239: electron conduction (Ioffe conductivity table).
 * **Paxton et al. (2011)**, ApJS 192, 3, §5.1: bounded scale height. **Eggleton (1971)**, MNRAS 151,
   351–364, and **Eggleton (1972)**, MNRAS 156, 361–376: the Eggleton code; neither contains the
   bounded scale height (1972, p. 364, raises the problem without a formula).
@@ -190,15 +196,30 @@ External review, 2026-11-11, and task 0.3 (same date; originals read unless stat
 | $`Y_p`$, $`\Delta Y/\Delta Z`$ | 10 | **corrected** to the MIST pair 0.249 / 1.5 (no source gives 0.248 with 1.5); modern $`Y_p`$ 0.2453–0.2454 listed | Choi et al. 2016, §3.1, eqs. 1–3; Planck 2018 VI, §2.1; Aver et al. 2021, abstract |
 | Solar radial fundamental mode (About §13, finding B4) | – | Model S: 258.0 μHz = 64.6 min (not 63); computed with the exact radial wave equation on the model mesh, the same code reproducing the BiSON $`l = 0`$ frequencies for $`n = 6`$–12 to 0.1–0.4 μHz | Christensen-Dalsgaard et al. 1996 (`fgong.l5bi.d.15`); Broomhall et al. 2009, MNRAS 396, L100, Table 1 |
 
-Still unverified (gates stay): the Kippenhahn–Weigert–Weiss (2012) pp and CNO fits and their NACRE
-basis; the attribution of $`C_\alpha`$ to Clayton (1968); the original Caughlan & Fowler (1988)
-¹²C(α,γ) fit; the electron-response extension and the triple-α product form of the screening
-(unpublished constructions); the Graboske screening prescription; the original Reimers (1975)
-relation and its $`\eta`$; the OP opacity tables and the choice of conduction fit; the Cowling
-equations as printed in Unno et al.; the solar size of settling (surface $`Y`$, $`Z`$ changes) on
-page 5. The modified mixing-length cubic of page 6 is a derivation of these pages and their
-reviews, with no published source compared. The coefficients of the Itoh et al. neutrino fits are
-to be transcribed from the paper when task 9.6 is coded.
+### Items settled by decision (task 0.3, 2026-11-12)
+
+The originals below were not available. Each gate is closed by the decision shown, not by
+comparison with the original; the reason is recorded on the page named.
+
+| Item | Page | Decision | Basis |
+|---|---|---|---|
+| Kippenhahn–Weigert–Weiss (2012) pp and CNO fits | 4 | not adopted; pp and ¹⁴N(p,γ) rates are built from Solar Fusion III by quadrature of its eq. 3 with eq. 4 and Table I, tabulated with C¹ interpolation | Acharya et al. 2025 (verified) |
+| $`C_\alpha`$ attributed to Clayton (1968) | 4 | attribution dropped; the constant used is the one computed from Solar Fusion III | Acharya et al. 2025 |
+| Caughlan & Fowler (1988) ¹²C(α,γ) fit | 4 | adopted as transcribed, with a multiplier parameter (default 1) | two independent reproductions agree term by term: ORNL CF88 Fortran; MESA `rate_c12ag_fxt` |
+| Electron-response extension of the screening | 4 | not adopted; the published Potekhin & Chabrier (2012) eqs. 20–21 form is coded | Potekhin & Chabrier 2012 (verified) |
+| Triple-α product form at intermediate coupling | 4 | adopted; exact in the weak and strong limits | derivation; MESA `eval_screen_triple` uses the same product of pair factors |
+| Graboske et al. (1973) screening | 4 | not needed (Chugunov & DeWitt chosen) | – |
+| Reimers (1975) and $`\eta`$ | 7 | form confirmed second-hand; $`\eta`$ a parameter, default 0.477 | Reimers 1977, p. 217; McDonald & Zijlstra 2015, abstract and eq. 1 |
+| OP opacity tables | 3 | dropped from the plan; OPAL is the interior set | OPAL checked and has the type 2 tables |
+| Conduction fit | 3 | Potekhin's conductivity table (Cassisi et al. 2007, 2021) | Ioffe page read 2026-11-12; Cassisi et al. 2007 §2, eq. 1 (verified) |
+| Cowling and full non-radial equations as printed in Unno et al. | 9 | Christensen-Dalsgaard (2014) is the reference | lecture notes, eqs. 4.39, 4.61–4.68, 5.12–5.14 (verified) |
+| Solar size of settling | 5 | now compared: $`\Delta Y_S = -0.029`$ / $`-0.030`$, $`Z_S`$ −9% / −10% | Vinyoles et al. 2017, Table 4 |
+
+Still open, not gated: the modified mixing-length cubic of page 6 is a derivation of these pages and
+their reviews, with no published source compared; the coefficients of the Itoh et al. neutrino
+fits are to be transcribed from the paper (available) when task 9.6 is coded; the printed CF88
+table and the books (KWW 2012, Clayton 1968, Unno et al. 1989) should be compared when they become
+available.
 
 None of the reviews looked at the code, re-ran the measured numbers or tested numerical
 convergence, except where the table says so (the implemented rate fits).

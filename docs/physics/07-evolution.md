@@ -166,7 +166,7 @@ de Jager fit by Vink's factor is a combination made here, not a prescription of 
 Vink factor belongs to Vink's own recipe (eq. 24, which has $`+0.85\log(Z/Z_\odot)`$ at fixed
 $`v_\infty/v_{\mathrm{esc}}`$).
 
-*Cool giants* (Reimers 1975), in solar units, $`\eta \approx 0.5`$ **[check source]**:
+*Cool giants* (Reimers 1975), in solar units, default $`\eta = 0.477`$:
 
 ```math
 \dot M = -4\times10^{-13}\,\eta\,\frac{L\,R}{M} \qquad [M_\odot\,\mathrm{yr}^{-1}]
@@ -176,8 +176,16 @@ The original (Reimers 1975, Mém. Soc. R. Sci. Liège, 6e sér., 8, 369) was not
 coefficient $`4\times10^{-13}`$ for $`L/(gR)`$ in solar units, i.e. $`L R / M`$, is confirmed by
 Reimers (1977, A&A 61, 217), p. 217, who quotes it as his 1975 proposal and recalibrates it to
 $`1.4\times10^{-13}`$ (p. 223, i.e. $`\eta \approx 0.35`$ in the form above). The factor $`\eta`$
-does not appear there, and the value $`\eta \approx 0.5`$ is unverified: choose and cite a
-calibration before coding.
+does not appear there.
+
+*Decided 2026-11-12:* $`\eta`$ is a user parameter with default 0.477, the median over 56 Galactic
+globular clusters of McDonald & Zijlstra (2015, MNRAS 448, 502; arXiv:1501.00874 read 2026-11-12),
+$`\eta_R = 0.477 \pm 0.070`$ (standard deviation) $`^{+0.050}_{-0.062}`$ (systematic), abstract and
+§2.2 eq. 1, which is the formula above with the same $`4\times10^{-13}`$. They find $`\eta`$ varies
+by less than about 30% over a factor 200 in iron abundance, so no metallicity factor is applied to
+the cool-star branch. The calibration is for low-mass red giants; for other stars it is an
+extrapolation, stated in the UI tooltip. The original Reimers (1975) paper was not read; its form
+is confirmed by Reimers (1977) and by McDonald & Zijlstra.
 
 Estimated loss on the main sequence from the ZAMS models: 0.003 M☉ (5 M☉), about 0.2 M☉ (20 M☉),
 5–10 M☉ (60 M☉).

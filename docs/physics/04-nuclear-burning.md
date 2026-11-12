@@ -163,17 +163,30 @@ numerically with the same constant $`S(0)`$ values gives $`C_\alpha = 1.47`$, 1.
 $`1.45\times10^{17}`$ at $`T_6 = 10`$, 15 and 30 (the next term of the Gamow expansion; re-computed
 2026-11-11).
 
-The value $`1.2\times10^{17}`$ quoted earlier from memory of Clayton (1968) is of the same size;
-its attribution is unverified **[check source]**: the book was not available (the Internet Archive
-copy is lending-only and its text search is closed), so it is not known whether, or where, Clayton
-gives this constant. The value computed above does not depend on it. The earlier expectation that a
+The value $`1.2\times10^{17}`$ quoted earlier from memory of Clayton (1968) is of the same size.
+*Decided 2026-11-12:* the attribution is dropped, not verified (the book was not available). The
+constant used and tested is the one computed above from Solar Fusion III; no number from Clayton
+enters the code or the tests. The earlier expectation that a
 modern value would be "several times smaller" was wrong and is withdrawn.
 
-### Newer rate fits (D11) **[check source]**
+### Newer rates (D11)
 
-Kippenhahn, Weigert & Weiss (2012, §18.5). These are an interim step, not the final reference: the
-coefficients are to be compared with rates built from the Solar Fusion III $`S`$ factors before
-they are adopted.
+*Decided 2026-11-12: rates built from Solar Fusion III, no intermediate fit.* The pp
+(¹H(p,e⁺ν)²H) and CNO-bottleneck (¹⁴N(p,γ)¹⁵O) rates are computed from eq. 3 of Acharya et al.
+(2025) with $`S(E)`$ from their eq. 4 and the $`S(0)`$, $`S'(0)`$, $`S''(0)`$ of their Table I.
+Rule 3 asks for smooth functions the solver can differentiate, so eq. 3 is integrated numerically
+once (for example in a `build.rs` or a unit-tested generator) on a grid in $`\log T`$ fine enough
+that a cubic Hermite interpolant of $`\ln N_A\langle\sigma v\rangle`$ reproduces the quadrature to
+$`10^{-4}`$; the table is embedded with `include_bytes!` or as a `const` array (rule 1). The same
+generator gives $`\alpha`$ of the pp branching consistently (plan 1.6). For ¹⁴N(p,γ), eq. 4
+neglects the resonances, which matter only above about $`T_6 \approx 100`$ (outside hydrogen
+burning in the models of this code); the validity limit is stated with the rate.
+
+Why not the interim fits: the Kippenhahn, Weigert & Weiss (2012) coefficients below could not be
+checked (book and NACRE not available on 2026-11-11 or 2026-11-12), and the plan already required
+them to be compared with rates built from Solar Fusion III before adoption. Building those rates
+directly removes the step. The coefficients are kept below for reference only. **They are not
+adopted and must not be coded.**
 
 *Status of the check (2026-11-11).* The book was not available (no legitimate copy found), so the
 section number and every coefficient below are still unverified. The forms (polynomial in $`T_9`$,
@@ -185,8 +198,9 @@ For the comparison asked for above: Solar Fusion III gives $`S_{1,14}(0) = 1.68\
 (Table I). With constant $`S`$ this gives a ¹⁴N(p,γ)¹⁵O rate 0.52–0.56 times the Fowler–Caughlan
 rates (1975, behind the implemented CNO fit, and the 1988 reproduction) at $`T_6 = 15`$–30 (rough: $`S'`$, $`S''`$ and
 resonances neglected; computed 2026-11-11). The implemented CNO rate is therefore probably about a
-factor 2 too high at main-sequence temperatures; whether the 2012 fit already contains this reduction
-can only be decided with the book or the NACRE paper.
+factor 2 too high at main-sequence temperatures. The rates built from Solar Fusion III (above)
+contain the reduction by construction; the quadrature with $`S'`$ and $`S''`$ replaces this rough
+estimate in plan 1.6, and the change of CNO lifetimes it causes is reported there.
 
 ```math
 \varepsilon_{pp} = 2.57\times10^{4}\;\psi\, f_{11}\, g_{11}\;\rho\, X^2\; T_9^{-2/3} \exp\!\left(-3.381\, T_9^{-1/3}\right)
@@ -237,9 +251,11 @@ $`7.275\ \mathrm{MeV}/(3 \times 4.0026\,m_u) = 5.846\times10^{17}`$ erg g⁻¹ (
 the rounded values. The mass factors 4/3 and 1/3 use mass numbers (12 + 4 → 16); the mass defect is
 below 10⁻³ of the mass.
 
-The rate $`\varepsilon_{\mathrm{C}\alpha}`$ is to be taken from Kippenhahn, Weigert & Weiss (2012)
-or Caughlan & Fowler (1988, At. Data Nucl. Data Tables 40, 283–334) **[check source]**. Neither
-original was available on 2026-11-11. The CF88 fit as reproduced in the ORNL Fortran version of the
+The rate $`\varepsilon_{\mathrm{C}\alpha}`$ is the Caughlan & Fowler (1988, At. Data Nucl. Data
+Tables 40, 283–334) fit (*decided 2026-11-12*). The printed table was not available; the fit is
+taken from two independent reproductions that agree term by term: the ORNL Fortran version of the
+compilation and MESA's `rate_c12ag_fxt` (`rates/private/ratelib.f90`, MESAHub/mesa `main`, read
+2026-11-12; its $`q_1 = 1/12.222016 = 1/3.496^2`$). The CF88 fit as reproduced in the ORNL Fortran version of the
 compilation (reaction 62, C12(A,G)O16, Q = 7.162; read via the Internet Archive copy of
 `www.phy.ornl.gov/astrophysics/data/cf88/fortran_rates.html`) is
 
@@ -249,9 +265,17 @@ N_A\langle\sigma v\rangle = \frac{1.04\times10^{8}}{T_9^{2}\,(1 + 0.0489\,T_9^{-
 
 in cm³ mol⁻¹ s⁻¹. With $`n_{\mathrm{C}} = \rho X_{\mathrm{C}}/(12\,m_u)`$ and $`n_\alpha = \rho Y/(4\,m_u)`$ this gives
 $`\varepsilon_{\mathrm{C}\alpha} = \rho\,X_{\mathrm{C}}\,Y\,N_A\,\big(N_A\langle\sigma v\rangle\big)\,Q/48`$ (derivation). This is a transcription from a reproduction, not from the
-printed table; compare it with the original before coding. Harris et al. (1983, p. 167) already
+printed table; two reproductions agreeing makes a transcription error unlikely, and the printed
+table should still be compared when it becomes available. Harris et al. (1983, p. 167) already
 noted that the first term of their own fit should be changed to 1.58e8, a reminder that this rate
-has been revised repeatedly; a current evaluation should be chosen with 9.5.
+has been revised repeatedly.
+
+*Uncertainty, as a parameter.* The rate is coded with a multiplier $`f_{\mathrm{C}\alpha}`$ (default
+1, i.e. CF88). MESA's `rate_c12ag_fxt` applies 1.7 to the same fit (comment "1.7 times cf88
+value"), and MESA also carries the Kunz et al. (2002, ApJ 567, 643) fit as `rate_c12ag_kunz`; the
+spread between these is the size of the present uncertainty. A modern evaluation (for example
+deBoer et al. 2017, Rev. Mod. Phys. 89, 035007) can replace the default after 9.5 without changing
+the interface.
 
 *What the composition vector must then mean.* Tracking C and O is not only two more equations. The
 following have to be fixed together, or the pieces contradict each other:
@@ -281,13 +305,12 @@ Until then: report the largest screening exponent reached in a run, and warn whe
 
 ### Screening prescription for all regimes (decided)
 
-**Decided 2026-11-11** (recommendation of the Codex review, accepted). Two parts of it are not from
-a published source and must be checked before they are coded: the electron-response extension for
-the weak limit, and the product form for triple-α at intermediate coupling. The source check of
-2026-11-11 found no publication of either in this form; a published alternative for the first is
-given below (Potekhin & Chabrier 2012), and the second stays a derivation of these pages. Chosen over
-Graboske et al. (1973) because one analytic interpolation is easier to keep smooth than joined
-branches; Graboske's paper was not opened.
+**Decided 2026-11-11** (recommendation of the Codex review, accepted). Two parts of it were not
+from a published source. *Settled 2026-11-12:* the electron-response extension is replaced by the
+published form of Potekhin & Chabrier (2012, eqs. 20–21); the product form for triple-α is kept,
+with MESA's implementation as precedent (details below). Chosen over Graboske et al. (1973) because
+one analytic interpolation is easier to keep smooth than joined branches; Graboske's prescription
+is therefore not needed and was not compared.
 
 *Binary reactions:* Chugunov & DeWitt (2009, eq. A4, with eq. 24 for the plasma free energy)
 **[compared]**. With number fractions $`x_s = n_s/\sum n_s`$ of the actual ion mixture and
@@ -334,7 +357,9 @@ the substitution $`\Gamma_j \to \Gamma_j/t_{ij}`$ corrects a typo of the 2009 pa
 the form above (checked 2026-11-11).
 
 *Electron response in the weak limit* (an extension proposed by the review, **not** in the
-published formula; no publication of it was found) **[check source]**. The published $`C_{ij}`$
+published formula; no publication of it was found). *Decided 2026-11-12: not adopted;* the
+published alternative of Potekhin & Chabrier (2012) below is the one to code. The extension is kept
+here only as the reasoning that led to it. The published $`C_{ij}`$
 assumes a rigid electron background (Chugunov & DeWitt 2009, App. A; Potekhin & Chabrier 2012, §1),
 so it does not reproduce the electron part of the implemented Salpeter formula. To recover the
 correct weak limit for classical or degenerate electrons, replace $`C_{ij}`$ by
@@ -364,7 +389,9 @@ gives the same limit $`H_{\mathrm{DH}}`$; unlike the review's extension it keeps
 polarisation term at strong coupling. Potekhin & Chabrier used it with their own rigid-background
 $`h_{\mathrm{ii}}`$ (their eq. 19 or the fit of Chugunov & DeWitt 2009b), not with eq. A4 of
 Chugunov & DeWitt (2009a); applying it to $`H_{ij}`$ above is a small extrapolation of the source.
-Which of the two is coded is decided with plan 9.7.
+*Decided 2026-11-12:* this published form is coded in plan 9.7, applied to $`H_{ij}`$ above; the
+extrapolation (CD2009 eq. A4 instead of PC2012's own $`h_{\mathrm{ii}}`$) is stated in the code
+comment and tested against both limits in the table below.
 
 *Use.* $`f_{11}`$ for pp and $`f_{1,7}`$ for the CNO bottleneck, with the actual mixture
 (including produced carbon once it is tracked). The exponent cap of 2 is removed; $`H`$ is kept as
@@ -385,8 +412,11 @@ $`\Gamma/\tau \ll 1`$ and a small Coulomb contribution to the electron free ener
 assumptions i–iii, §2). In the strong limit the two stages telescope exactly to
 $`3f_0(\Gamma_2) - f_0(\Gamma_6)`$, and in the weak limit they add to $`(4 + 8)\,e^2/(kTD)`$, which
 is the Debye–Hückel value of $`(3\mu_\alpha^{C} - \mu_{\mathrm{C}}^{C})/kT`$ (derivation). At
-intermediate coupling the product of two interpolation factors is an approximation **[check
-source]**: no publication of the product form was found on 2026-11-11, and the factors
+intermediate coupling the product of two interpolation factors is an approximation. *Decided
+2026-11-12: adopted.* No paper printing the product form was found, but it is what MESA does:
+`eval_screen_triple` in `net/private/net_screen.f90` (MESAHub/mesa `main`, read 2026-11-12) screens
+⁴He + ⁴He + ⁴He as the product of the pair factors for (⁴He, ⁴He) and (⁴He, $`Z = 4`$, $`A = 8`$),
+with any pair prescription, including Chugunov's. It is exact in both limits (above). The factors
 $`(C_{ij} + \Gamma_{ij}^2)/(1 + \Gamma_{ij}^2)`$ of the two stages use different $`\Gamma_{ij}`$, so the
 sum is not exactly a difference of chemical potentials there. Evaluating the chemical-potential
 difference directly from one free-energy expression would avoid this; that, too, is not from a

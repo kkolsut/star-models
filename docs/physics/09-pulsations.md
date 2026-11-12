@@ -171,8 +171,9 @@ Oscillations*, 5th ed. (2014), §5.2.2, eqs. 5.12–5.14, p. 75, which give the 
 coefficient $`\Gamma_1^{-1} H_p^{-1}`$, $`H_p^{-1} = -d\ln p/dr`$, in place of $`g/c_s^2`$. The two are
 equal by hydrostatic equilibrium and $`c_s^2 = \Gamma_1 P/\rho`$. The notes obtain them from the full
 equations (eqs. 4.61–4.62, pp. 65–66) by dropping $`\Phi'`$; their $`N^2`$ (eq. 4.63) and $`S_l^2`$
-(eq. 4.60) are the definitions used above. Unno et al. (1989) could not be obtained; the equations
-are not compared with that book, which the notes cite for the boundary conditions (§18.1).
+(eq. 4.60) are the definitions used above. *Decided 2026-11-12:* these lecture notes are the reference for
+the Cowling equations and their boundary conditions. Unno et al. (1989), which the notes cite for
+the boundary conditions (§18.1), could not be obtained and is not needed for this task.
 
 *Boundary conditions*
 
@@ -197,9 +198,12 @@ plan 9.2.
 
 ### Non-radial modes, full problem (E4 stage 3, plan 9.2)
 
-Four unknowns plus the eigenvalue, including the perturbed gravitational potential. Use the
-dimensionless variables $`y_1 \dots y_4`$ of Unno et al. (1989, §18); the equations are to be copied
-from there when the task starts.
+Four unknowns plus the eigenvalue, including the perturbed gravitational potential. *Decided
+2026-11-12:* take the equations and boundary conditions from the same, available lecture notes
+(Christensen-Dalsgaard 2014, eqs. 4.61–4.62, with the central and surface conditions around
+eqs. 4.65–4.68, p. 67; the dimensionless form $`y_1 \dots y_4`$ is set up from them when the task
+starts) instead of Unno et al. (1989), which was not available. Check the result against the Cowling limit above and against
+the radial solver at $`l = 0`$.
 
 ### Finding the modes
 

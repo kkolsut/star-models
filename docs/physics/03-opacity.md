@@ -64,7 +64,7 @@ away at high temperature.
 
 ### Tabulated opacity (D14, plan phase 7)
 
-Tables (OPAL or OP for the interior, a low-temperature set for the envelope) are given on a grid of
+Tables (OPAL for the interior, a low-temperature set for the envelope) are given on a grid of
 $`\log T`$ and $`\log R`$ for a set of $`(X, Z)`$:
 
 ```math
@@ -73,7 +73,11 @@ R = \frac{\rho}{T_6^{3}}, \qquad T_6 = 10^{-6}\,T
 
 This definition agrees with Iglesias & Rogers (1996, §2.2, p. 944), the header of the OPAL file
 `GN93hz`, and Ferguson et al. (2005, §3, p. 587). Source check (task 0.3, 2026-11-11) of the two
-sets named in task 7.1; OP was not checked **[check source]**:
+sets named in task 7.1. *Decided 2026-11-12:* OPAL is the interior set and OP is dropped from the
+plan. OPAL is the set that was checked, it alone provides the C/O-enhanced type 2 tables needed
+after helium burning (below), and its grid and the Ferguson grid overlap where the blend is
+planned. OP can be added later as an alternative behind the same `Opacity` trait; it would need its
+own source check then:
 
 | | OPAL (Iglesias & Rogers 1996) | Low temperature (Ferguson et al. 2005) |
 |---|---|---|
@@ -137,11 +141,17 @@ This agrees with Cassisi et al. (2007, §2, the sentence before eq. 1; read in t
 astro-ph/0703011), where $`\kappa_{\mathrm{cond}} = 16\sigma T^3/(3\rho K)`$ (eq. 1) with
 $`K`$ the electron thermal conductivity.
 
-$`\kappa_{\mathrm{cond}}(\rho, T)`$ from a published fit or table, to be chosen with the tables
-(not yet compared **[check source]**). One candidate: the conductivities of Cassisi et al. (2007),
-distributed by A. Potekhin at `www.ioffe.ru/astro/conduct/` as a table with an interpolation routine
-(ρ from 10⁻⁶ to 10⁹ g cm⁻³, T from 10³ to 10⁹ K, ion charge 1 to 60, per §2.4 of the paper; the
-site says it was last updated in 2021).
+*Decided 2026-11-12:* $`K`$, and with it $`\kappa_{\mathrm{cond}}(\rho, T)`$, comes from the table of
+thermal conductivities of A. Potekhin at `www.ioffe.ru/astro/conduct/` (page read 2026-11-12):
+pure, non-magnetic electron–ion plasmas, with a Fortran interpolation tool, last updated
+2021-05-18. It implements Cassisi et al. (2007) (ρ from 10⁻⁶ to 10⁹ g cm⁻³, T from 10³ to 10⁹ K,
+ion charge 1 to 60, per §2.4 of that paper) with the later corrections listed on the page,
+including the bridge between moderate and strong degeneracy of Cassisi et al. (2021, A&A 654,
+A149). It is the same source MESA uses. The site asks users to cite Potekhin, Pons & Page (2015,
+Space Sci. Rev. 191, 239) and states no licence, so embedding it falls under the same permission
+question as the radiative tables (plan 7.1). How the pure-plasma values are combined for a mixture
+is taken from Cassisi et al. (2007, §2) when 7.5 is coded; that paper is available (arXiv
+astro-ph/0703011).
 
 ---
 Previous: [Equation of state](02-equation-of-state.md) · [Contents](README.md) · Next: [Nuclear burning](04-nuclear-burning.md)

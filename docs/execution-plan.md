@@ -93,21 +93,21 @@ the convection zone.
 
 Worked in slices; the slice for a task is done before that task starts (rule 6).
 
-| For task | To verify | Status (2026-11-11) |
+| For task | To verify | Status (2026-11-12) |
 |---|---|---|
 | 1.4 | bounded scale height | done: formula is Paxton et al. 2011 §5.1, not in Eggleton (1971) |
-| 1.6 | Kippenhahn–Weigert(–Weiss) pp and CNO fits; Solar Fusion III thermal rates and S factors; attribution of the old C_α | partly: implemented KW1990 fits agree with Harris et al. 1983 / Fowler et al. 1975; SF III agrees. Open: KWW 2012 fits (book, NACRE), Clayton's C_α. Rough estimate: implemented CNO rate about 2× too high |
+| 1.6 | Kippenhahn–Weigert(–Weiss) pp and CNO fits; Solar Fusion III thermal rates and S factors; attribution of the old C_α | done: implemented KW1990 fits agree with Harris et al. 1983 / Fowler et al. 1975; SF III agrees. Decided: KWW 2012 fits not adopted, rates built from SF III; Clayton attribution dropped. Rough estimate: implemented CNO rate about 2× too high |
 | 1.7 | Y_p, ΔY/ΔZ | done: corrected to MIST 0.249 / 1.5 |
 | 3.3 | Krishna Swamy coefficients in the original; its optical-depth scale (τ₅₀₀₀ or Rosseland) | done: eq. 33 agrees; Rosseland depth |
-| 4.1 | de Jager et al. and Reimers fits; metallicity exponent | partly: de Jager agrees; exponent corrected to (Z/0.019)^0.69. Open: Reimers (1975) original, η |
+| 4.1 | de Jager et al. and Reimers fits; metallicity exponent | done: de Jager agrees; exponent corrected to (Z/0.019)^0.69. Decided: η default 0.477 (McDonald & Zijlstra 2015) |
 | 5.1 | gravity-darkening exponents | done: 0.25 von Zeipel, 0.08 Lucy (1967) |
 | 6.3, 6.4 | ionisation energies and weights; Pols et al. (1995) potential and constants in the original | done: agree (NIST; Pols eqs. 14–18, 26–29) |
 | 6.5 | Paczyński formulas, including the energy expression | done: K₁, K₂ corrected to the published m_H values |
-| 7.1–7.5 | table formats, mixture, type 2 (C/O) tables, conduction fit | partly: OPAL and Ferguson formats, type 2 agree; mixture corrected to GN93. Open: OP, conduction fit; table licences unclear |
-| 9.6, 9.7 | Itoh et al. fits; Chugunov & DeWitt coefficients; the unpublished electron-response extension; the triple-α product form | partly: Itoh reference, units, ranges; C&D t_ij agree. Open: the two unpublished constructions (published alternative recorded) |
-| 9.5 | ¹²C(α,γ)¹⁶O rate and energies | partly: Q values agree (AME2020). Open: CF88 original |
-| 8.2, 8.5 | overshoot f₀; Thoul et al. diffusion velocities | done: f₀ = 0.005 withdrawn; Thoul agrees. New open item: solar size of settling |
-| 9.1 | Cowling equations as printed in Unno et al. | partly: agree with Christensen-Dalsgaard (2014); Unno not obtained |
+| 7.1–7.5 | table formats, mixture, type 2 (C/O) tables, conduction fit | done: OPAL and Ferguson formats, type 2 agree; mixture corrected to GN93. Decided: OP dropped; conduction from Potekhin's table (Cassisi et al. 2007, 2021). Table licences unclear (7.1) |
+| 9.6, 9.7 | Itoh et al. fits; Chugunov & DeWitt coefficients; the unpublished electron-response extension; the triple-α product form | done: Itoh reference, units, ranges; C&D t_ij agree. Decided: Potekhin & Chabrier 2012 form replaces the electron-response extension; triple-α product form kept (as in MESA) |
+| 9.5 | ¹²C(α,γ)¹⁶O rate and energies | done: Q values agree (AME2020). Decided: CF88 as reproduced (ORNL and MESA agree), with a multiplier |
+| 8.2, 8.5 | overshoot f₀; Thoul et al. diffusion velocities | done: f₀ = 0.005 withdrawn; Thoul agrees; solar size of settling checked (Vinyoles et al. 2017) |
+| 9.1 | Cowling equations as printed in Unno et al. | done: agree with Christensen-Dalsgaard (2014), adopted as the reference (Unno not obtained) |
 | all | journal volume and page numbers in p. 12 | done |
 
 Details and source locations: the table "Source comparisons recorded" in
@@ -123,7 +123,7 @@ Details and source locations: the table "Source comparisons recorded" in
 | 1.4 | C9 | 5 | Bounded scale height in the mixing length | `physics/convection.rs` (`mlt`) | unit test at g → 0; ZAMS L, R unchanged to 10⁻⁴ | S |
 | 1.5 | D12 | 4 | Separate Q_pp and Q_CNO | `evolve.rs` | fuel accounting with per-channel energies | S |
 | 1.10 | – | 7 | Total-energy check: ∫L dt, ∫∫ε_nuc dm dt, Δ(E_int + E_grav); rename the old check "fuel accounting" | `evolve.rs`, `structure/model.rs` (`Globals`), `output.rs`, results panel, CLI | residual below 1% for 1 and 5 M☉ on the main sequence; on halving the time step it converges to a limit, reported separately from the part that shrinks | S–M |
-| 1.6 | D11 | 4 | pp branching (φ, ψ) with Q_pp^eff = Q_pp,I ψ/φ; newer rate fits | `physics/nuclear.rs`, `physics/mod.rs` (`NuclearRates`), `evolve.rs` | φ → 1 at low T, φ ≤ 2; stable form for large α; fuel accounting closes; pp II share at the solar centre reported | S–M |
+| 1.6 | D11 | 4 | pp branching (φ, ψ) with Q_pp^eff = Q_pp,I ψ/φ; pp and ¹⁴N(p,γ) rates from Solar Fusion III (tabulated quadrature) | `physics/nuclear.rs`, `physics/mod.rs` (`NuclearRates`), `evolve.rs` | φ → 1 at low T, φ ≤ 2; stable form for large α; fuel accounting closes; pp II share at the solar centre reported | S–M |
 | 1.7 | F5 | 10 | Optional "helium follows metallicity" mode | `app.rs`, CLI flag | UI check; no core change | S |
 | 1.8 | E2 | 10 | Gravitational redshift output; relativity under "Not modelled" | `structure/model.rs` (`Globals`), `output.rs`, results panel, CLI | 1 M☉ at 1 R☉ gives 636 m/s | S |
 | 1.11 *new* | – | 4 | Screening diagnostic: largest exponent of a model and of a run; warn above 0.3 and at the cap | `physics/nuclear.rs`, `Globals`, results panel | exponent at the solar centre reported; a dense test state triggers each warning | S |
@@ -140,6 +140,8 @@ Order: 1.1, 1.2, 1.5 → 1.10 → 1.4, 1.3, 1.8, 1.11, 1.7 → 1.6 → 1.9.
   not only ε_pp. Keeping the 1990 fit for the baseline with a modern α is allowed if it is called
   a hybrid and the 8% difference is stated.
 * **1.5, 1.6 and 1.1 change default results** (a few % in CNO lifetimes, slightly lower T_c).
+  The ¹⁴N(p,γ) rate from Solar Fusion III is roughly half the implemented one (0.3 estimate), so
+  for CNO-burning stars 1.6 is expected to change T_c and lifetimes more than that; measure it.
 * **1.9 list:** 0.42 L☉, 1.11 R☉, 4400 K, 0.97 R, 17 Gyr, 1.43 Gyr (1.8 M☉), 76 Myr (5 M☉),
   0.99 h, fuel ratio 0.995, the step counts quoted in About §12.
 
@@ -310,8 +312,8 @@ Order: 1.1, 1.2, 1.5 → 1.10 → 1.4, 1.3, 1.8, 1.11, 1.7 → 1.6 → 1.9.
 
 ### 7.1 Opacity data: source, licence, mixture (S, blocking), p. 3
 
-* Choose the high-temperature set (OPAL or OP) and the low-temperature set (for example Ferguson
-  et al. 2005). Check that the files may be redistributed in the repository and the binary.
+* High-temperature set: OPAL (decided in 0.3; OP dropped). Low-temperature set: Ferguson et al.
+  (2005). Conduction: Potekhin's table of Cassisi et al. (2007, 2021). Check that the files may be redistributed in the repository and the binary.
 * Record the heavy-element mixture; the same mixture defines f_CNO in the rates and ⟨A⟩ in the
   EOS.
 * If the data may not be embedded, a run-time "load tables" path is needed, which conflicts with
@@ -391,8 +393,9 @@ Order: 1.1, 1.2, 1.5 → 1.10 → 1.4, 1.3, 1.8, 1.11, 1.7 → 1.6 → 1.9.
 
 ### 9.7 Screening for all regimes (M), p. 4
 
-* Needs 6.2 (∂n_e/∂μ_e) and the 0.3 slice: the electron-response extension and the triple-α
-  product form are not from a published source and are checked or replaced before coding.
+* Needs 6.2 (∂n_e/∂μ_e). Settled in 0.3: code the electron screening factor of Potekhin &
+  Chabrier (2012, eqs. 20–21), not the review's extension; keep the triple-α product of pair
+  factors (as MESA's `eval_screen_triple`).
 * Chugunov & DeWitt (2009) for pp and p + ¹⁴N with the actual mixture; static two-stage form for
   triple-α (t_ij = 1); H kept as a logarithm; the cap of 2 removed.
 * Tests: weak limit equals the present Salpeter factor; triple-α weak limit 12e²/(kTD); strong
@@ -472,7 +475,7 @@ Out of reach after this stage, and stated in the app: helium flash, thermal puls
 | Task | ID | Page | Needs | Content | Effort |
 |---|---|---|---|---|---|
 | 9.1 | E4 stage 2 | 9 | 2.2 | Non-radial modes in the Cowling approximation, l ≥ 1: new `BvpProblem`; frequency scan with the two-sided matching determinant, poles told from roots; labels by node count. Tests: polytrope eigenfrequencies from the literature; spacings approach the asymptotic values of 2.2 at high order | M |
-| 9.2 | E4 stage 3 | 9 | 9.1 | Full fourth-order problem in the variables y₁…y₄ of Unno et al. (equations copied when the task starts); validate against 9.1 at high order and against the radial solver at l = 0 | M–L |
+| 9.2 | E4 stage 3 | 9 | 9.1 | Full fourth-order problem from Christensen-Dalsgaard (2014), eqs. 4.61–4.68 (Unno et al. not available); validate against 9.1 at high order and against the radial solver at l = 0 | M–L |
 | 9.3 | E4 | 9 | 9.1 | Échelle diagram; Y_l^m surface patterns in the 3D view | S |
 | 9.8 *new* | E3 | 8 | 9.1; 5.2 for Ω | Rotational splitting: Ledoux constant C_nl from the eigenfunctions, δν = m(1 − C_nl)Ω/2π. Tests: C_nl → 0 for high-order p modes, → 1/[l(l+1)] for high-order g modes | S |
 | 9.4 | F8 | 7 | 3.x, 7.x for accuracy | Pre-main-sequence contraction: n = 1.5 start in `structure/initial.rs`; ε_grav only until hydrogen ignites; first step from t_KH; new phase labels. Tests: L = −d(E_int + E_grav)/dt; the track ends on the ZAMS model of the same mass | M |

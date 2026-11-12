@@ -230,8 +230,11 @@ logarithms at their solar-centre values and are stated to hold for the solar int
 (p. 840); $`w_{\mathrm{He}}`$ then follows from eq. 54 (p. 836). Outside the Sun the full system,
 not the fits, is needed.
 
-Size in the Sun over 4.6 Gyr: surface $`Y`$ falls by about 0.03 and $`Z`$ by about 10%
-**[check source]** (not from Thoul et al., who compute no evolution; no source compared).
+Size in the Sun over 4.6 Gyr: surface $`Y`$ falls by about 0.03 and $`Z`$ by about 10%. Checked
+2026-11-12 against the standard solar models of Vinyoles et al. (2017, ApJ 835, 202, Table 4;
+arXiv:1611.09867v4): B16-GS98 has $`Y_{\mathrm{ini}} = 0.2718`$, $`Y_S = 0.2426`$ ($`\Delta Y = -0.029`$)
+and $`Z_{\mathrm{ini}} = 0.0187`$, $`Z_S = 0.0170`$ (−9%); B16-AGSS09met has 0.2613 → 0.2317
+($`-0.030`$) and 0.0149 → 0.0134 (−10%). These are a test target for plan 8.5, not inputs.
 
 ### Mixing-length cubic in the atmosphere (D13, plan phase 3)
 
