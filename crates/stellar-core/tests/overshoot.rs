@@ -2,8 +2,7 @@
 //! longer main sequences for stars with convective cores, no effect on stars
 //! without one, and the fuel accounting still closes.
 
-use stellar_core::constants::{L_SUN, YEAR};
-use stellar_core::structure::evolve::{Q_H, core_overshoot};
+use stellar_core::structure::evolve::core_overshoot;
 use stellar_core::{
     Evolution, EvolutionOptions, EvolutionStep, NoControl, Physics, StarModel, StarParams, StopCondition, solve_model,
 };
@@ -13,15 +12,9 @@ fn zams(mass: f64, alpha_ov: f64) -> StarModel {
     solve_model(&p, &Physics::analytic(), None, &mut NoControl).unwrap()
 }
 
-/// ∫ X dm over the star [g].
-fn hydrogen_mass(m: &StarModel) -> f64 {
-    let p = &m.profile;
-    (1..p.len()).map(|k| 0.5 * (p.x[k] + p.x[k - 1]) * (p.m[k] - p.m[k - 1])).sum()
-}
-
 struct Run {
     end: StarModel,
-    /// Hydrogen burnt × Q_H / energy radiated.
+    /// Fuel accounting: hydrogen burnt × Q_H^eff / energy radiated.
     fuel_ratio: f64,
     /// Largest |energy_ratio − 1| of any model.
     worst_energy: f64,
@@ -33,23 +26,15 @@ struct Run {
 fn run(mass: f64, alpha_ov: f64, stop: StopCondition) -> Run {
     let physics = Physics::analytic();
     let z = zams(mass, alpha_ov);
-    let h0 = hydrogen_mass(&z);
     let mut evo = Evolution::new(z, EvolutionOptions { stop, pulsation: false, ..Default::default() });
-    let (mut radiated, mut worst_energy, mut max_mixed_q, mut contains) = (0.0, 0.0_f64, 0.0_f64, true);
-    loop {
-        let (age0, l0) = (evo.model.globals.age_yr, evo.model.globals.luminosity);
-        match evo.step(&physics, &mut NoControl).unwrap() {
-            EvolutionStep::Advanced { .. } => {
-                let g = &evo.model.globals;
-                radiated += 0.5 * (l0 + g.luminosity) * L_SUN * (g.age_yr - age0) * YEAR;
-                worst_energy = worst_energy.max((g.energy_ratio - 1.0).abs());
-                max_mixed_q = max_mixed_q.max(g.mixed_core_q);
-                contains &= g.mixed_core_q >= g.conv_core_q;
-            }
-            EvolutionStep::Finished(_) => break,
-        }
+    let (mut worst_energy, mut max_mixed_q, mut contains) = (0.0_f64, 0.0_f64, true);
+    while let EvolutionStep::Advanced { .. } = evo.step(&physics, &mut NoControl).unwrap() {
+        let g = &evo.model.globals;
+        worst_energy = worst_energy.max((g.energy_ratio - 1.0).abs());
+        max_mixed_q = max_mixed_q.max(g.mixed_core_q);
+        contains &= g.mixed_core_q >= g.conv_core_q;
     }
-    let fuel_ratio = (h0 - hydrogen_mass(&evo.model)) * Q_H / radiated;
+    let fuel_ratio = evo.model.globals.energy_check().unwrap().fuel_ratio;
     Run { end: evo.model, fuel_ratio, worst_energy, max_mixed_q, mixed_contains_convective: contains }
 }
 

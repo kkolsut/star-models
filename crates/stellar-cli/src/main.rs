@@ -24,6 +24,9 @@ struct Args {
     /// Metallicity Z (Y = 1 − X − Z)
     #[arg(long, default_value_t = 0.02)]
     z: f64,
+    /// Helium follows metallicity: Y = 0.249 + 1.5 Z, X = 1 − Y − Z (MIST, Choi et al. 2016); --x is ignored
+    #[arg(long)]
+    helium_from_z: bool,
     /// Mixing-length parameter α_MLT
     #[arg(long, default_value_t = 1.8)]
     alpha: f64,
@@ -62,6 +65,16 @@ struct Args {
     verbose: bool,
 }
 
+/// Primordial helium Y_p and enrichment ΔY/ΔZ of the "helium follows
+/// metallicity" mode (MIST, Choi et al. 2016, §3.1; docs/physics/10).
+const Y_PRIMORDIAL: f64 = 0.249;
+const DY_DZ: f64 = 1.5;
+
+/// X for a given Z with Y = Y_p + (ΔY/ΔZ) Z.
+fn x_from_z(z: f64) -> f64 {
+    1.0 - (Y_PRIMORDIAL + DY_DZ * z) - z
+}
+
 struct Printer {
     verbose: bool,
 }
@@ -92,6 +105,7 @@ fn print_summary(m: &StarModel) {
     println!("  L      = {:.4} L☉", g.luminosity);
     println!("  T_eff  = {:.0} K   log g = {:.3}", g.teff, g.log_g);
     println!("  T_c    = {:.4e} K   ρ_c = {:.4e} g/cm³   P_c = {:.4e} dyn/cm²", g.tc, g.rhoc, g.pc);
+    println!("  gravitational redshift v_z = GM/(Rc) = {:.0} m/s", g.grav_redshift_m_s);
     println!("  energy: pp {:.1}%  CNO {:.1}%  3α {:.2}%", 100.0 * g.frac_pp, 100.0 * g.frac_cno, 100.0 * g.frac_3a);
     if g.conv_core_q > 0.0 {
         println!("  convective core: m/M = {:.4}, r/R = {:.4}", g.conv_core_q, g.conv_core_r);
@@ -128,6 +142,32 @@ fn print_summary(m: &StarModel) {
             c.delta_pi1_s
         );
     }
+    let s = &g.screening;
+    if !s.reaction.is_empty() {
+        println!("  screening: largest exponent {:.3} ({}, m/M = {:.3})", s.max_exponent, s.reaction, s.q);
+    }
+    if let Some(w) = s.warning() {
+        println!("  warning: {w}");
+    }
+    if let Some(mode) = &m.pulsation {
+        println!(
+            "  fundamental radial mode: P = {:.4} h, ω/ω_ac = {:.3} at the photosphere",
+            mode.period_s / 3600.0,
+            mode.omega_over_ac
+        );
+        if let Some(w) = mode.cutoff_warning() {
+            println!("  warning: {w}");
+        }
+    }
+    if let Some(c) = g.energy_check() {
+        println!(
+            "  run: total-energy residual {:.2e} (composition term {:.2e}, numerical {:.2e}); fuel accounting {:.5}",
+            c.residual, c.composition, c.numerical, c.fuel_ratio
+        );
+        if let Some(run) = &g.run {
+            println!("  run: largest screening exponent {:.3}", run.max_screening);
+        }
+    }
     let r = &g.residuals;
     println!(
         "  checks: virial {:.5}  energy {:.5} (discretisation)  Newton iters {}  max|F| {:.1e}",
@@ -146,9 +186,10 @@ fn print_summary(m: &StarModel) {
 fn main() -> Result<()> {
     let args = Args::parse();
     let physics = Physics::analytic();
+    let x = if args.helium_from_z { x_from_z(args.z) } else { args.x };
     let base = StarParams {
         mass: args.mass,
-        x: args.x,
+        x,
         z: args.z,
         alpha_mlt: args.alpha,
         f_cno: args.f_cno,
@@ -195,8 +236,9 @@ fn main() -> Result<()> {
     }
 
     let t0 = Instant::now();
-    let model = solve_model(&base, &physics, None, &mut ctl)?;
+    let mut model = solve_model(&base, &physics, None, &mut ctl)?;
     eprintln!("solved in {:.2}s", t0.elapsed().as_secs_f64());
+    model.pulsation = stellar_core::pulsation::fundamental_mode(&model, None).ok();
     if let Some(w) = base.ideal_gas_warning() {
         eprintln!("warning: {w}");
     }
@@ -229,8 +271,8 @@ fn evolve(args: &Args, base: &StarParams, physics: &Physics, ctl: &mut Printer) 
     let mut evo = Evolution::new(zams.clone(), opts);
     let mut track = vec![zams];
     println!(
-        "{:>5} {:>11} {:>10} {:>10} {:>7} {:>8} {:>10} {:>8} {:>7} {:>9} {:>11} {:>8}  phase",
-        "step", "age", "dt [yr]", "L/L☉", "Teff", "R/R☉", "Tc", "Xc", "q_He", "P_fund", "pulsator", "energy"
+        "{:>5} {:>11} {:>10} {:>10} {:>7} {:>8} {:>10} {:>8} {:>7} {:>9} {:>11} {:>8} {:>9}  phase",
+        "step", "age", "dt [yr]", "L/L☉", "Teff", "R/R☉", "Tc", "Xc", "q_He", "P_fund", "pulsator", "energy", "E-resid"
     );
     let print = |step: usize, m: &StarModel, dt: f64| {
         let g = &m.globals;
@@ -242,7 +284,7 @@ fn evolve(args: &Args, base: &StarParams, physics: &Physics, ctl: &mut Printer) 
             })
             .unwrap_or("");
         println!(
-            "{:5} {:>11} {:10.3e} {:10.4e} {:7.0} {:8.4} {:10.4e} {:8.5} {:7.4} {:>9} {:>11} {:8.5}  {}",
+            "{:5} {:>11} {:10.3e} {:10.4e} {:7.0} {:8.4} {:10.4e} {:8.5} {:7.4} {:>9} {:>11} {:8.5} {:>9}  {}",
             step,
             fmt_age(g.age_yr),
             dt,
@@ -255,6 +297,7 @@ fn evolve(args: &Args, base: &StarParams, physics: &Physics, ctl: &mut Printer) 
             period,
             puls,
             g.energy_ratio,
+            g.energy_check().map(|c| format!("{:.2e}", c.residual)).unwrap_or_else(|| "-".into()),
             g.phase.label()
         );
     };
@@ -270,6 +313,8 @@ fn evolve(args: &Args, base: &StarParams, physics: &Physics, ctl: &mut Printer) 
             EvolutionStep::Finished(reason) => {
                 print(evo.steps, &evo.model, 0.0);
                 eprintln!("finished after {} steps in {:.1}s: {reason}", evo.steps, t0.elapsed().as_secs_f64());
+                println!();
+                print_summary(&evo.model);
                 break;
             }
         }

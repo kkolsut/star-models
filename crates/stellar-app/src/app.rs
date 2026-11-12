@@ -86,11 +86,18 @@ impl SunToday {
     const ENV_BASE: f64 = 0.713;
 }
 
+/// Primordial helium Y_p and enrichment ΔY/ΔZ of the "helium follows
+/// metallicity" mode (MIST, Choi et al. 2016, §3.1; docs/physics/10).
+const Y_PRIMORDIAL: f64 = 0.249;
+const DY_DZ: f64 = 1.5;
+
 pub struct StarApp {
     params: StarParams,
     model: Option<Arc<StarModel>>,
     worker: Worker,
     auto_solve: bool,
+    /// Input mode: Y = Y_p + (ΔY/ΔZ) Z, X = 1 − Y − Z (the X slider follows Z).
+    helium_from_z: bool,
     changed_at: f64,
     pending: Option<(u64, StarParams)>,
     failed: Option<StarParams>,
@@ -187,6 +194,7 @@ impl StarApp {
             model: None,
             worker: Worker::new(cc.egui_ctx.clone(), physics),
             auto_solve: true,
+            helium_from_z: false,
             changed_at: -1.0,
             pending: None,
             failed: None,
@@ -477,7 +485,7 @@ impl StarApp {
 
             ui.label("X (hydrogen)");
             let x_max = 1.0 - self.params.z;
-            ui.add(egui::Slider::new(&mut self.params.x, 0.0..=x_max).max_decimals(4));
+            ui.add_enabled(!self.helium_from_z, egui::Slider::new(&mut self.params.x, 0.0..=x_max).max_decimals(4));
             ui.end_row();
 
             ui.label("Z (metals)");
@@ -485,7 +493,19 @@ impl StarApp {
             ui.end_row();
 
             ui.label("Y (helium)");
-            ui.label(RichText::new(format!("{:.4}  = 1 − X − Z", self.params.y())).monospace());
+            if self.helium_from_z {
+                ui.label(RichText::new(format!("{:.4}  = {Y_PRIMORDIAL} + {DY_DZ} Z", self.params.y())).monospace());
+            } else {
+                ui.label(RichText::new(format!("{:.4}  = 1 − X − Z", self.params.y())).monospace());
+            }
+            ui.end_row();
+
+            ui.label("");
+            ui.checkbox(&mut self.helium_from_z, "Helium follows metallicity").on_hover_text(format!(
+                "Y = Y_p + (ΔY/ΔZ) Z with Y_p = {Y_PRIMORDIAL}, ΔY/ΔZ = {DY_DZ} (MIST models, Choi et al. 2016), \
+                 X = 1 − Y − Z: the X slider follows Z. At Z = 0.0142 this gives the protosolar X = 0.7155. \
+                 An input mode only; the physics is unchanged"
+            ));
             ui.end_row();
 
             ui.label("α_MLT").on_hover_text("mixing-length parameter: mixing length = α · pressure scale height");
@@ -511,6 +531,9 @@ impl StarApp {
                 ui.end_row();
             });
         });
+        if self.helium_from_z {
+            self.params.x = (1.0 - (Y_PRIMORDIAL + DY_DZ * self.params.z) - self.params.z).max(0.0);
+        }
         // Keep X + Z ≤ 1 after Z changes.
         self.params.x = self.params.x.min(1.0 - self.params.z);
         if self.params != before {
@@ -624,6 +647,13 @@ impl StarApp {
                 "≈ 1.1 h".into(),
             );
             row(
+                "ω/ω_ac (fund. mode)",
+                "mode frequency over the acoustic cut-off c_s/(2H_P) at the photosphere. The reflecting surface \
+                 condition of the pulsation solver needs it to be small; flagged above 0.5",
+                model.pulsation.as_ref().map(|p| format!("{:.3}", p.omega_over_ac)).unwrap_or_else(|| "–".into()),
+                "–".into(),
+            );
+            row(
                 "ν_max / Δν [μHz]",
                 "scaling relations from g, T_eff and mean density: estimates, not a computed oscillation spectrum",
                 format!("{:.0} / {:.1}", g.nu_max_uhz, g.delta_nu_uhz),
@@ -647,7 +677,30 @@ impl StarApp {
                     .unwrap_or_else(|| "–".into()),
                 "–".into(),
             );
+            row(
+                "Grav. redshift [m/s]",
+                "v_z = G M / (R c): the gravitational redshift of light from the surface, as a velocity. \
+                 An output only; general relativity is not modelled in the structure (corrections 10⁻⁶ – 10⁻⁵)",
+                format!("{:.0}", g.grav_redshift_m_s),
+                "636".into(),
+            );
+            let s = &g.screening;
+            row(
+                "Screening exponent",
+                "largest exponent of the weak-screening factors, over the reactions that supply at least 1% of \
+                 the nuclear energy. Weak screening holds while it is small: above 0.3 the rates are approximate, \
+                 at the cap (2) unreliable",
+                if s.reaction.is_empty() { "–".into() } else { format!("{:.3}", s.max_exponent) },
+                "–".into(),
+            );
         });
+        let warnings = [
+            g.screening.warning().map(|w| format!("{w} ({})", g.screening.reaction)),
+            model.pulsation.as_ref().and_then(|p| p.cutoff_warning()),
+        ];
+        for w in warnings.into_iter().flatten() {
+            ui.label(RichText::new(format!("Warning: {w}")).small().color(theme::secondary(dark)));
+        }
         if let Some(kind) = stellar_core::pulsation::classify(g.teff, g.luminosity) {
             ui.label(
                 RichText::new(format!("In the empirical instability strip: {} (by HR position)", kind.label()))
@@ -692,6 +745,26 @@ impl StarApp {
              continuity {:.1e}, hydrostatic {:.1e}, energy {:.1e}, transport {:.1e}, boundary {:.1e}",
             r.continuity, r.hydrostatic, r.energy, r.transport, r.boundary
         ));
+        if let Some(c) = g.energy_check() {
+            let max_screening = g.run.map(|r| r.max_screening).unwrap_or(0.0);
+            ui.label(
+                RichText::new(format!(
+                    "Run: total-energy residual {:.1e}, fuel accounting {:.4}; largest screening exponent {:.3}",
+                    c.residual, c.fuel_ratio, max_screening
+                ))
+                .small()
+                .color(theme::muted(dark)),
+            )
+            .on_hover_text(format!(
+                "Total-energy check of the run up to this model:\n\
+                 (∫L dt − ∫∫ε_nuc dm dt + Δ(E_int + E_grav)) / ∫L dt = {:.2e}\n\
+                 of which the composition term omitted from ε_grav: {:.2e} (does not shrink with the time step)\n\
+                 and the numerical remainder: {:.2e} (shrinks with the time step)\n\n\
+                 Fuel accounting: hydrogen burnt × Q_H / ∫L dt = {:.5}. Close to 1 only while hydrogen burning \
+                 supplies the luminosity (main sequence).",
+                c.residual, c.composition, c.numerical, c.fuel_ratio
+            ));
+        }
 
         ui.add_space(6.0);
         ui.horizontal_wrapped(|ui| {

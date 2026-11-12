@@ -122,6 +122,17 @@ so it tests the discretisation, not energy conservation over time (for that see 
 \frac{\displaystyle\int_{m_0}^M \left(\varepsilon_{\mathrm{nuc}} + \varepsilon_{\mathrm{grav}}\right) dm + L_0}{L} = 1
 ```
 
+*Gravitational redshift* (E2, plan 1.8). An output only:
+
+```math
+z = \frac{G M}{R\,c^{2}}, \qquad v_z = c\,z = \frac{G M}{R\,c}
+```
+
+636 m/s for 1 M☉ at 1 R☉ (test); results panel, compare tab, CLI, summary JSON
+(`grav_redshift_m_s`) and track CSV. Relativistic corrections to the structure are $`2\times10^{-6}`$
+(Sun) to $`1.2\times10^{-5}`$ (60 M☉), below the discretisation error, so they stay out of the solver;
+About §15 lists general relativity under "Not modelled".
+
 *Sanity checks*: all values finite, $`r`$ increasing, $`P`$ decreasing, $`L > 0`$, $`\beta`$ above
 its floor.
 
@@ -129,26 +140,11 @@ its floor.
 ($`n = 3`$); banded solver against a dense one; mesh refinement (800 → 1600 points changes $`L`$,
 $`R`$, $`T_c`$ of the Sun by less than 0.5%).
 
-## Planned
-
-### Gravitational redshift (E2, plan 1.8)
-
-An output only:
-
-```math
-z = \frac{G M}{R\,c^{2}}, \qquad v_z = c\,z = \frac{G M}{R\,c}
-```
-
-636 m/s for 1 M☉ at 1 R☉.
-
-### Virial check with rotation (E3)
-
-See [Rotation](08-rotation.md).
-
 ### Helium tied to metallicity (F5, plan 1.7)
 
-An optional input mode, not a change of the physics. The parameters are those of the MIST models
-(Choi et al. 2016, §3.1, eqs. 1–3):
+An optional input mode, not a change of the physics: the checkbox "Helium follows metallicity" in the
+app and `--helium-from-z` in the CLI set $`X`$ from $`Z`$; `stellar-core` is unchanged. The parameters
+are those of the MIST models (Choi et al. 2016, §3.1, eqs. 1–3):
 
 ```math
 Y = Y_p + \frac{\Delta Y}{\Delta Z}\,Z, \qquad Y_p = 0.249, \quad \frac{\Delta Y}{\Delta Z} = \frac{Y_{\odot,\mathrm{proto}} - Y_p}{Z_{\odot,\mathrm{proto}}} = 1.5, \qquad X = 1 - Y - Z
@@ -156,7 +152,7 @@ Y = Y_p + \frac{\Delta Y}{\Delta Z}\,Z, \qquad Y_p = 0.249, \quad \frac{\Delta Y
 
 with the Asplund et al. (2009) protosolar $`Y = 0.2703`$, $`Z = 0.0142`$ (Choi et al. 2016,
 Table 1), so that at $`Z = 0.0142`$ the mode reproduces the protosolar preset of the code
-($`X = 0.7154`$) to within rounding. *Changed:* the page gave $`Y_p \approx 0.248`$ without a source;
+($`X = 0.7154`$) to within rounding (the mode gives 0.7155). *Changed:* the page gave $`Y_p \approx 0.248`$ without a source;
 no source read gives that value together with 1.5. The pairs found are:
 
 | Source | $`Y_p`$ | $`\Delta Y/\Delta Z`$ | Location |
@@ -170,6 +166,12 @@ Current determinations of $`Y_p`$ are lower than 0.249 by about 0.004. With $`Y_
 same protosolar anchor the slope would be $`(0.2703 - 0.2453)/0.0142 = 1.76`$; the two pairs agree
 at $`Z = 0.0142`$ and differ by at most 0.0037 in $`Y`$ (at $`Z = 0`$) for $`Z \le 0.0142`$. Either pair may be
 offered; the default follows MIST so that both numbers come from one source.
+
+## Planned
+
+### Virial check with rotation (E3)
+
+See [Rotation](08-rotation.md).
 
 ---
 Previous: [Pulsations](09-pulsations.md) · [Contents](README.md) · Next: [Validity, limits and order of work](11-validity-and-roadmap.md)

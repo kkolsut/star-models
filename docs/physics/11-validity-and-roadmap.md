@@ -6,11 +6,11 @@
 
 | 1 M☉ ZAMS | This model | Detailed ZAMS models (approximate) | Suspected contributors (none isolated) |
 |---|---|---|---|
-| $`L`$ | 0.4207 L☉ | 0.7 L☉ | interior opacity; pp rate; composition |
-| $`R`$ | 1.1133 R☉ | 0.89 R☉ | opacity, EOS without ionisation, atmosphere |
-| $`T_{\mathrm{eff}}`$ | 4406 K | 5600 K | follows from $`L`$ and $`R`$ |
+| $`L`$ | 0.4195 L☉ | 0.7 L☉ | interior opacity; pp rate; composition |
+| $`R`$ | 1.1146 R☉ | 0.89 R☉ | opacity, EOS without ionisation, atmosphere |
+| $`T_{\mathrm{eff}}`$ | 4400 K | 5600 K | follows from $`L`$ and $`R`$ |
 | Convective envelope base | 0.968 R | about 0.73 R | envelope opacity, ionisation, atmosphere entropy |
-| Central $`\kappa`$ | 2.73 cm² g⁻¹ | roughly half | Kramers formulas |
+| Central $`\kappa`$ | 2.72 cm² g⁻¹ | roughly half | Kramers formulas |
 
 How to read this table:
 
@@ -41,12 +41,12 @@ the implementation, not the physics.
 |---|---|---|
 | EOS (ideal gas + radiation) | 0.4–100 M☉ interiors on the main sequence | below 0.4 M☉; envelopes of cool stars; helium cores |
 | Opacity (analytic) | hot interiors of massive stars | Sun-like stars (factor 2); below 2600 K |
-| Nuclear rates | main-sequence hydrogen burning | pp II/III share; late burning stages |
-| Mixing-length theory | deep, efficient convection, where $`\nabla \to \nabla_{\mathrm{ad}}`$ whatever the theory | superadiabatic surface layers (result depends on the free parameter $`\alpha_{\mathrm{MLT}}`$); boundaries (local theory; core overshoot only as an optional step in the mixing); the centre (unbounded $`\ell`$); anything time-dependent |
+| Nuclear rates | main-sequence hydrogen burning (pp II share included through $`\psi`$) | pp III share; late burning stages; screening beyond the weak regime (reported) |
+| Mixing-length theory | deep, efficient convection, where $`\nabla \to \nabla_{\mathrm{ad}}`$ whatever the theory | superadiabatic surface layers (result depends on the free parameter $`\alpha_{\mathrm{MLT}}`$); boundaries (local theory; core overshoot only as an optional step in the mixing); anything time-dependent |
 | Convective boundaries | Sun-like stars | stars with convective cores (overshoot only as an optional, uncalibrated step, off by default); layers with composition gradients (no Ledoux criterion; $`N^2`$ shows them as a diagnostic) |
 | Atmosphere | hot stars | cool stars (one $`\kappa`$, grey) |
 | Evolution | main sequence | after the main sequence (qualitative) |
-| Radial pulsation period | fundamental mode of a model in hydrostatic equilibrium, adiabatic, reflecting surface; as accurate as the model's $`R`$ and envelope | overtones near the acoustic cut-off; says nothing about driving |
+| Radial pulsation period | fundamental mode and low overtones of a model in hydrostatic equilibrium, adiabatic, reflecting surface; as accurate as the model's $`R`$ and envelope | modes near the acoustic cut-off ($`\omega/\omega_{\mathrm{ac}}`$ reported, flagged above 0.5); says nothing about driving |
 
 The mass ranges are rough guides. Whether a part of the physics holds is a local question, and the
 following diagnostics (to be added as profile outputs with the EOS work) answer it point by point:
@@ -57,7 +57,7 @@ following diagnostics (to be added as profile outputs with the EOS work) answer 
 | Coulomb coupling | $`\Gamma_{\mathrm{C}} = \dfrac{\bar Z^2 e^2}{a_i\,k\,T}`$, $`a_i = \left(\dfrac{3}{4\pi n_i}\right)^{1/3}`$ | $`\gtrsim 0.1`$: non-ideal corrections matter; $`\gtrsim 1`$: ideal gas fails |
 | Departure from full ionisation | $`1 - x_{\mathrm{H}}`$, $`1 - x_{\mathrm{He}2}`$ from the ionisation equilibrium | not $`\approx 0`$ (partly ionised **or neutral**): $`\mu`$ and $`\rho`$ of the implemented EOS are wrong |
 | Partial ionisation | $`x(1-x)`$ for each stage | not $`\approx 0`$: enhanced heat capacity; $`\nabla_{\mathrm{ad}}`$, $`c_P`$, $`\Gamma_1`$ of the implemented EOS are wrong |
-| Screening regime | exponent of the screening factor | $`\gtrsim 0.3`$: outside weak screening; at the cap: rates unreliable |
+| Screening regime | exponent of the screening factor (reported per model and run since plan 1.11) | $`\gtrsim 0.3`$: outside weak screening; at the cap: rates unreliable |
 | Radiation pressure | $`1 - \beta`$ | $`\to 1`$: $`\Gamma_1 \to 4/3`$, model close to instability |
 
 The degeneracy coefficient is where $`P_{\mathrm{nd}} = P_{\mathrm{nr}}`$ in the formulas of
@@ -74,16 +74,16 @@ The degeneracy coefficient is where $`P_{\mathrm{nd}} = P_{\mathrm{nr}}`$ in the
 | Mass loss (E1) | 1% of $`M`$ at 20 M☉, 10–20% at 60 M☉ on the main sequence | planned, phase 4 |
 | Rotation (E3) | a few % in structure, 20–30% in lifetime for fast rotators | planned, phases 5 and 8 |
 | Integrated, non-grey atmosphere (D13, F3) | about 100 K in $`T_{\mathrm{eff}}`$ of cool stars | planned, phase 3 |
-| pp branching and newer rates (D11) | pp rate 8% low, plus up to 50% from $`\psi`$; small in $`L`$ | planned, phase 1 |
-| Separate $`Q`$ for CNO (D12) | CNO-burning lifetimes 4% too long | planned, phase 1 |
+| pp branching and newer rates (D11) | pp rate 8% low, plus up to 50% from $`\psi`$; measured: ZAMS Sun $`L`$ −0.3%, 1 M☉ main sequence +2.6% | $`\psi`$ done (phase 1, hybrid with the 1990 pp rate); rates from Solar Fusion III with $`S'`$, $`S''`$ still planned |
+| Separate $`Q`$ for CNO (D12) | CNO-burning lifetimes 4% too long; measured −4.3% (3 M☉), −4.4% (5 M☉) | done, phase 1 |
 | Element settling (F1) | Sun: surface $`Y`$ −0.03, $`Z`$ −10% in 4.6 Gyr | planned, phase 8 |
 | Molecular hydrogen (F2) | decides full convection at 0.1–0.5 M☉ | with phase 6 |
 | Non-radial modes (E4) | a new output, not a correction | diagnostics ($`N^2`$, $`S_l`$, spacings) done in phase 2; modes planned, phase 9 |
-| General relativity (E2) | $`10^{-6}`$ to $`10^{-5}`$ | not planned; redshift output only |
+| General relativity (E2) | $`10^{-6}`$ to $`10^{-5}`$ | not planned; redshift output done (phase 1) |
 | Magnetic fields, spots (F6) | radii of active M dwarfs several % larger | note only |
 | Turbulent pressure | shifts mode frequencies | not planned |
 | Thermal neutrinos (F7) | red-giant helium cores from about $`10^8`$ K (plasma neutrinos); all later stages | with the red-giant work, phases 6–7 |
-| Total energy conservation check | separates numerical error from physics in evolution runs | add in phase 1 |
+| Total energy conservation check | separates numerical error from physics in evolution runs; measured: Sun to 4.57 Gyr residual $`-4.5\times10^{-4}`$, of which $`10^{-6}`$ numerical | done, phase 1 |
 | Helium flash, thermal pulses (F9) | beyond helium ignition | not planned |
 | Binary interaction (F11) | most massive stars | out of scope |
 

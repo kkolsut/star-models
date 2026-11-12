@@ -20,9 +20,13 @@ These are shown in the left panel, the Compare table and the JSON export.
 | Phase | Evolutionary phase, see [Evolution in time](12-evolution.md#evolutionary-phases) |
 | $`X_c`$ / He core [$`m/M`$] | Central hydrogen mass fraction, and the mass fraction of the hydrogen-exhausted core ($`X < 10^{-3}`$) |
 | Fund. radial mode | Period of the fundamental radial pulsation mode, see [Pulsations & oscillations](13-pulsations.md) |
+| ω/ω_ac (fund. mode) | Frequency of that mode over the acoustic cut-off at the photosphere; the pulsation solver's surface condition needs it to be small, and a warning appears above 0.5 (see [Pulsations & oscillations](13-pulsations.md)) |
 | $`\nu_{\max}`$ / $`\Delta\nu`$ [μHz] | Solar-like oscillation frequencies from the asteroseismic scaling relations (meaningful for stars with convective envelopes) |
 | Δν asymptotic [μHz] | Large frequency separation from the interior, $`[2\int dr/c_s]^{-1}`$, see [Pulsations & oscillations](13-pulsations.md#characteristic-frequencies-and-asymptotic-spacings) |
 | ΔΠ₁ [s] | Asymptotic dipole g-mode period spacing of the largest candidate cavity; every cavity is listed in More profiles and in the JSON (`g_cavities`) |
+| Grav. redshift [m/s] | Gravitational redshift of light from the surface, as a velocity (see [below](#gravitational-redshift)) |
+| Screening exponent | Largest exponent of the weak-screening factors (see [below](#screening-exponent)) |
+| Run: total-energy residual, fuel accounting | Evolved models only: the energy checks of the run up to this model, see [Evolution in time](12-evolution.md#checks) |
 
 ## Effective temperature and surface gravity
 
@@ -53,7 +57,28 @@ $`L_0`$ is the luminosity of the innermost point.
 The integral uses the solver's own midpoint rule. It therefore integrates the same difference equation
 the solver satisfies, and holds by construction for a converged model: it is a **discretisation
 consistency check**, not an independent test of energy conservation. An evolution run has an
-independent energy budget, described in [Evolution in time](12-evolution.md#checks).
+independent total-energy check, described in [Evolution in time](12-evolution.md#checks).
+
+## Gravitational redshift
+
+Light leaving the surface loses energy climbing out of the star's gravity. Expressed as the Doppler
+velocity that would give the same shift:
+
+```math
+v_z = \frac{G M}{R\,c} \qquad \text{(636 m/s for 1 M}_\odot\text{ at 1 R}_\odot\text{)}
+```
+
+It is an output only: general relativity is not modelled in the structure (see
+[Accuracy & limitations](15-limitations.md#not-modelled)).
+
+## Screening exponent
+
+Free electrons partly shield the charges of reacting nuclei, which speeds the reactions up by a factor
+$`f = \exp(\ldots)`$ (see [Microphysics](07-microphysics.md)). The formula used holds while the
+exponent is small (weak screening). The value shown is the largest exponent over the reactions that
+supply at least 1% of the nuclear energy, where they burn. Above 0.3 a warning says the rates are
+approximate; at the cap of 2 that they are unreliable. The ZAMS Sun has 0.23. Evolution runs also
+report the largest value of the run.
 
 ## Residuals
 

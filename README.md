@@ -84,12 +84,12 @@ Examples:
 
 | Run | Result |
 |---|---|
-| Sun to 4.57 Gyr | 26 steps, 0.3 s; L 0.42 → 0.52 L☉, X_c 0.70 → 0.51 |
+| Sun to 4.57 Gyr | 27 steps, 0.3 s; L 0.42 → 0.52 L☉, X_c 0.70 → 0.51 |
 | 1.8 M☉ | δ Scuti on the main sequence (P ≈ 0.05–0.15 d); the convective-core "hook" at 1.4 Gyr |
-| 5 M☉ | main sequence to 76 Myr, then crosses the Cepheid strip (P ≈ 1.5–2.6 d at ~1000 L☉) |
+| 5 M☉ | main sequence to 73 Myr, then crosses the Cepheid strip (P ≈ 1.5–2.6 d at ~1000 L☉) |
 | 10 M☉ | reaches core helium burning as a red supergiant |
 
-The energy budget closes: hydrogen burnt × Q_H equals the energy radiated to 0.5%. After the main sequence the analytic physics is only qualitative: there is no degeneracy, ionisation or molecular opacity, so low-mass stars do not climb the red giant branch.
+Every evolution run carries a total-energy check: energy radiated against nuclear energy released and the change of thermal and gravitational energy. For the Sun at 4.57 Gyr it closes to 5 × 10⁻⁴, almost all of it the composition term that ε_grav omits; the numerical part is 10⁻⁶. The fuel accounting (hydrogen burnt × Q_H against the energy radiated) closes to 1%. After the main sequence the analytic physics is only qualitative: there is no degeneracy, ionisation or molecular opacity, so low-mass stars do not climb the red giant branch.
 
 ### CLI
 
@@ -99,6 +99,7 @@ stellar-cli --sweep 0.5,1,2,5,10,20      # a ZAMS sequence by continuation
 stellar-cli --mass 3 -v                  # print every Newton iteration
 stellar-cli --mass 1 --evolve --until age --max-age 4.57      # evolve the Sun to its present age
 stellar-cli --mass 5 --evolve --until max --track track.csv   # full track as CSV
+stellar-cli --mass 1 --z 0.0142 --helium-from-z               # Y = 0.249 + 1.5 Z
 ```
 
 ## Physics and numerics
@@ -111,11 +112,12 @@ Code layout: `crates/stellar-core` holds the physics and solver (no GUI dependen
   d ln T / d ln P = ∇.
 * **Energy transport:** ∇ = ∇_rad in radiative layers. Where the Schwarzschild criterion
   ∇_rad > ∇_ad holds, ∇ comes from **mixing-length theory** (Kippenhahn, Weigert & Weiss cubic,
-  l = α_MLT H_P). It is ≈ ∇_ad deep inside and superadiabatic near the surface.
+  l = α_MLT min(H_P, √(P/Gρ²))). It is ≈ ∇_ad deep inside and superadiabatic near the surface.
 * **EOS:** fully ionized ideal gas plus radiation pressure (β, ∇_ad, c_P, δ).
 * **Opacity:** analytic. Electron scattering + Kramers free–free and bound–free (with guillotine
   factor) + H⁻ + a molecular floor.
-* **Nuclear:** analytic pp chain, CNO cycle and triple-α rates with weak screening.
+* **Nuclear:** analytic pp chain (with the pp II branching factor ψ), CNO cycle and triple-α rates
+  with weak screening; separate energies per gram of hydrogen for pp and CNO.
 * **Boundary conditions:** central expansions at m₀ = 10⁻⁶ M, and a grey Eddington photosphere at
   τ = ⅔ at the surface.
 * **Solver:** Henyey relaxation, i.e. Newton–Raphson on the full discretized system.

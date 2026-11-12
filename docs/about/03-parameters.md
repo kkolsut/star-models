@@ -9,6 +9,7 @@ shows each current value.
 | Hydrogen mass fraction | $`X`$ | 0.70 | 0 – $`(1 - Z)`$ |
 | Metallicity | $`Z`$ | 0.02 | 0.0001 – 0.1 (logarithmic) |
 | Helium mass fraction | $`Y`$ | derived | $`Y = 1 - X - Z`$ |
+| Helium follows metallicity (checkbox) | – | off | sets $`X`$ from $`Z`$ |
 | Mixing-length parameter | $`\alpha_{\mathrm{MLT}}`$ | 1.8 | 0.3 – 3.0 |
 | CNO fraction of $`Z`$ (Advanced) | $`f_{\mathrm{CNO}}`$ | 0.7 | 0 – 1 |
 | Core overshoot (Advanced) | $`\alpha_{\mathrm{ov}}`$ | 0 (off) | 0 – 0.5 |
@@ -47,10 +48,23 @@ The fraction of the mass in all elements heavier than helium.
 
 Not set directly: it is whatever mass is left after hydrogen and metals, $`Y = 1 - X - Z`$.
 
+**Helium follows metallicity** (checkbox under the sliders; CLI `--helium-from-z`). Galaxies enrich
+helium together with metals. With the box ticked, $`Y`$ follows $`Z`$ as in the MIST models (Choi et
+al. 2016), and the $`X`$ slider follows $`Z`$:
+
+```math
+Y = Y_p + \frac{\Delta Y}{\Delta Z}\,Z, \qquad Y_p = 0.249, \quad \frac{\Delta Y}{\Delta Z} = 1.5, \qquad X = 1 - Y - Z
+```
+
+$`Y_p`$ is the primordial helium abundance. At $`Z = 0.0142`$ this gives the protosolar $`X = 0.7155`$
+(the AGSS09 preset has 0.7154). It is an input mode only; the physics does not change. Measurements of
+$`Y_p`$ are now about 0.004 lower (0.245); with the same protosolar anchor the slope would be 1.76.
+
 ## Mixing-length parameter $`\alpha_{\mathrm{MLT}}`$
 
 In mixing-length theory a convective blob travels a distance $`\ell = \alpha_{\mathrm{MLT}}\,H_P`$
-before it dissolves into its surroundings. $`H_P`$ is the pressure scale height.
+before it dissolves into its surroundings. $`H_P`$ is the pressure scale height (bounded near the
+centre, see [Energy transport](08-energy-transport.md)).
 
 * $`\alpha_{\mathrm{MLT}}`$ only matters where convection is inefficient: in the superadiabatic layers
   just below the photosphere of stars with convective envelopes.

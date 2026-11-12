@@ -24,18 +24,15 @@ its section numbers remain unverified.
 
 ### Rates
 
-*pp chain.* The pp I branch only; the branching factor $`\psi`$ is taken as 1.
+*pp chain.* The pp I rate times the branching factor $`\psi`$ (next section, plan 1.6):
 
 ```math
-\varepsilon_{pp} = 2.38\times10^{6}\;\rho\, X^2\, f_{1}\, g_{11}\; T_6^{-2/3}\, \exp\!\left(-33.80\, T_6^{-1/3}\right)
+\varepsilon_{pp} = \psi\,\varepsilon_{pp,\mathrm{I}}, \qquad \varepsilon_{pp,\mathrm{I}} = 2.38\times10^{6}\;\rho\, X^2\, f_{1}\, g_{11}\; T_6^{-2/3}\, \exp\!\left(-33.80\, T_6^{-1/3}\right)
 ```
 
 ```math
 g_{11} = 1 + 0.0123\, T_6^{1/3} + 0.0109\, T_6^{2/3} + 0.0009\, T_6
 ```
-
-> The About page and `equations.json` call $`g_{11}`$ "$`\psi`$" (finding B1). The name used here is
-> the correct one.
 
 *CNO cycle.* The slowest step, p + ¹⁴N, sets the rate.
 
@@ -68,106 +65,110 @@ f_{Z_1 Z_2} = \exp\!\left(0.188\, Z_1 Z_2\, \zeta\, \rho^{1/2}\, T_6^{-3/2}\righ
 | α + α | 4 |
 | α + ⁸Be | 8 |
 
-### Composition changes
-
-```math
-\frac{\partial X}{\partial t} = -\frac{\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{H}}}, \qquad Q_{\mathrm{H}} = 6.27\times10^{18}\ \mathrm{erg\,g^{-1}}
-```
-
-```math
-\frac{\partial Y}{\partial t} = -\frac{\partial X}{\partial t} - \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad \frac{\partial Z}{\partial t} = \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad Q_{\mathrm{He}} = 5.85\times10^{17}\ \mathrm{erg\,g^{-1}}
-```
-
-* $`Q_{\mathrm{H}}`$ is 26.2 MeV per helium nucleus, the pp-chain value after neutrino losses. It is
-  used for the CNO cycle as well.
-* $`Q_{\mathrm{He}}`$ is 7.275 MeV per carbon nucleus.
-* Carbon from helium burning is counted in $`Z`$. The catalyst abundance $`X_{\mathrm{CNO}}`$ keeps
-  its initial value.
-* The fits assume that ³He and the CNO isotopes are in equilibrium.
-
-## Planned
-
 ### pp branching factor (D11, plan 1.6)
 
 Let $`r_{11}`$, $`r_{33}`$, $`r_{34}`$ be the rates of p + p, ³He + ³He and ³He + ⁴He. With ³He in
 equilibrium, $`r_{11} = 2 r_{33} + r_{34}`$. Helium production relative to the pp I branch alone:
 
 ```math
-\phi = \frac{2\,(r_{33} + r_{34})}{r_{11}} = 1 - \alpha + \sqrt{\alpha\,(\alpha + 2)}, \qquad \alpha = C_\alpha \left(\frac{Y}{4X}\right)^{2} \exp\!\left(-100\,T_6^{-1/3}\right)
+\phi = \frac{2\,(r_{33} + r_{34})}{r_{11}} = 1 + \frac{2}{\sqrt{1 + 2/\alpha} + 1}, \qquad \alpha = \left(\frac{n_4}{n_p}\right)^{2} \frac{\langle\sigma v\rangle_{34}^{\,2}}{\langle\sigma v\rangle_{11}\,\langle\sigma v\rangle_{33}}, \qquad \frac{n_4}{n_p} = \frac{Y}{4X}
 ```
 
-$`\phi`$ runs from 1 to 2. The fraction of helium made through pp II and the energy factor (pp II
-gives 25.66 MeV instead of 26.20 MeV to the gas; pp III is neglected, safe below
-$`T_6 \approx 20`$):
+The form of $`\phi`$ is the stable equivalent of $`1 - \alpha + \sqrt{\alpha(\alpha + 2)}`$; $`\phi`$
+runs from 1 to 2. The fraction of helium made through pp II, and the energy factor (pp II gives
+25.66 MeV instead of 26.20 MeV to the gas; pp III is neglected, safe below $`T_6 \approx 20`$):
 
 ```math
 F_{\mathrm{II}} = \frac{2\,(\phi - 1)}{\phi}, \qquad \psi = \phi\,\left(1 - 0.021\,F_{\mathrm{II}}\right), \qquad \varepsilon_{pp} = \psi\,\varepsilon_{pp,\mathrm{I}}
 ```
 
-*Fuel consumption must change with it.* $`\phi`$ counts helium nuclei, $`\psi`$ counts energy, so the
-energy delivered per gram of hydrogen burnt depends on the branch:
+*How $`\alpha`$ is computed.* From its definition, with thermal rates from one evaluation:
+eq. 3 of Solar Fusion III (Acharya et al. 2025, Rev. Mod. Phys. 97, 035002) integrated numerically
+with the $`S(0)`$ of their Table I, in MeV b, $`S_{11} = 4.09\times10^{-25}`$, $`S_{33} = 5.21`$,
+$`S_{34} = 5.61\times10^{-4}`$, and reduced masses $`\mu_{11} = 1/2`$, $`\mu_{33} = 3/2`$,
+$`\mu_{34} = 12/7`$:
 
 ```math
-\frac{\partial X}{\partial t}\bigg|_{pp} = -\frac{\varepsilon_{pp}}{Q_{pp}^{\mathrm{eff}}}, \qquad Q_{pp}^{\mathrm{eff}} = Q_{pp,\mathrm{I}}\,\frac{\psi}{\phi} = Q_{pp,\mathrm{I}}\left(1 - 0.021\,F_{\mathrm{II}}\right), \qquad Q_{pp,\mathrm{I}} = 6.27\times10^{18}\ \mathrm{erg\,g^{-1}}
+\langle\sigma v\rangle \propto \mu^{-1/2} (kT)^{-3/2}\, S(0) \int_0^\infty \exp\!\left(-\frac{E}{kT} - \sqrt{\frac{E_G}{E}}\right) dE, \qquad E_G = 2\mu c^2 \left(\pi \alpha_{\mathrm{fs}} Z_1 Z_2\right)^2
 ```
 
-Here $`\varepsilon_{pp,\mathrm{I}}`$ is the baseline rate (pp I only) and $`\varepsilon_{pp}`$ the
-corrected one. The baseline must use the same rate convention as $`\alpha`$ below. In a fully
-consistent calculation it is built from the same $`\langle\sigma v\rangle_{11}`$, with $`E_{\mathrm{I}}`$
-the energy deposited per completed pp I chain:
+(the common factors cancel in $`\alpha`$). The quadrature is tabulated once, at first use, on
+161 points in $`T_6^{-1/3}`$ for $`1 \le T_6 \le 200`$, and interpolated with cubic Hermite
+polynomials (C¹, rule 3); outside the table it is extrapolated linearly in $`T_6^{-1/3}`$. The
+screening factors enter as $`f_{34}^2/(f_{11} f_{33})`$ (weak screening, below).
+
+* *$`S'`$ and $`S''`$ are not included yet.* Their values in Table I of Solar Fusion III are not
+  recorded in these pages, and the paper could not be consulted again when this was coded
+  (2026-11-12), so by rule 6 they are left out: $`S`$ is constant. Estimated effect on
+  $`\alpha`$: a few per cent, mostly from $`S'_{11}`$; $`\phi`$ changes far less. Adding them is part
+  of [Newer rates](#newer-rates-d11) below.
+* *Hybrid.* The pp I rate is still the 1990 fit, while $`\alpha`$ comes from Solar Fusion III. The two
+  p + p rates differ by about 8% (see [Validity](11-validity-and-roadmap.md)); the hybrid is
+  accepted as an interim step until the pp rate itself is rebuilt from Solar Fusion III.
+* **[measured]** $`\alpha (4X/Y)^2`$ against the leading-order closed form
+  $`C_\alpha \exp(-100\,T_6^{-1/3})`$: $`C_\alpha = 1.47`$, 1.46, $`1.45\times10^{17}`$ at
+  $`T_6 = 10`$, 15, 30, as computed before for these pages; the table reproduces the quadrature to
+  better than $`10^{-4}`$ in $`\ln\alpha`$ for $`1 \le T_6 \le 200`$ (unit tests in `nuclear.rs`).
+* **[measured]** pp II share in the models: centre of the ZAMS Sun $`\phi = 1.027`$
+  ($`F_{\mathrm{II}} = 0.05`$); centre of the Sun at 4.57 Gyr $`\phi = 1.105`$ ($`F_{\mathrm{II}} = 0.19`$).
+  Reported, not tested against a range (the analytic Sun is not a solar model).
+
+*Check value.* The leading-order approximation of $`\alpha`$ (constant $`S`$, no screening, leading
+Gamow term), with $`\tau_{ij} = 42.49\,(Z_i^2 Z_j^2\,\mu_{ij})^{1/3}\,T_6^{-1/3}`$ and
+$`2\tau_{34} - \tau_{11} - \tau_{33} = 99.98\,T_6^{-1/3}`$, is
 
 ```math
-r_{11} = \tfrac{1}{2}\,n_p^{2}\,\langle\sigma v\rangle_{11}, \qquad \varepsilon_{pp,\mathrm{I}} = \frac{r_{11}}{2\rho}\,E_{\mathrm{I}}
+\alpha \simeq C_\alpha \left(\frac{Y}{4X}\right)^{2} \exp\!\left(-100\,T_6^{-1/3}\right), \qquad C_\alpha \simeq \frac{S_{34}^{2}}{S_{11}\,S_{33}}\left(\frac{4\,\mu_{11}\,\mu_{33}}{\mu_{34}^{2}}\right)^{1/3} \simeq 1.49\times10^{17}
 ```
 
-Using the implemented (1990) fit for $`\varepsilon_{pp,\mathrm{I}}`$ with a modern $`\alpha`$ is a
-hybrid; it is allowed as an interim step if it is called that and the difference between the two
-p + p rates is stated (about 8%, see [Validity](11-validity-and-roadmap.md)).
+It is used only as a check of the quadrature (above). The value $`1.2\times10^{17}`$ once quoted from
+memory of Clayton (1968) is not used (decided 2026-11-12, attribution dropped).
 
-For large $`\alpha`$ the expression for $`\phi`$ subtracts nearly equal numbers; evaluate the
-equivalent form
+### Composition changes
 
-```math
-\phi = 1 + \frac{2}{\sqrt{1 + 2/\alpha} + 1}
-``` Most of the extra helium production is already carried by
-$`\psi`$ in $`\varepsilon_{pp}`$. Keeping the fixed $`Q_{pp,\mathrm{I}}`$ with the corrected rate
-would therefore underestimate hydrogen consumption by at most 2.1% ($`F_{\mathrm{II}} = 1`$),
-within the pp I/II approximation.
-
-*How $`\alpha`$ is obtained.* The specification is the definition, evaluated with consistently
-defined thermal rates $`\langle\sigma v\rangle`$ from one evaluation (Solar Fusion III), including
-their energy dependence and screening. Solar Fusion III does not tabulate thermal rates for these
-reactions: it gives $`S(0)`$, $`S'(0)`$, $`S''(0)`$ (Table I) for the expansion of its eq. 4, and
-$`\langle\sigma v\rangle`$ is its eq. 3 integrated with them (Acharya et al. 2025, Rev. Mod. Phys. 97,
-035002, §I.B; arXiv:2405.06470 read 2026-11-11):
+The hydrogen consumption follows each channel's energy per gram (D12, plan 1.5; with pp branching,
+plan 1.6). $`\phi`$ counts helium nuclei and $`\psi`$ energy, so the energy delivered per gram of
+hydrogen burnt by the pp chain depends on the branch:
 
 ```math
-\alpha = \left(\frac{n_4}{n_p}\right)^{2} \frac{\langle\sigma v\rangle_{34}^{\,2}}{\langle\sigma v\rangle_{11}\,\langle\sigma v\rangle_{33}}, \qquad \frac{n_4}{n_p} = \frac{Y}{4X}
+\frac{\partial X}{\partial t} = -\frac{\varepsilon_{pp}}{Q_{pp}^{\mathrm{eff}}} - \frac{\varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{CNO}}}, \qquad Q_{pp}^{\mathrm{eff}} = Q_{pp,\mathrm{I}}\,\frac{\psi}{\phi} = Q_{pp,\mathrm{I}}\left(1 - 0.021\,F_{\mathrm{II}}\right)
 ```
 
-The closed form with $`C_\alpha`$ above is its leading-order approximation (constant $`S`$ factors,
-no screening, leading Gamow term), with reduced masses $`\mu_{ij}`$ in atomic mass units:
-
 ```math
-C_\alpha \simeq \frac{S_{34}^{2}}{S_{11}\,S_{33}}\left(\frac{4\,\mu_{11}\,\mu_{33}}{\mu_{34}^{2}}\right)^{1/3}
+Q_{pp,\mathrm{I}} = 6.27\times10^{18}, \qquad Q_{\mathrm{CNO}} = 5.99\times10^{18}\ \mathrm{erg\,g^{-1}}
 ```
 
-With the Solar Fusion III values (Table I, in MeV b; checked against the paper)
-$`S_{11}(0) = 4.09\times10^{-25}`$, $`S_{33}(0) = 5.21`$, $`S_{34}(0) = 5.61\times10^{-4}`$ and $`\mu_{11} = 1/2`$,
-$`\mu_{33} = 3/2`$, $`\mu_{34} = 12/7`$, this gives $`C_\alpha \simeq 1.49\times10^{17}`$ (computed
-by the reviewer of these pages and re-computed here; the exponent 100 follows from the same Gamow
-terms: with $`\tau_{ij} = 42.49\,(Z_i^2 Z_j^2\,\mu_{ij})^{1/3}\,T_6^{-1/3}`$,
-$`2\tau_{34} - \tau_{11} - \tau_{33} = 99.98\,T_6^{-1/3}`$). It is an
-estimate for checking the implementation, not a precision fit. Integrating eq. 3 of Solar Fusion III
-numerically with the same constant $`S(0)`$ values gives $`C_\alpha = 1.47`$, 1.46 and
-$`1.45\times10^{17}`$ at $`T_6 = 10`$, 15 and 30 (the next term of the Gamow expansion; re-computed
-2026-11-11).
+```math
+\frac{\partial Y}{\partial t} = -\frac{\partial X}{\partial t} - \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad \frac{\partial Z}{\partial t} = \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad Q_{\mathrm{He}} = 5.85\times10^{17}\ \mathrm{erg\,g^{-1}}
+```
 
-The value $`1.2\times10^{17}`$ quoted earlier from memory of Clayton (1968) is of the same size.
-*Decided 2026-11-12:* the attribution is dropped, not verified (the book was not available). The
-constant used and tested is the one computed above from Solar Fusion III; no number from Clayton
-enters the code or the tests. The earlier expectation that a
-modern value would be "several times smaller" was wrong and is withdrawn.
+* 26.731 MeV per ⁴He is $`6.398\times10^{18}`$ erg/g. After neutrino losses the pp I chain deposits
+  26.20 MeV ($`Q_{pp,\mathrm{I}}`$) and the CNO cycle 25.03 MeV ($`Q_{\mathrm{CNO}}`$).
+* $`Q_{\mathrm{He}}`$ is 7.275 MeV per carbon nucleus.
+* Keeping the fixed $`Q_{pp,\mathrm{I}}`$ with the branching-corrected rate would underestimate the
+  hydrogen consumption by up to 2.1% ($`F_{\mathrm{II}} = 1`$).
+* Carbon from helium burning is counted in $`Z`$. The catalyst abundance $`X_{\mathrm{CNO}}`$ keeps
+  its initial value.
+* The fits assume that ³He and the CNO isotopes are in equilibrium.
+* **[measured]** effect of the per-channel $`Q`$ alone: main sequence 4.3% shorter for 3 M☉ (285.89 →
+  273.52 Myr) and 4.4% for 5 M☉ (76.09 → 72.71 Myr).
+
+### Screening diagnostic (plan 1.11)
+
+Every model reports its largest weak-screening exponent, over the channels that supply at least 1%
+of the nuclear luminosity and the points where such a channel burns at more than 1% of its peak
+rate; an evolution run also keeps the largest value of any of its models. For the pp chain the
+exponent of ³He + ³He ($`Z_1 Z_2 = 4`$, through $`\alpha`$) is the largest. The app and the CLI
+warn
+
+* above 0.3: outside the weak regime, the rates are approximate;
+* at the cap (2): the rates are unreliable.
+
+**[measured]** ZAMS Sun: 0.23 (³He + ³He, largest at $`m/M = 0.54`$; at the centre p + p 0.046,
+³He + ³He 0.18, p + ¹⁴N 0.32, the last not counted since CNO gives 0.1% of the energy). The
+warning stays in force as the helium-ignition gate until plan 9.7.
+
+## Planned
 
 ### Newer rates (D11)
 
@@ -217,17 +218,6 @@ g_{11} = 1 + 3.82\,T_9 + 1.51\,T_9^2 + 0.144\,T_9^3 - 0.0114\,T_9^4
 ```math
 g_{14,1} = 1 - 2.00\,T_9 + 3.41\,T_9^2 - 2.43\,T_9^3
 ```
-
-### Energy per gram by channel (D12, plan 1.5)
-
-26.731 MeV per ⁴He is $`6.398\times10^{18}`$ erg/g. After neutrino losses:
-
-```math
-Q_{pp,\mathrm{I}} = 6.27\times10^{18}, \qquad Q_{\mathrm{CNO}} = 5.99\times10^{18}\ \mathrm{erg\,g^{-1}}, \qquad \frac{\partial X}{\partial t} = -\frac{\varepsilon_{pp}}{Q_{pp}^{\mathrm{eff}}} - \frac{\varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{CNO}}}
-```
-
-$`Q_{pp}^{\mathrm{eff}} = Q_{pp,\mathrm{I}}`$ as long as $`\psi = 1`$; with branching it is the
-expression given above.
 
 ### Carbon and oxygen (D18, plan 9.5)
 
@@ -300,8 +290,8 @@ Consequence: the degenerate EOS makes a helium core appear, but the model must n
 predicting helium ignition (core mass, luminosity at the tip, the flash) until screening has a
 prescription covering weak, intermediate and strong regimes. The prescription chosen is given in
 the next section; the gate stays until it is implemented and tested.
-Until then: report the largest screening exponent reached in a run, and warn when it exceeds about
-0.3 (still approximately weak) and when it hits the cap.
+Until then the largest screening exponent of every model and run is reported, with warnings above
+0.3 and at the cap ([Screening diagnostic](#screening-diagnostic-plan-111), implemented in plan 1.11).
 
 ### Screening prescription for all regimes (decided)
 

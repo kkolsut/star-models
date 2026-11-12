@@ -12,11 +12,13 @@ is constant: there is no mass loss. Each time step has two parts:
 *Hydrogen burning* (pp chain and CNO cycle)
 
 ```math
-\frac{\partial X}{\partial t} = -\frac{\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{H}}}, \qquad Q_{\mathrm{H}} = 6.27\times10^{18}\ \mathrm{erg\,g^{-1}}
+\frac{\partial X}{\partial t} = -\frac{\varepsilon_{pp}}{Q_{pp}^{\mathrm{eff}}} - \frac{\varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{CNO}}}, \qquad Q_{pp}^{\mathrm{eff}} = 6.27\times10^{18}\,\left(1 - 0.021\,F_{\mathrm{II}}\right), \qquad Q_{\mathrm{CNO}} = 5.99\times10^{18}\ \mathrm{erg\,g^{-1}}
 ```
 
-$`Q_{\mathrm{H}}`$ is the pp-chain value (26.2 MeV per helium nucleus formed). The same value is used
-for the CNO cycle, whose energy per helium nucleus deposited in the star is slightly lower.
+Each channel uses its own energy per gram of hydrogen burnt: 26.20 MeV per helium nucleus for the pp I
+chain and 25.03 MeV for the CNO cycle, after neutrino losses. The pp II branch deposits 2.1% less than
+pp I, so $`Q_{pp}^{\mathrm{eff}}`$ falls with the pp II share $`F_{\mathrm{II}}`$ (see
+[Microphysics](07-microphysics.md)).
 
 *Helium burning* (triple-α); the carbon it produces counts as metals
 
@@ -30,8 +32,16 @@ for the CNO cycle, whose energy per helium nucleus deposited in the star is slig
 X \;\leftarrow\; \bar X_{\mathrm{zone}} = \frac{\int_{\mathrm{zone}} X\, dm}{\int_{\mathrm{zone}} dm} \qquad \text{(same for } Y, Z\text{) in every convective zone}
 ```
 
+After mixing, every mixed zone burns as one unit, at its mass-averaged rate:
+
+```math
+X_{\mathrm{zone}}^{\mathrm{new}} = \max\!\left(0,\; \bar X_{\mathrm{zone}} + \langle \dot X \rangle_{\mathrm{zone}}\,\Delta t\right), \qquad \langle \dot X \rangle_{\mathrm{zone}} = \frac{\int_{\mathrm{zone}} \dot X\, dm}{\int_{\mathrm{zone}} dm}
+```
+
+and the same for helium.
+
 * Burning uses the energy-generation rates of the previous model. This is an explicit step, kept small
-  by the time-step limits below.
+  by the time-step limits below. No zone burns more than it contains.
 * The CNO catalyst abundance $`X_{\mathrm{CNO}} = f_{\mathrm{CNO}}\,Z`$ keeps its initial value.
 * Mixing uses the Schwarzschild convective zones of the previous model. A convective core that shrinks
   during the main sequence therefore leaves a hydrogen gradient behind.
@@ -49,7 +59,7 @@ and every mesh point with $`r \le r_{\mathrm{ov}}`$ is mixed with the core.
   $`\min(H_P, r_{\mathrm{cc}})`$ keeps the extension finite for small cores.
 * Mixing only: the temperature gradient in the extension stays radiative.
 * The mixed core feeds more hydrogen into the burning region. With $`\alpha_{\mathrm{ov}} = 0.2`$ the
-  main sequence lasts 360 Myr instead of 286 Myr for 3 M☉ (+26%) and 93.7 Myr instead of 76.1 Myr
+  main sequence lasts 344 Myr instead of 273 Myr for 3 M☉ (+26%) and 89.5 Myr instead of 72.7 Myr
   for 5 M☉ (+23%). A 1.1 M☉ star, which has no convective core, is unaffected.
 * $`\alpha_{\mathrm{ov}} \approx 0.2`$ is a typical calibration for intermediate-mass stars; it depends
   on mass and is not universal.
@@ -79,13 +89,13 @@ for Newton, and the luminosity unknown is re-scaled to the current luminosity ev
 ## Time steps
 
 ```math
-|\Delta X| \le \min\!\left(0.01,\ \max(0.3\,X,\ 10^{-5})\right), \qquad \Delta t_{\mathrm{next}} = \Delta t \cdot \min\!\left(2,\ \max\!\left(\tfrac{1}{2},\ \frac{0.02}{\max|\Delta \ln r, \Delta\ln P, \Delta\ln T, \Delta\ln L|}\right)\right)
+|\Delta X| \le \min\!\left(0.01,\ \max(0.3\,X,\ 10^{-5})\right)\ \ (\text{same for } Y \text{ where } \varepsilon_{3\alpha} > 0), \qquad \Delta t_{\mathrm{next}} = \Delta t \cdot \min\!\left(2,\ \max\!\left(\tfrac{1}{2},\ \frac{0.02}{\max|\Delta \ln r, \Delta\ln P, \Delta\ln T, \Delta\ln L|}\right)\right)
 ```
 
 * **Burning limit:** no shell may lose more than 0.01 of $`X`$, or more than 30% of its hydrogen, in
-  one step. A convective zone counts as a single shell. The 30% rule has a floor of
-  $`\Delta X = 10^{-5}`$, and shells with $`X \le 10^{-8}`$ are skipped, so the step does not shrink
-  without bound as hydrogen runs out.
+  one step; the same holds for helium wherever triple-α burns. A mixed zone counts as a single shell.
+  The 30% rule has a floor of $`10^{-5}`$, and shells with $`X`$ (or $`Y`$) $`\le 10^{-8}`$ are
+  skipped, so the step does not shrink without bound as the fuel runs out.
 * **Structural limit:** the step grows or shrinks so that $`\ln r`$, $`\ln P`$, $`\ln T`$ and
   $`\ln L`$ change by about 0.02 per step. A step that changes them by more than 0.08 is rejected and
   repeated with half the time step.
@@ -114,16 +124,43 @@ for Newton, and the luminosity unknown is re-scaled to the current luminosity ev
 
 ## Checks
 
-The hydrogen burnt, times $`Q_{\mathrm{H}}`$, must equal the energy radiated over the run:
+**Total-energy check.** Over a run, the energy radiated must equal the nuclear energy released minus
+the change of the star's thermal and gravitational energy. $`u`$ is the thermal energy per gram; rest
+mass and nuclear binding energy enter only through $`\varepsilon_{\mathrm{nuc}}`$.
 
 ```math
-Q_{\mathrm{H}}\left[\int X\, dm\right]_{t}^{0} = \int_0^t L\, dt'
+\mathcal{R} = \frac{\int L\,dt - \int\!\!\int\varepsilon_{\mathrm{nuc}}\,dm\,dt + \Delta(E_{\mathrm{int}} + E_{\mathrm{grav}})}{\int L\,dt}, \qquad E_{\mathrm{int}} = \int u\,dm, \qquad E_{\mathrm{grav}} = -\int \frac{G m}{r}\,dm
 ```
 
-For the Sun evolved to 4.57 Gyr the ratio is 0.995; an automated test checks it. Along every run:
+The residual has two parts, reported separately:
+
+* The $`\varepsilon_{\mathrm{grav}}`$ of the solver leaves out the heat from the change of composition
+  at fixed $`P`$ and $`T`$. The run adds that term up (the change of the enthalpy $`u + P/\rho`$); it
+  does not shrink with the time step.
+* The rest is numerical and shrinks with the time step.
+
+For the Sun evolved to 4.57 Gyr the residual is $`-4.5\times10^{-4}`$: $`-4.48\times10^{-4}`$ is the
+composition term and $`-9\times10^{-7}`$ numerical (halved by halving the time steps). For 5 M☉ to the
+end of the main sequence they are $`-1.06\times10^{-3}`$ and $`2\times10^{-6}`$. Automated tests
+require below 1% and check both parts on halving the steps.
+
+**Fuel accounting.** The hydrogen burnt, each step with the effective energy per gram of the model it
+burnt in, against the energy radiated:
+
+```math
+\sum_{\mathrm{steps}} Q_{\mathrm{H}}^{\mathrm{eff}}\,\Delta\!\left[\int X\, dm\right] \approx \int_0^t L\, dt', \qquad Q_{\mathrm{H}}^{\mathrm{eff}} = \frac{\int (\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}})\,dm}{\int \left(\varepsilon_{pp}/Q_{pp}^{\mathrm{eff}} + \varepsilon_{\mathrm{CNO}}/Q_{\mathrm{CNO}}\right) dm}
+```
+
+It is close to 1 only on the main sequence, where hydrogen burning supplies nearly all the
+luminosity. For the Sun evolved to 4.57 Gyr it is 0.990 (0.995 with halved time steps: the difference
+is the first-order error of the explicit burning step); for 3 M☉ to the end of the main sequence
+0.996. Along every run:
 
 * the virial check stays at 1 to about $`10^{-4}`$;
 * the energy check, which includes $`\varepsilon_{\mathrm{grav}}`$, stays at 1.
+
+The app shows the total-energy residual and the fuel accounting under the checks of an evolved model;
+the CLI prints them, and the track and history CSV files have them as columns.
 
 ### Time-step convergence
 
@@ -134,16 +171,16 @@ difference.
 
 | Quantity | 2% (default) | 1% | 0.5% | 0.25% |
 |---|---:|---:|---:|---:|
-| 1 M☉ at 4.57 Gyr: $`L`$ [L☉] | 0.52123 | 0.52155 | 0.52171 | 0.52180 |
-| 1 M☉ at 4.57 Gyr: $`X_c`$ | 0.51311 | 0.51290 | 0.51279 | 0.51273 |
-| 3 M☉ main-sequence lifetime [Myr] | 285.89 | 285.06 | 284.61 | 284.38 |
-| 3 M☉ convective core at $`X_c = 0.3`$ [$`m/M`$] | 0.11280 | 0.11276 | 0.11289 | 0.11286 |
-| Steps (3 M☉ to the end of the main sequence) | 138 | 279 | 561 | 1125 |
+| 1 M☉ at 4.57 Gyr: $`L`$ [L☉] | 0.51703 | 0.51732 | 0.51748 | 0.51756 |
+| 1 M☉ at 4.57 Gyr: $`X_c`$ | 0.50706 | 0.50676 | 0.50660 | 0.50652 |
+| 3 M☉ main-sequence lifetime [Myr] | 273.30 | 272.48 | 272.10 | 271.89 |
+| 3 M☉ convective core at $`X_c = 0.3`$ [$`m/M`$] | 0.11247 | 0.11242 | 0.11247 | 0.11250 |
+| Steps (3 M☉ to the end of the main sequence) | 137 | 278 | 559 | 1120 |
 
 At the default settings the errors are small compared with the physics uncertainties:
 
 * 1 M☉ at 4.57 Gyr: $`L`$, $`R`$ and $`T_c`$ within about 0.1%;
-* 3 M☉: main-sequence lifetime within about 0.6% of the extrapolated value (about 284.2 Myr);
+* 3 M☉: main-sequence lifetime within about 0.6% of the extrapolated value (about 271.7 Myr);
 * values exactly at the end of the main sequence scatter by up to about 1%, because the last step lands
   anywhere below $`X_c = 10^{-3}`$.
 
@@ -190,7 +227,7 @@ cargo run --release -p stellar-core --example timestep_study
     track.
   * Switching the mode resets any manual zoom.
 
-> Typical runs: the Sun to 4.57 Gyr takes 26 steps (0.3 s). A 5 M☉ star from the ZAMS across the
+> Typical runs: the Sun to 4.57 Gyr takes 27 steps (0.3 s). A 5 M☉ star from the ZAMS across the
 > Hertzsprung gap to 2600 K takes about 1650 steps (15 s), computed in the background while the
 > timeline fills.
 

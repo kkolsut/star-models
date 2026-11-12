@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::equations::{I_L, I_LNP, I_LNR, I_LNT, NVAR, StructureProblem};
 use crate::composition::{Composition, CompositionError};
-use crate::constants::{FOUR_PI, G, L_SUN, M_SUN, R_SUN, TEFF_SUN};
+use crate::constants::{C, FOUR_PI, G, L_SUN, M_SUN, R_SUN, TEFF_SUN};
 use crate::seismic::{self, GCavity};
 use crate::solver::ResidualSummary;
 
@@ -135,6 +135,10 @@ pub struct Profile {
     pub x: Vec<f64>,
     pub y: Vec<f64>,
     pub z: Vec<f64>,
+    /// pp branching factor φ (helium nuclei per pp I chain, 1 to 2); empty in
+    /// models saved before it existed (read as 1).
+    #[serde(default)]
+    pub pp_phi: Vec<f64>,
     /// Adiabatic sound speed c_s = √(Γ₁ P / ρ) [cm s⁻¹].
     #[serde(default)]
     pub cs: Vec<f64>,
@@ -168,6 +172,94 @@ impl Profile {
     pub fn ledoux_unstable(&self, k: usize) -> bool {
         self.n2[k] < 0.0
     }
+
+    /// pp branching factor φ at point `k` (1 if not stored).
+    pub fn phi_at(&self, k: usize) -> f64 {
+        self.pp_phi.get(k).copied().unwrap_or(1.0)
+    }
+}
+
+/// Largest weak-screening exponent of a model, over the channels that supply at
+/// least 1% of the nuclear luminosity and the points where such a channel burns
+/// at more than 1% of its peak rate.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ScreeningDiagnostic {
+    /// Largest exponent, before the cap.
+    pub max_exponent: f64,
+    /// Reaction with the largest exponent (empty if nothing burns).
+    pub reaction: String,
+    /// m/M where it occurs.
+    pub q: f64,
+    /// Cap applied to the exponent by the rates, if any.
+    pub cap: Option<f64>,
+}
+
+/// Exponent above which screening is no longer weak.
+pub const SCREENING_WEAK_LIMIT: f64 = 0.3;
+
+impl ScreeningDiagnostic {
+    /// Whether the exponent reached the cap of the rates.
+    pub fn cap_hit(&self) -> bool {
+        self.cap.is_some_and(|c| self.max_exponent >= c)
+    }
+
+    /// Warning for an exponent outside the weak regime, if any.
+    pub fn warning(&self) -> Option<&'static str> {
+        screening_warning(self.max_exponent, self.cap)
+    }
+}
+
+/// Warning for a screening exponent: at the cap the rates are unreliable;
+/// above 0.3 screening is outside the weak regime and the rates approximate.
+pub fn screening_warning(exponent: f64, cap: Option<f64>) -> Option<&'static str> {
+    if cap.is_some_and(|c| exponent >= c) {
+        Some("screening exponent at the cap: nuclear rates unreliable")
+    } else if exponent > SCREENING_WEAK_LIMIT {
+        Some("screening exponent above 0.3: outside the weak regime, nuclear rates approximate")
+    } else {
+        None
+    }
+}
+
+/// Totals accumulated along an evolution run, for the total-energy check and
+/// the fuel accounting. Carried from model to model; `None` for a static model.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct RunTotals {
+    /// ∫ L dt [erg].
+    pub l_dt: f64,
+    /// ∫∫ ε_nuc dm dt over the structure models [erg] (end-of-step values, as
+    /// in the implicit structure step).
+    pub nuc_dt: f64,
+    /// E_int + E_grav of the first model [erg].
+    pub e_start: f64,
+    /// Composition term omitted from ε_grav (D17): Σ ∫ Δh|_{P,T} dm over the
+    /// composition steps, h = u + P/ρ [erg].
+    pub comp_term: f64,
+    /// Fuel accounting: Σ (hydrogen burnt × Q_H^eff) over the steps [erg].
+    pub fuel: f64,
+    /// Largest screening exponent of any model of the run (see [`ScreeningDiagnostic`]).
+    pub max_screening: f64,
+}
+
+impl RunTotals {
+    /// Start a run at a model with total energy E_int + E_grav = `e_start`.
+    pub fn start(g: &Globals) -> Self {
+        Self { e_start: g.e_int + g.e_grav, max_screening: g.screening.max_exponent, ..Default::default() }
+    }
+}
+
+/// Total-energy check of an evolution run up to a model.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct EnergyCheck {
+    /// (∫L dt − ∫∫ε_nuc dm dt + Δ(E_int + E_grav)) / ∫L dt.
+    pub residual: f64,
+    /// Part of the residual from the composition term omitted from ε_grav (D17).
+    /// It does not shrink with the time step.
+    pub composition: f64,
+    /// The rest: time and mesh discretisation, shrinks with the time step.
+    pub numerical: f64,
+    /// Fuel accounting: hydrogen burnt × Q_H^eff / ∫L dt (≈ 1 on the main sequence only).
+    pub fuel_ratio: f64,
 }
 
 /// A convective region. Radii are in units of the stellar radius.
@@ -242,6 +334,25 @@ pub struct Globals {
     /// Fraction of the luminosity supplied by gravitational contraction (∫ε_grav dm / L).
     #[serde(default)]
     pub frac_grav: f64,
+    /// Nuclear power ∫ε_nuc dm with the solver's midpoint rule, including the
+    /// central point mass [erg s⁻¹].
+    #[serde(default)]
+    pub e_nuc: f64,
+    /// Thermal energy E_int = ∫u dm [erg].
+    #[serde(default)]
+    pub e_int: f64,
+    /// Gravitational energy E_grav = −∫G m/r dm [erg].
+    #[serde(default)]
+    pub e_grav: f64,
+    /// Gravitational redshift of light from the surface, v_z = G M / (R c) [m s⁻¹].
+    #[serde(default)]
+    pub grav_redshift_m_s: f64,
+    /// Largest screening exponent and where it occurs.
+    #[serde(default)]
+    pub screening: ScreeningDiagnostic,
+    /// Totals of the evolution run up to this model (`None` for a static model).
+    #[serde(default)]
+    pub run: Option<RunTotals>,
     /// [M☉]
     pub mass: f64,
     /// [R☉]
@@ -305,6 +416,25 @@ pub struct Residuals {
     pub boundary: f64,
 }
 
+impl Globals {
+    /// Total-energy check and fuel accounting of the run up to this model.
+    pub fn energy_check(&self) -> Option<EnergyCheck> {
+        let run = self.run?;
+        if !(run.l_dt > 0.0) {
+            return None;
+        }
+        let delta_e = self.e_int + self.e_grav - run.e_start;
+        let residual = (run.l_dt - run.nuc_dt + delta_e) / run.l_dt;
+        let composition = run.comp_term / run.l_dt;
+        Some(EnergyCheck { residual, composition, numerical: residual - composition, fuel_ratio: run.fuel / run.l_dt })
+    }
+}
+
+/// Gravitational redshift velocity v_z = G M / (R c) [m s⁻¹] for M, R in CGS.
+pub fn grav_redshift_m_s(mass_g: f64, radius_cm: f64) -> f64 {
+    G * mass_g / (radius_cm * C) * 1e-2
+}
+
 impl Residuals {
     pub fn from_summary(s: &ResidualSummary) -> Self {
         let at = |i: usize| s.interval.get(i).copied().unwrap_or(0.0);
@@ -354,6 +484,7 @@ pub(crate) fn build_model(
     let n = q.len();
     let mut pr = Profile::default();
     let mut delta = Vec::with_capacity(n);
+    let mut u = Vec::with_capacity(n);
     for k in 0..n {
         let s = problem.local_at(k, &y[k * NVAR..(k + 1) * NVAR]);
         let c = &problem.comp[k];
@@ -383,6 +514,8 @@ pub(crate) fn build_model(
         pr.x.push(c.x);
         pr.y.push(c.y);
         pr.z.push(c.z);
+        pr.pp_phi.push(s.nuc.pp_phi);
+        u.push(s.eos.u);
         pr.cs.push(seismic::sound_speed(s.eos.gamma1, s.p, s.rho()));
         delta.push(s.eos.delta);
     }
@@ -429,6 +562,12 @@ pub(crate) fn build_model(
     }
     let thermal = trap(&|k| 3.0 * pr.p[k] / pr.rho[k]);
     let grav = trap(&|k| G * pr.m[k] / pr.r[k]);
+    // Energies for the total-energy check; the central point mass m₀ is taken
+    // as a uniform sphere.
+    let e_int = trap(&|k| u[k]) + u[0] * pr.m[0];
+    let e_grav_total = -grav - 0.6 * G * pr.m[0] * pr.m[0] / pr.r[0];
+    let e_nuc = e_nuc_mid + pr.eps[0] * pr.m[0];
+    let screening = screening_diagnostic(problem.physics, &problem.comp, &pr, [e_pp, e_cno, e_3a]);
 
     // Hydrogen-exhausted core: contiguous points from the centre with X < 10⁻³.
     let he_core_q = pr.x.iter().zip(&pr.q).take_while(|(x, _)| **x < 1e-3).last().map(|(_, q)| *q).unwrap_or(0.0);
@@ -449,6 +588,12 @@ pub(crate) fn build_model(
         delta_nu_asym_uhz: seismic::delta_nu_asymptotic_uhz(&pr.r, &pr.cs),
         g_cavities,
         frac_grav: e_grav / lum,
+        e_nuc,
+        e_int,
+        e_grav: e_grav_total,
+        grav_redshift_m_s: grav_redshift_m_s(mass, radius),
+        screening,
+        run: None,
         mass: params.mass,
         radius: radius / R_SUN,
         luminosity: lum / L_SUN,
@@ -483,6 +628,42 @@ pub(crate) fn build_model(
         l_scale: problem.l_scale,
         pulsation: None,
     }
+}
+
+/// Largest screening exponent over the burning channels and points (see
+/// [`ScreeningDiagnostic`]). `lum` are the luminosities of pp, CNO and 3α.
+fn screening_diagnostic(
+    physics: &crate::physics::Physics,
+    comp: &[Composition],
+    pr: &Profile,
+    lum: [f64; 3],
+) -> ScreeningDiagnostic {
+    const NAMES: [&str; 3] = ["³He + ³He (pp chain)", "p + ¹⁴N (CNO)", "α + ⁸Be (triple-α)"];
+    let total: f64 = lum.iter().sum();
+    let eps = [&pr.eps_pp, &pr.eps_cno, &pr.eps_3a];
+    let mut diag = ScreeningDiagnostic { cap: physics.nuclear.screening_cap(), ..Default::default() };
+    if !(total > 0.0) {
+        return diag;
+    }
+    for ch in 0..3 {
+        if !(lum[ch] >= 0.01 * total) {
+            continue;
+        }
+        let peak = eps[ch].iter().copied().fold(0.0, f64::max);
+        for k in 0..pr.len() {
+            if !(eps[ch][k] >= 0.01 * peak) {
+                continue;
+            }
+            let Some(s) = physics.nuclear.screening(pr.rho[k], pr.t[k], &comp[k]) else { continue };
+            let e = [s.pp, s.cno, s.triple_alpha][ch];
+            if e > diag.max_exponent {
+                diag.max_exponent = e;
+                diag.reaction = NAMES[ch].to_string();
+                diag.q = pr.q[k];
+            }
+        }
+    }
+    diag
 }
 
 /// Locate convective zones and interpolate their boundaries linearly in

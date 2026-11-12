@@ -9,7 +9,13 @@
 //! with regularity at the centre, 3ξ + p/Γ₁ = 0, and at the surface
 //! p + (4 + Ω²) ξ = 0 and ξ = 1 (normalisation), where Ω² = ω² R³/(G M).
 //! The eigenvalue Ω² is solved for as an extra unknown with the generic
-//! Henyey solver. The fundamental mode is the solution without nodes.
+//! Henyey solver. The fundamental mode is the solution without nodes, the
+//! n-th overtone the one with n nodes. At interval midpoints r, P and ρ are
+//! geometric means, as in the structure solver.
+//!
+//! The surface condition treats the photosphere as a perfect reflector, which
+//! holds for ω well below the acoustic cut-off ω_ac = c_s/(2H_P) there; the
+//! ratio ω/ω_ac is reported with every mode and flagged above 0.5.
 //!
 //! Whether a star actually pulsates (κ mechanism) needs a non-adiabatic
 //! analysis; here an approximate classical instability strip in the HR
@@ -37,11 +43,28 @@ pub struct RadialMode {
     pub dp: Vec<f64>,
     /// Pulsation constant Q = Π √(ρ̄/ρ̄☉) [days].
     pub q_days: f64,
+    /// ω/ω_ac at the photosphere, ω_ac = c_s/(2H_P). The reflecting surface
+    /// condition needs it to be small.
+    #[serde(default)]
+    pub omega_over_ac: f64,
 }
+
+/// ω/ω_ac above which the surface condition is not reliable.
+pub const CUTOFF_WARNING_RATIO: f64 = 0.5;
 
 impl RadialMode {
     pub fn period_days(&self) -> f64 {
         self.period_s / 86400.0
+    }
+
+    /// Warning when the mode frequency is not well below the acoustic cut-off.
+    pub fn cutoff_warning(&self) -> Option<String> {
+        (self.omega_over_ac > CUTOFF_WARNING_RATIO).then(|| {
+            format!(
+                "ω/ω_ac = {:.2} at the photosphere: the reflecting surface condition is unreliable",
+                self.omega_over_ac
+            )
+        })
     }
 }
 
@@ -75,9 +98,9 @@ impl BvpProblem for Lawe<'_> {
     fn interval(&self, k: usize, a: &[f64], b: &[f64], out: &mut [f64]) {
         let dm = self.m[k + 1] - self.m[k];
         let mm = 0.5 * (self.m[k] + self.m[k + 1]);
-        let rm = 0.5 * (self.r[k] + self.r[k + 1]);
-        let pm = 0.5 * (self.p[k] + self.p[k + 1]);
-        let rhom = 0.5 * (self.rho[k] + self.rho[k + 1]);
+        let rm = (self.r[k] * self.r[k + 1]).sqrt();
+        let pm = (self.p[k] * self.p[k + 1]).sqrt();
+        let rhom = (self.rho[k] * self.rho[k + 1]).sqrt();
         let g1 = 0.5 * (self.gamma1[k] + self.gamma1[k + 1]);
         let (xi, dp, w) = (0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]), 0.5 * (a[2] + b[2]));
         out[0] = (b[0] - a[0]) + dm * (3.0 * xi + dp / g1) / (FOUR_PI * rm.powi(3) * rhom);
@@ -123,43 +146,96 @@ fn count_nodes(xi: &[f64]) -> usize {
     xi.windows(2).filter(|w| w[0].signum() != w[1].signum() && w[0] != 0.0).count()
 }
 
+/// ω/ω_ac at the outermost point of the profiles, ω_ac = c_s / (2 H_P).
+fn cutoff_ratio(omega: f64, m: f64, r: f64, p: f64, rho: f64, gamma1: f64) -> f64 {
+    let cs = (gamma1 * p / rho).sqrt();
+    let hp = p / (rho * G * m / (r * r));
+    omega / (cs / (2.0 * hp))
+}
+
 /// Fundamental radial mode of a model. A previous mode (from the preceding
 /// model of an evolution run, on the same mesh) is used as the starting guess
 /// when available; otherwise a few homologous guesses are tried.
 pub fn fundamental_mode(model: &StarModel, previous: Option<&RadialMode>) -> Result<RadialMode, String> {
+    radial_mode(model, 0, previous)
+}
+
+/// Starting guesses for the mode with `nodes` nodes: ξ = ±cos(nπ τ/τ_R) in the
+/// acoustic radius τ = ∫dr/c_s, normalised to 1 at the surface, with
+/// p = −Γ₁(3ξ + r dξ/dr) from the first equation, and Ω² around the
+/// asymptotic estimate ω ≈ π(n + 1)/τ_R.
+fn acoustic_guesses(pr: &crate::structure::model::Profile, nodes: usize, mass: f64) -> Vec<(Vec<f64>, Vec<f64>, f64)> {
+    let n = pr.len();
+    let mut tau = vec![0.0; n];
+    // Midpoint rule: finite even where P → 0 at the last point.
+    for k in 1..n {
+        let g1 = 0.5 * (pr.gamma1[k - 1] + pr.gamma1[k]);
+        let c = (g1 * (pr.p[k - 1] + pr.p[k]) / (pr.rho[k - 1] + pr.rho[k])).sqrt();
+        tau[k] = tau[k - 1] + (pr.r[k] - pr.r[k - 1]) / c;
+    }
+    let tau_r = tau[n - 1];
+    let radius = pr.r[n - 1];
+    let sign = if nodes.is_multiple_of(2) { 1.0 } else { -1.0 };
+    let kk = nodes as f64 * std::f64::consts::PI;
+    let xi: Vec<f64> = tau.iter().map(|t| sign * (kk * t / tau_r).cos()).collect();
+    let dp: Vec<f64> = (0..n)
+        .map(|k| {
+            let cs = (pr.gamma1[k] * pr.p[k] / pr.rho[k]).sqrt();
+            let dxi_dr = -sign * kk * (kk * tau[k] / tau_r).sin() / (tau_r * cs);
+            -pr.gamma1[k] * (3.0 * xi[k] + pr.r[k] * dxi_dr)
+        })
+        .collect();
+    let omega = std::f64::consts::PI * (nodes as f64 + 1.0) / tau_r;
+    let w0 = omega * omega * radius.powi(3) / (G * mass);
+    [1.0, 0.8, 1.25, 0.6, 1.6, 0.45, 2.2, 0.3, 3.0].iter().map(|f| (xi.clone(), dp.clone(), f * w0)).collect()
+}
+
+/// Radial mode with the given number of nodes of ξ (0 = fundamental, n = n-th
+/// overtone). `previous` (a mode on the same mesh) is tried first.
+pub fn radial_mode(model: &StarModel, nodes: usize, previous: Option<&RadialMode>) -> Result<RadialMode, String> {
     let pr = &model.profile;
     let n = pr.len();
+    let mass = model.params.mass * M_SUN;
     let mut guesses: Vec<(Vec<f64>, Vec<f64>, f64)> = Vec::new();
-    if let Some(prev) = previous.filter(|m| m.xi.len() == n && m.dp.len() == n) {
+    if let Some(prev) = previous.filter(|m| m.xi.len() == n && m.dp.len() == n && m.nodes == nodes) {
         guesses.push((prev.xi.clone(), prev.dp.clone(), prev.omega2));
     }
-    for &w in &[3.0, 8.0, 15.0, 1.5, 30.0] {
-        let xi = vec![1.0; n];
-        let dp: Vec<f64> = (0..n).map(|k| -3.0 * pr.gamma1[k] * (1.0 - pr.q[k]) - (4.0 + w) * pr.q[k]).collect();
-        guesses.push((xi, dp, w));
+    if nodes == 0 {
+        for &w in &[3.0, 8.0, 15.0, 1.5, 30.0] {
+            let xi = vec![1.0; n];
+            let dp: Vec<f64> = (0..n).map(|k| -3.0 * pr.gamma1[k] * (1.0 - pr.q[k]) - (4.0 + w) * pr.q[k]).collect();
+            guesses.push((xi, dp, w));
+        }
     }
+    guesses.extend(acoustic_guesses(pr, nodes, mass));
     let mut last = String::from("no guess converged");
     for (gx, gp, gw) in guesses {
         match solve_mode(&pr.m, &pr.r, &pr.p, &pr.rho, &pr.gamma1, &gx, &gp, gw) {
             Ok((xi, dp, omega2)) => {
-                let nodes = count_nodes(&xi);
-                if nodes != 0 {
-                    last = format!("found a mode with {nodes} nodes instead of the fundamental");
+                let found = count_nodes(&xi);
+                if found != nodes {
+                    last = format!("found a mode with {found} nodes instead of {nodes}");
                     continue;
                 }
-                let mass = model.params.mass * M_SUN;
                 let radius = pr.r[n - 1];
                 let omega = (omega2 * G * mass / radius.powi(3)).sqrt();
                 let period_s = std::f64::consts::TAU / omega;
                 let rho_mean = mass / (FOUR_PI / 3.0 * radius.powi(3));
                 let rho_sun = M_SUN / (FOUR_PI / 3.0 * R_SUN.powi(3));
                 let q_days = period_s / 86400.0 * (rho_mean / rho_sun).sqrt();
-                return Ok(RadialMode { period_s, omega2, nodes, xi, dp, q_days });
+                let k = n - 1;
+                let omega_over_ac = cutoff_ratio(omega, pr.m[k], pr.r[k], pr.p[k], pr.rho[k], pr.gamma1[k]);
+                return Ok(RadialMode { period_s, omega2, nodes, xi, dp, q_days, omega_over_ac });
             }
             Err(e) => last = e,
         }
     }
     Err(last)
+}
+
+/// The fundamental mode and the first `overtones` overtones (each may fail on its own).
+pub fn radial_modes(model: &StarModel, overtones: usize) -> Vec<Result<RadialMode, String>> {
+    (0..=overtones).map(|n| radial_mode(model, n, None)).collect()
 }
 
 /// Classical pulsators that can be identified from the HR position.
@@ -236,6 +312,42 @@ mod tests {
             assert!((w - (3.0 * g1 - 4.0)).abs() < 2e-3, "Γ₁ = {g1}: Ω² = {w}");
             assert_eq!(count_nodes(&xi), 0);
             assert!(xi.iter().all(|x| (x - 1.0).abs() < 1e-2));
+        }
+    }
+
+    /// Radial modes of the uniform sphere: Ω²_k = Γ₁ (k + 1)(2k + 3) − 4 with k
+    /// nodes (Pekeris 1938); k = 0 is the homologous mode above.
+    #[test]
+    fn homogeneous_sphere_overtones() {
+        let n = 1200;
+        let (mass, radius) = (M_SUN, R_SUN);
+        let rho = mass / (FOUR_PI / 3.0 * radius.powi(3));
+        let q: Vec<f64> = (0..n).map(|i| 1e-6 + (1.0 - 1e-6) * (i as f64 / (n - 1) as f64).powf(1.5)).collect();
+        let m: Vec<f64> = q.iter().map(|q| q * mass).collect();
+        let r: Vec<f64> = q.iter().map(|q| radius * q.cbrt()).collect();
+        let p: Vec<f64> = r
+            .iter()
+            .map(|r| (2.0 * std::f64::consts::PI / 3.0) * G * rho * rho * (radius * radius - r * r) + 1.0)
+            .collect();
+        let g1 = 5.0 / 3.0;
+        let profile = crate::structure::model::Profile {
+            q: q.clone(),
+            m: m.clone(),
+            r: r.clone(),
+            p: p.clone(),
+            rho: vec![rho; n],
+            gamma1: vec![g1; n],
+            ..Default::default()
+        };
+        for k in 1..=3 {
+            let expected = g1 * ((k + 1) * (2 * k + 3)) as f64 - 4.0;
+            let found = acoustic_guesses(&profile, k, mass).into_iter().find_map(|(gx, gp, gw)| {
+                solve_mode(&m, &r, &p, &profile.rho, &profile.gamma1, &gx, &gp, gw)
+                    .ok()
+                    .filter(|(xi, _, _)| count_nodes(xi) == k)
+            });
+            let (_, _, w) = found.unwrap_or_else(|| panic!("no mode with {k} nodes"));
+            assert!((w / expected - 1.0).abs() < 2e-3, "k = {k}: Ω² = {w}, expected {expected}");
         }
     }
 

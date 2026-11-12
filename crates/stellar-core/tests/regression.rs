@@ -57,13 +57,13 @@ fn solar_zams() {
         "1 M☉ ZAMS",
         ZAMS_RTOL,
         &[
-            ("L", g.luminosity, 0.42066039),
-            ("R", g.radius, 1.11332042),
-            ("T_eff", g.teff, 4405.5425),
-            ("T_c", g.tc, 1.26184629e7),
-            ("rho_c", g.rhoc, 63.923655),
-            ("env. base r/R", g.conv_env_base_r.unwrap_or(f64::NAN), 0.96782054),
-            ("frac_pp", g.frac_pp, 0.99883063),
+            ("L", g.luminosity, 0.41952023),
+            ("R", g.radius, 1.11459091),
+            ("T_eff", g.teff, 4400.0444),
+            ("T_c", g.tc, 1.26075225e7),
+            ("rho_c", g.rhoc, 63.502542),
+            ("env. base r/R", g.conv_env_base_r.unwrap_or(f64::NAN), 0.96764385),
+            ("frac_pp", g.frac_pp, 0.99886455),
         ],
     );
     assert_eq!(g.conv_core_q, 0.0);
@@ -93,13 +93,13 @@ fn intermediate_and_massive_zams() {
         "3 M☉ ZAMS",
         ZAMS_RTOL,
         &[
-            ("L", g.luminosity, 73.915913),
-            ("R", g.radius, 1.8190833),
-            ("T_eff", g.teff, 12548.296),
-            ("T_c", g.tc, 2.2862448e7),
-            ("rho_c", g.rhoc, 34.287181),
-            ("conv. core q", g.conv_core_q, 0.17551975),
-            ("frac_cno", g.frac_cno, 0.89994527),
+            ("L", g.luminosity, 73.854749),
+            ("R", g.radius, 1.8225059),
+            ("T_eff", g.teff, 12533.914),
+            ("T_c", g.tc, 2.2822366e7),
+            ("rho_c", g.rhoc, 34.119270),
+            ("conv. core q", g.conv_core_q, 0.17468611),
+            ("frac_cno", g.frac_cno, 0.86886396),
         ],
     );
     let g = zams(5.0).globals;
@@ -107,13 +107,13 @@ fn intermediate_and_massive_zams() {
         "5 M☉ ZAMS",
         ZAMS_RTOL,
         &[
-            ("L", g.luminosity, 558.50095),
-            ("R", g.radius, 2.5178081),
-            ("T_eff", g.teff, 17683.623),
-            ("T_c", g.tc, 2.6011231e7),
-            ("rho_c", g.rhoc, 18.111517),
-            ("conv. core q", g.conv_core_q, 0.23105858),
-            ("frac_cno", g.frac_cno, 0.98105383),
+            ("L", g.luminosity, 558.42314),
+            ("R", g.radius, 2.5192201),
+            ("T_eff", g.teff, 17678.051),
+            ("T_c", g.tc, 2.5997958e7),
+            ("rho_c", g.rhoc, 18.085324),
+            ("conv. core q", g.conv_core_q, 0.23080913),
+            ("frac_cno", g.frac_cno, 0.97134011),
         ],
     );
     let g = zams(10.0).globals;
@@ -121,12 +121,12 @@ fn intermediate_and_massive_zams() {
         "10 M☉ ZAMS",
         ZAMS_RTOL,
         &[
-            ("L", g.luminosity, 6032.5176),
-            ("R", g.radius, 3.8504842),
-            ("T_eff", g.teff, 25923.495),
-            ("T_c", g.tc, 3.0172342e7),
-            ("rho_c", g.rhoc, 7.9662620),
-            ("conv. core q", g.conv_core_q, 0.32945805),
+            ("L", g.luminosity, 6032.4536),
+            ("R", g.radius, 3.8509253),
+            ("T_eff", g.teff, 25921.942),
+            ("T_c", g.tc, 3.0169210e7),
+            ("rho_c", g.rhoc, 7.9638479),
+            ("conv. core q", g.conv_core_q, 0.32941480),
         ],
     );
     let g = zams(20.0).globals;
@@ -134,13 +134,13 @@ fn intermediate_and_massive_zams() {
         "20 M☉ ZAMS",
         ZAMS_RTOL,
         &[
-            ("L", g.luminosity, 44392.604),
-            ("R", g.radius, 5.7509527),
-            ("T_eff", g.teff, 34936.898),
-            ("T_c", g.tc, 3.3980088e7),
-            ("rho_c", g.rhoc, 4.0594091),
-            ("conv. core q", g.conv_core_q, 0.47361827),
-            ("frac_cno", g.frac_cno, 0.99941744),
+            ("L", g.luminosity, 44392.543),
+            ("R", g.radius, 5.7511193),
+            ("T_eff", g.teff, 34936.380),
+            ("T_c", g.tc, 3.3979180e7),
+            ("rho_c", g.rhoc, 4.0590849),
+            ("conv. core q", g.conv_core_q, 0.47361224),
+            ("frac_cno", g.frac_cno, 0.99892792),
         ],
     );
 }
@@ -152,10 +152,10 @@ fn sun_at_present_age() {
         "1 M☉ at 4.57 Gyr",
         EVO_RTOL,
         &[
-            ("L", g.luminosity, 0.52122620),
-            ("R", g.radius, 1.15126839),
-            ("T_c", g.tc, 1.36616900e7),
-            ("X_c", g.x_c, 0.51311136),
+            ("L", g.luminosity, 0.51702692),
+            ("R", g.radius, 1.15453137),
+            ("T_c", g.tc, 1.36448091e7),
+            ("X_c", g.x_c, 0.50705607),
         ],
     );
 }
@@ -163,11 +163,11 @@ fn sun_at_present_age() {
 #[test]
 fn three_solar_masses_main_sequence_lifetime() {
     let g = evolve(zams(3.0), StopCondition::EndOfMainSequence).globals;
-    check("3 M☉ end of main sequence", EVO_RTOL, &[("age [Myr]", g.age_yr / 1e6, 285.88946)]);
+    check("3 M☉ end of main sequence", EVO_RTOL, &[("age [Myr]", g.age_yr / 1e6, 273.30198)]);
 }
 
 #[test]
 fn five_solar_masses_main_sequence_lifetime() {
     let g = evolve(zams(5.0), StopCondition::EndOfMainSequence).globals;
-    check("5 M☉ end of main sequence", EVO_RTOL, &[("age [Myr]", g.age_yr / 1e6, 76.089140)]);
+    check("5 M☉ end of main sequence", EVO_RTOL, &[("age [Myr]", g.age_yr / 1e6, 72.714814)]);
 }

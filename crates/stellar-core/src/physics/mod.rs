@@ -33,6 +33,9 @@ pub struct EosState {
     pub delta: f64,
     /// First adiabatic exponent Γ₁ = (∂ln P/∂ln ρ)_s (used for pulsations).
     pub gamma1: f64,
+    /// Specific internal (thermal) energy u [erg g^-1]: no rest mass, no
+    /// nuclear binding energy (used by the total-energy check of evolution runs).
+    pub u: f64,
 }
 
 /// Equation of state: density and thermodynamic derivatives as functions of (P, T).
@@ -48,11 +51,21 @@ pub trait Opacity: Send + Sync {
 }
 
 /// Nuclear energy generation rates [erg g^-1 s^-1], split by process.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NuclearRates {
+    /// pp chain, including the branching factor ψ.
     pub pp: f64,
     pub cno: f64,
     pub triple_alpha: f64,
+    /// pp branching: helium nuclei made per pp I chain, φ ∈ [1, 2] (1 = pp I only).
+    /// Hydrogen consumption follows from it (see [`nuclear::q_pp_eff`]).
+    pub pp_phi: f64,
+}
+
+impl Default for NuclearRates {
+    fn default() -> Self {
+        Self { pp: 0.0, cno: 0.0, triple_alpha: 0.0, pp_phi: 1.0 }
+    }
 }
 
 impl NuclearRates {
@@ -61,10 +74,28 @@ impl NuclearRates {
     }
 }
 
+/// Exponents of the screening factors f = exp(exponent), per channel, before
+/// any cap is applied. For a channel with several reactions the largest is given.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ScreeningExponents {
+    pub pp: f64,
+    pub cno: f64,
+    pub triple_alpha: f64,
+}
+
 /// Nuclear energy generation ε(ρ, T).
 pub trait Nuclear: Send + Sync {
     fn name(&self) -> &'static str;
     fn eps(&self, rho: f64, t: f64, comp: &Composition) -> NuclearRates;
+    /// Screening exponents at (ρ, T), for the screening diagnostic; `None` if
+    /// the rates are unscreened or the implementation does not report them.
+    fn screening(&self, _rho: f64, _t: f64, _comp: &Composition) -> Option<ScreeningExponents> {
+        None
+    }
+    /// Value at which the implementation caps a screening exponent, if any.
+    fn screening_cap(&self) -> Option<f64> {
+        None
+    }
 }
 
 /// Bundle of microphysics used by the structure solver.

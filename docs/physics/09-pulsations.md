@@ -24,7 +24,13 @@ relative Lagrangian pressure perturbation $`p`$ of a mode with angular frequency
 ```
 
 $`\Omega^2`$ is solved as an extra unknown with the Henyey solver. The fundamental mode is the
-solution without nodes in $`\xi`$.
+solution without nodes in $`\xi`$, the $`n`$-th overtone the one with $`n`$ nodes
+(`pulsation::radial_mode`, `radial_modes`; the app and the evolution runs compute the fundamental).
+Starting guesses: homologous ones for the fundamental, and for every order
+$`\xi = \pm\cos(n\pi\tau/\tau_R)`$ in the acoustic radius $`\tau = \int dr/c_s`$, with
+$`p = -\Gamma_1(3\xi + r\,d\xi/dr)`$ from the first equation and $`\Omega^2`$ around the asymptotic
+estimate $`\omega \approx \pi(n + 1)/\tau_R`$. A solution is accepted only with the requested number
+of nodes.
 
 *What the surface condition assumes.* It is the regularity condition of the wave equation at a
 surface where the pressure goes to zero ($`dp/dm`$ stays finite only if the bracket vanishes),
@@ -32,8 +38,10 @@ applied at the photosphere with $`m = M`$, $`r = R`$. It treats the surface as a
 and ignores the atmosphere above it. That is justified when the mode frequency is well below the
 acoustic cut-off frequency of the atmosphere, $`\omega_{\mathrm{ac}} \approx c_s/(2H_P)`$, which
 is usually, but not always, true of the fundamental mode. It is not assumed: the solver reports
-$`\omega/\omega_{\mathrm{ac}}`$ at the photosphere and flags the result when the ratio is not small
-(above about 0.5). The condition is not adequate for high overtones.
+$`\omega/\omega_{\mathrm{ac}}`$ at the photosphere (`RadialMode::omega_over_ac`, results panel, CLI,
+track CSV) and flags the result when the ratio is above 0.5 (plan 1.3). The condition is not adequate
+for high overtones. **[measured]** ZAMS Sun: 0.096 for the fundamental, 0.121 and 0.150 for the first
+two overtones.
 
 *What the calculation does not say.* The equations are adiabatic: they give a period for every
 model, whether or not the star pulsates. Adiabaticity itself fails in the outer layers, where the
@@ -51,7 +59,26 @@ thermal time is shorter than the period; the period is little affected, the grow
 \Omega^2 = 3\Gamma_1 - 4, \qquad \xi = \text{const}
 ```
 
-The interval midpoints of this solver use arithmetic means of $`r`$, $`P`$, $`\rho`$.
+*Midpoints* (C10, plan 1.3). For consistency with the structure solver, the interval midpoints use
+geometric means (the mass midpoint is arithmetic):
+
+```math
+r_{k+1/2} = \sqrt{r_k\,r_{k+1}}, \qquad P_{k+1/2} = \sqrt{P_k\,P_{k+1}}, \qquad \rho_{k+1/2} = \sqrt{\rho_k\,\rho_{k+1}}
+```
+
+*Verification* (`pulsation.rs`, `tests/pulsation.rs`), **[measured]**:
+
+* Uniform sphere, $`\Gamma_1 = 5/3`$: the overtones with 1, 2, 3 nodes give $`\Omega^2 = 12.667`$, 31.001,
+  56.004 against $`\Gamma_1 (k+1)(2k+3) - 4 = 12.667`$, 31, 56 (Pekeris 1938).
+* Polytropes, $`\Gamma_1 = 5/3`$ (3000 points, surface cut at $`\theta = 10^{-5}`$): $`n = 1.5`$ gives
+  $`\Omega^2 = 2.706`$, 12.54, 26.58 for 0, 1, 2 nodes; $`n = 3`$ gives 9.254, 16.98, 28.48. The
+  fundamental values are compared with 2.712 and 9.26 to 0.5%; these reference values are quoted
+  from memory of the standard tables (Cox 1980) **[check source]**, so the test tolerance is loose.
+* Solar ZAMS fundamental period at 400, 800, 1600 points: 0.98736, 0.98753, 0.98757 h. Between 800
+  and 1600 points it changes by $`4.2\times10^{-5}`$ (relative); with arithmetic midpoints it changed
+  by $`1.36\times10^{-4}`$.
+* The same fundamental mode is found from every mesh and from the previous mode as a guess; the
+  first two solar overtones have one and two nodes.
 
 ### Instability strip
 
@@ -168,21 +195,14 @@ layers, so $`\Delta\nu`$ carries the model's surface errors.
   $`|\Delta A| = 7\times10^{-4}`$ in the nearly adiabatic radiative layers just below the photosphere.
 * **Schwarzschild and Ledoux** differ in evolved models: in the same model one layer at the edge of the
   shrinking core is Schwarzschild-unstable but has $`N^2 > 0`$ (149 against 148 points).
-* **Δν.** ZAMS Sun: 115.96 μHz asymptotic against 115.01 μHz scaling (+0.8%). The ratio falls with
+* **Δν.** ZAMS Sun: 115.79 μHz asymptotic against 114.81 μHz scaling (+0.9%). The ratio falls with
   mass, to 0.91 for 3 and 5 M☉ ZAMS models.
-* **ΔΠ₁.** ZAMS Sun: one cavity, the radiative core to 0.967 R (the envelope base), ΔΠ₁ = 3206 s,
-  plus a thin surface layer. 1.5 M☉: the zone between core and envelope, 3512 s. 3 M☉: the radiative
-  envelope, 5646 s. All tests in `tests/seismic.rs`.
+* **ΔΠ₁.** ZAMS Sun: one cavity, the radiative core to 0.967 R (the envelope base), ΔΠ₁ = 3233 s,
+  plus a thin surface layer. 1.5 M☉: the zone between core and envelope, 3563 s. 3 M☉: the radiative
+  envelope, 5656 s. All tests in `tests/seismic.rs`. (Re-measured after stage 1, which moved them by
+  under 1.5% through the pp branching; N² checks unchanged in kind.)
 
 ## Planned
-
-### Geometric means (C10, plan 1.3)
-
-For consistency with the structure solver, at interval midpoints:
-
-```math
-r_{k+1/2} = \sqrt{r_k\,r_{k+1}}, \qquad P_{k+1/2} = \sqrt{P_k\,P_{k+1}}, \qquad \rho_{k+1/2} = \sqrt{\rho_k\,\rho_{k+1}}
-```
 
 ### Non-radial modes, Cowling approximation (E4 stage 2, plan 9.1)
 

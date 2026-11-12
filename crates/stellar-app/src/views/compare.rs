@@ -44,7 +44,12 @@ const ROWS: &[Row] = &[
     ("pp / CNO / 3α [%]", |g, _| {
         format!("{:.1} / {:.1} / {:.2}", 100.0 * g.frac_pp, 100.0 * g.frac_cno, 100.0 * g.frac_3a)
     }),
+    ("Grav. redshift [m/s]", |g, _| format!("{:.0}", g.grav_redshift_m_s)),
+    ("Screening exponent (max)", |g, _| format!("{:.3}", g.screening.max_exponent)),
     ("Virial check", |g, _| format!("{:.5}", g.virial_ratio)),
+    ("Total-energy residual (run)", |g, _| {
+        g.energy_check().map(|c| format!("{:.1e}", c.residual)).unwrap_or_else(|| "–".into())
+    }),
 ];
 
 pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut CompareState) -> Option<CompareAction> {

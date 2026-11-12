@@ -116,16 +116,22 @@ pub fn summary_json(model: &StarModel) -> String {
 pub fn track_csv(models: &[&StarModel]) -> String {
     let mut s = String::from(
         "age_yr,phase,L_lsun,Teff_K,R_rsun,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,mixed_core_q,conv_env_base_r,\
-         frac_pp,frac_cno,frac_3a,frac_grav,P_fund_days,Q_days,pulsator,nu_max_uHz,delta_nu_uHz,delta_nu_asym_uHz,\
-         delta_Pi1_s\n",
+         frac_pp,frac_cno,frac_3a,frac_grav,P_fund_days,Q_days,omega_over_ac,pulsator,nu_max_uHz,delta_nu_uHz,\
+         delta_nu_asym_uHz,delta_Pi1_s,v_z_m_s,screening_max,energy_residual,energy_residual_comp,fuel_ratio\n",
     );
     for m in models {
         let g = &m.globals;
-        let (period, q) = m.pulsation.as_ref().map(|p| (p.period_days(), p.q_days)).unwrap_or((f64::NAN, f64::NAN));
+        let (period, q, ratio_ac) = m
+            .pulsation
+            .as_ref()
+            .map(|p| (p.period_days(), p.q_days, p.omega_over_ac))
+            .unwrap_or((f64::NAN, f64::NAN, f64::NAN));
+        let check = g.energy_check();
+        let opt = |v: Option<f64>| v.map(|v| format!("{v:.4e}")).unwrap_or_default();
         let pulsator = crate::pulsation::classify(g.teff, g.luminosity).map(|p| p.label()).unwrap_or("");
         let _ = writeln!(
             s,
-            "{:.6e},{:?},{:.6e},{:.2},{:.6e},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{:.6e},{:.5},{},{:.4},{:.4},{:.4},{}",
+            "{:.6e},{:?},{:.6e},{:.2},{:.6e},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{:.6e},{:.5},{:.4},{},{:.4},{:.4},{:.4},{},{:.2},{:.4},{},{},{}",
             g.age_yr,
             g.phase,
             g.luminosity,
@@ -146,11 +152,17 @@ pub fn track_csv(models: &[&StarModel]) -> String {
             g.frac_grav,
             period,
             q,
+            ratio_ac,
             pulsator,
             g.nu_max_uhz,
             g.delta_nu_uhz,
             g.delta_nu_asym_uhz,
             crate::seismic::main_cavity(&g.g_cavities).map(|c| format!("{:.2}", c.delta_pi1_s)).unwrap_or_default(),
+            g.grav_redshift_m_s,
+            g.screening.max_exponent,
+            opt(check.map(|c| c.residual)),
+            opt(check.map(|c| c.composition)),
+            check.map(|c| format!("{:.6}", c.fuel_ratio)).unwrap_or_default(),
         );
     }
     s

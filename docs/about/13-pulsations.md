@@ -26,6 +26,17 @@ displacement and $`p`$ the relative pressure perturbation:
 * The fundamental mode is the solution without nodes in $`\xi`$.
 * During evolution the previous model's mode is the starting guess, which keeps the solver on the
   fundamental branch.
+* At the midpoints between mesh points $`r`$, $`P`$ and $`\rho`$ are geometric means, as in the
+  structure solver.
+* The surface condition treats the photosphere as a perfect reflector. That holds when the mode
+  frequency is well below the acoustic cut-off of the atmosphere; the ratio is reported with every
+  mode, and a warning appears above 0.5:
+
+```math
+\omega_{\mathrm{ac}} = \frac{c_s}{2 H_P} \ \ \text{at the photosphere}, \qquad \text{flagged if } \omega/\omega_{\mathrm{ac}} > 0.5
+```
+
+For the ZAMS Sun $`\omega/\omega_{\mathrm{ac}} = 0.096`$.
 
 Period and pulsation constant:
 
@@ -39,7 +50,15 @@ Period and pulsation constant:
 \Omega^2 = 3\Gamma_1 - 4 \qquad \text{(uniform-density sphere, } \xi = \text{const)}
 ```
 
-and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours. This mode is not observed in the
+and its overtones (Pekeris 1938), which the library computes with a given number of nodes:
+
+```math
+\Omega_k^2 = \Gamma_1\,(k + 1)(2k + 3) - 4 \qquad \text{(uniform-density sphere, } k \text{ nodes)}
+```
+
+to $`10^{-3}`$ for $`k = 0`$–3. Polytropes of index 1.5 and 3 give fundamental $`\Omega^2 = 2.706`$ and
+9.254, close to the classical values. Doubling the mesh from 800 to 1600 points changes the solar period
+by $`4\times10^{-5}`$. The ZAMS Sun's fundamental radial mode comes out at 0.99 hours. This mode is not observed in the
 Sun; the standard solar model Model S (Christensen-Dalsgaard et al. 1996) gives 64.6 minutes
 (258 μHz). The agreement is partly a coincidence, since the model Sun has $`R = 1.11\,R_\odot`$.
 
@@ -51,7 +70,7 @@ Sun; the standard solar model Model S (Christensen-Dalsgaard et al. 1996) gives 
 | **Empirical inference** | membership of the instability strip, from the model's position in the HR diagram |
 | **Scaling relations** | $`\nu_{\max}`$ and $`\Delta\nu`$, estimated from $`g`$, $`T_{\mathrm{eff}}`$ and the mean density |
 | **Asymptotic estimates** | $`\Delta\nu`$ from the sound travel time, and $`\Delta\Pi_1`$ for every candidate g-mode cavity, from the profiles of $`c_s`$ and $`N`$ |
-| **Not modelled** | driving and damping (growth rates), the excitation mechanism, amplitudes, overtones and non-radial mode frequencies |
+| **Not modelled** | driving and damping (growth rates), the excitation mechanism, amplitudes and non-radial mode frequencies. Radial overtones are computed by the library (and tested) but not shown in the app |
 
 δ Scuti stars in particular usually pulsate in several radial and non-radial modes at once, which a
 fundamental radial-mode solver cannot represent.
@@ -123,7 +142,7 @@ N^2 = \frac{g^2 \rho}{P}\left[\delta\left(\nabla_{\mathrm{ad}} - \nabla\right) +
 ```
 
 * $`\Delta\nu`$ from the interior replaces the scaling relation by a value that depends on the
-  structure. For the ZAMS Sun the two agree to 1% (116.0 against 115.0 μHz).
+  structure. For the ZAMS Sun the two agree to 1% (115.8 against 114.8 μHz).
 * $`\Delta\Pi_1`$ is computed separately for every connected $`N^2 > 0`$ region: a radiative core, the
   radiative zone between a convective core and envelope, or a radiative envelope. Regions are never
   summed. The value over the whole region is the low-frequency limit.

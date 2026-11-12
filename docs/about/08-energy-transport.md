@@ -27,8 +27,13 @@ The model follows Böhm-Vitense (1958) in the formulation of Kippenhahn, Weigert
 *Gravity, pressure scale height, mixing length*
 
 ```math
-g = \frac{G m}{r^2}, \qquad H_P = \frac{P}{\rho\, g}, \qquad \ell = \alpha_{\mathrm{MLT}}\, H_P
+g = \frac{G m}{r^2}, \qquad H_P = \frac{P}{\rho\, g}, \qquad \ell = \alpha_{\mathrm{MLT}}\, \min\!\left(H_P,\ \sqrt{\frac{P}{G\rho^2}}\right)
 ```
+
+$`H_P`$ grows without bound towards the centre, where $`g \to 0`$. The mixing length therefore uses the
+smaller of $`H_P`$ and $`\sqrt{P/G\rho^2}`$, which stays finite (Paxton et al. 2011). This changes only
+the convective velocity near the centre; the gradient there is adiabatic either way, and no global
+result moves.
 
 ```math
 U = \frac{3\, a\, c\, T^3}{c_P\, \rho^2\, \kappa\, \ell^2}\sqrt{\frac{8 H_P}{g\, \delta}}, \qquad W = \nabla_{\mathrm{rad}} - \nabla_{\mathrm{ad}}

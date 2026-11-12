@@ -11,6 +11,7 @@ cargo run --release -p stellar-cli -- [options]
 | `--mass <M>` | stellar mass in M☉ (default 1) |
 | `--x <X>` | hydrogen mass fraction (default 0.70) |
 | `--z <Z>` | metallicity (default 0.02) |
+| `--helium-from-z` | helium follows metallicity: $`Y = 0.249 + 1.5\,Z`$, $`X = 1 - Y - Z`$; `--x` is ignored |
 | `--alpha <α>` | mixing-length parameter (default 1.8) |
 | `--f-cno <f>` | CNO fraction of $`Z`$ (default 0.7) |
 | `--points <N>` | mesh points (default 800) |
@@ -34,7 +35,14 @@ stellar-cli --mass 3 --z 0.008 -v
 stellar-cli --mass 1 --evolve --until age --max-age 4.57
 stellar-cli --mass 5 --evolve --until max --track track.csv -o final_profile.csv
 stellar-cli --mass 3 --evolve --alpha-ov 0.2
+stellar-cli --mass 1 --z 0.0142 --helium-from-z
 ```
+
+Besides the global quantities, the summary prints the gravitational redshift, the largest screening
+exponent, the fundamental radial mode with $`\omega/\omega_{\mathrm{ac}}`$, and any warnings. With
+`--evolve` the table has a column with the total-energy residual of the run so far, and the final
+model's summary adds the total-energy check (with its composition and numerical parts), the fuel
+accounting and the largest screening exponent of the run.
 
 The CLI and the app both use the `stellar-core` library, so identical parameters give the same model to
 within the solver tolerance. The app warm-starts from the previous model; the CLI starts cold unless

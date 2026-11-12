@@ -30,11 +30,30 @@ account (no Ledoux criterion).
 
 Formulation of Kippenhahn, Weigert & Weiss (2012, §7), after Böhm-Vitense (1958).
 
-*Gravity, pressure scale height, mixing length*
+*Gravity, pressure scale height, mixing length* (bounded scale height: C9, plan 1.4)
 
 ```math
-g = \frac{G m}{r^2}, \qquad H_P = \frac{P}{\rho\, g}, \qquad \ell = \alpha_{\mathrm{MLT}}\, H_P
+g = \frac{G m}{r^2}, \qquad H_P = \frac{P}{\rho\, g}, \qquad \tilde H_P = \min\!\left(\frac{P}{\rho\, g},\ \sqrt{\frac{P}{G\,\rho^{2}}}\right), \qquad \ell = \alpha_{\mathrm{MLT}}\,\tilde H_P
 ```
+
+$`H_P`$ diverges at the centre ($`\alpha H_P/r = 4900`$ at the innermost point of a 5 M☉ core with the
+ordinary form); $`\tilde H_P`$ stays finite and needs no extra input. Only the mixing length uses
+$`\tilde H_P`$; the $`H_P`$ that comes from the temperature gradient itself (in $`U`$ and
+$`v_{\mathrm{conv}}`$ below) is the ordinary one. As $`g \to 0`$ the buoyancy vanishes, $`U`$ grows
+and convection turns inefficient, but every quantity stays finite.
+
+Source: Paxton et al. (2011, ApJS 192, 3), §5.1, unnumbered (arXiv:1009.1622v1, p. 28): the
+alternate definition $`\lambda_P' = (P/G\rho^2)^{1/2}`$ is used when $`\lambda_P' < \lambda_P = P/g\rho`$,
+which is the minimum above. Paxton et al. attribute it to Eggleton (1971), but that paper
+(MNRAS 151, 351–364, read in full) does not contain it: it uses the ordinary $`H_P`$ in its
+mixing-length formulae (Appendix, eq. 57). Eggleton (1972, MNRAS 156, 361), p. 364, only notes
+that $`H_P \to \infty`$ at the centre and "perhaps should be replaced by something which tends to
+a finite value"; it gives no formula. Cite Paxton et al. 2011 for the formula.
+
+**[measured]** ZAMS models of 0.5, 1, 3, 5, 10 and 20 M☉, the Sun at 4.57 Gyr and the 3 and 5 M☉
+main-sequence lifetimes are unchanged to $`10^{-4}`$ (the regression baseline): in a convective core
+the gradient is adiabatic either way. What changes is $`v_{\mathrm{conv}}`$ near the centre, and
+overshoot (2.1) and diffusion (8.1) now see a finite mixing length.
 
 *Efficiency parameter and driving*
 
@@ -96,42 +115,27 @@ There is no other mixing outside the Schwarzschild boundaries.
 ### How good this is **[measured]**
 
 * **Gradient.** Deep convection is adiabatic: $`\nabla - \nabla_{\mathrm{ad}} \le 1.4\times10^{-7}`$
-  in the 5 M☉ core. In the Sun it peaks at 0.115 at $`r = 0.9997\,R`$.
+  in the 5 M☉ core. In the Sun it peaks at 0.114 at $`r = 0.9997\,R`$.
 * **$`\alpha_{\mathrm{MLT}}`$ has almost no effect today.** For 1 M☉, $`\alpha = 1.0, 1.8, 2.5`$
-  gives $`R = 1.1207, 1.1133, 1.1106`$ R☉. The cause is the shallow convective envelope
+  gives $`R = 1.1219, 1.1146, 1.1119`$ R☉. The cause is the shallow convective envelope
   ($`2\times10^{-6}`$ of the mass), which comes from the opacity and the EOS, not from the
   convection theory.
 * **Instant mixing is justified.** Gas crosses the 5 M☉ core in about a month
-  ($`v_{\mathrm{conv}} \approx 10^4`$ cm/s); the main sequence lasts 76 Myr.
-* **The mixing length is unbounded at the centre**, because $`H_P \to \infty`$ as $`g \to 0`$:
-  $`\alpha H_P / r = 4900`$ at the innermost point of the 5 M☉ core. Only the plotted velocity is
-  affected.
+  ($`v_{\mathrm{conv}} \approx 10^4`$ cm/s); the main sequence lasts 73 Myr.
+* **The mixing length is bounded at the centre** since plan 1.4. With the ordinary $`H_P`$ it was
+  $`\alpha H_P / r = 4900`$ at the innermost point of the 5 M☉ core; only the plotted velocity was
+  affected, and no regression value moved when the bound was added.
 * **Overshoot lengthens the main sequence.** Main-sequence lifetime for
-  $`\alpha_{\mathrm{ov}} = 0, 0.1, 0.2`$: 285.9, 323.6, 360.1 Myr for 3 M☉ and 76.1, 85.2, 93.7 Myr for
-  5 M☉ (+26% and +23% at 0.2). The largest mixed core of the 3 M☉ run grows from 0.176 to 0.243 of the
-  mass. 1.1 M☉, which keeps a radiative core, is bit-identical with and without overshoot to 5 Gyr.
-  Fuel accounting closes to 0.15% in all six runs (`tests/overshoot.rs`). The default stays 0 until
+  $`\alpha_{\mathrm{ov}} = 0, 0.1, 0.2`$: 273.3, 309.4, 344.2 Myr for 3 M☉ and 72.7, 81.4, 89.5 Myr for
+  5 M☉ (+26% and +23% at 0.2; re-measured after stage 1). The largest mixed core of the 3 M☉ run
+  grows from 0.175 to 0.242 of the mass. 1.1 M☉, which keeps a radiative core, is bit-identical with
+  and without overshoot to 5 Gyr. Fuel accounting closes to 0.4% in all six runs
+  (`tests/overshoot.rs`). The default stays 0 until
   the joint assessment (plan 7.7).
 * **The step is not a prediction.** Without overshoot (the default) the convection-related error of the
   evolution results is still dominated by its absence.
 
 ## Planned
-
-### Bounded scale height (C9, plan 1.4)
-
-Finite at the centre, and needs no extra input:
-
-```math
-\tilde H_P = \min\!\left(\frac{P}{\rho\, g},\ \sqrt{\frac{P}{G\,\rho^{2}}}\right), \qquad \ell = \alpha_{\mathrm{MLT}}\,\tilde H_P
-```
-
-Source: Paxton et al. (2011, ApJS 192, 3), §5.1, unnumbered (arXiv:1009.1622v1, p. 28): the
-alternate definition $`\lambda_P' = (P/G\rho^2)^{1/2}`$ is used when $`\lambda_P' < \lambda_P = P/g\rho`$,
-which is the minimum above. Paxton et al. attribute it to Eggleton (1971), but that paper
-(MNRAS 151, 351–364, read in full) does not contain it: it uses the ordinary $`H_P`$ in its
-mixing-length formulae (Appendix, eq. 57). Eggleton (1972, MNRAS 156, 361), p. 364, only notes
-that $`H_P \to \infty`$ at the centre and "perhaps should be replaced by something which tends to
-a finite value"; it gives no formula. Cite Paxton et al. 2011 for the formula.
 
 ### Ledoux criterion and semiconvection (D17, plan phase 8)
 

@@ -9,17 +9,26 @@ $`\Delta t`$ has two parts.
 
 ### Step 1: composition
 
-Burning uses the rates of the previous model (an explicit step), with the equations of
-[Nuclear burning](04-nuclear-burning.md):
+Mixing first, then burning with the rates of the previous model (an explicit step), with the
+equations of [Nuclear burning](04-nuclear-burning.md). Every convective zone of the previous model
+(a convective core including its overshoot region) is mixed to its mass average
+([Convection and mixing](05-convection-and-mixing.md)); then each mixed zone burns as one unit
+(C7, plan 1.1):
 
 ```math
-X^{\mathrm{new}} = X - \frac{\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{H}}}\,\Delta t, \qquad Y^{\mathrm{new}} = Y + \frac{\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{H}}}\,\Delta t - \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}\,\Delta t
+\langle \dot X \rangle_{\mathrm{zone}} = \frac{\int_{\mathrm{zone}} \dot X\, dm}{\int_{\mathrm{zone}} dm}, \qquad X_{\mathrm{zone}}^{\mathrm{new}} = \max\!\left(0,\; \bar X_{\mathrm{zone}} + \langle \dot X \rangle_{\mathrm{zone}}\,\Delta t\right), \qquad \dot X = -\frac{\varepsilon_{pp}}{Q_{pp}^{\mathrm{eff}}} - \frac{\varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{CNO}}}
 ```
 
-Each point burns at its own rate and the amount is limited to what the point contains. Then every
-convective zone of the previous model is mixed to its mass average
-([Convection and mixing](05-convection-and-mixing.md)). A convective core that shrinks leaves a
-hydrogen gradient behind.
+and the same for helium with $`\dot Y_{3\alpha} = -\varepsilon_{3\alpha}/Q_{\mathrm{He}}`$ (the helium made
+by hydrogen burning is added first). A radiative point is a zone of its own. The amount burnt is
+limited to what the zone contains, so the zone stays uniform even at exhaustion; before, each point
+burnt at its own rate and was clipped on its own, which made the burning step and the time-step limit
+(which already used the zone average) disagree slightly near hydrogen exhaustion. A convective core
+that shrinks leaves a hydrogen gradient behind.
+
+**[measured]** the change alone moves the 3 M☉ main-sequence lifetime by $`1.7\times10^{-5}`$ and the
+5 M☉ one by $`10^{-6}`$; the burning step removes exactly the hydrogen implied by the zone-averaged
+rates (to $`10^{-9}`$ per step, `tests/evolution.rs`).
 
 ### Step 2: structure with gravitational energy
 
@@ -37,12 +46,13 @@ handled. The contribution of the composition change to $`ds`$ is neglected.
 
 ### Time-step control
 
-*Burning limit.* No shell may change its hydrogen by more than the following in one step; a
-convective zone counts as one shell with its mass-averaged rate, and shells with
-$`X \le 10^{-8}`$ are ignored.
+*Burning limit.* No shell may change its hydrogen, nor (wherever $`\varepsilon_{3\alpha} > 0`$) its
+helium, by more than the following in one step; a mixed zone counts as one shell with its
+mass-averaged rate, and shells with $`X`$ (or $`Y`$) $`\le 10^{-8}`$ are ignored. The helium limit is
+C8, plan 1.2; it does not act on the main sequence.
 
 ```math
-|\Delta X| \le \min\!\left(0.01,\ \max(0.3\,X,\ 10^{-5})\right)
+|\Delta X| \le \min\!\left(0.01,\ \max(0.3\,X,\ 10^{-5})\right), \qquad |\Delta Y| \le \min\!\left(0.01,\ \max(0.3\,Y,\ 10^{-5})\right)
 ```
 
 *Structural limit.* The next step is scaled so that the largest change of $`\ln r`$, $`\ln P`$,
@@ -70,24 +80,30 @@ $`\ln T`$ (anywhere) and $`\ln L`$ (surface) is about 0.02:
 A run stops at the chosen condition (end of the main sequence, a given age, or as far as possible),
 or when $`T_{\mathrm{eff}} < 2600`$ K, $`T_c > 3\times10^8`$ K, after 3000 steps, or at 30 Gyr.
 
-### Fuel accounting (implemented check)
+### Fuel accounting
 
-The code compares the hydrogen burnt with the energy radiated:
+The code compares the hydrogen burnt with the energy radiated; with per-channel energies each step's
+hydrogen counts with the effective $`Q_{\mathrm{H}}^{\mathrm{eff}}`$ of the model it burnt in, the
+hydrogen-burning power over the hydrogen consumption rate:
 
 ```math
-Q_{\mathrm{H}}\left[\int X\, dm\right]_{t}^{0} \approx \int_0^t L\, dt'
+\sum_{\mathrm{steps}} Q_{\mathrm{H}}^{\mathrm{eff}}\,\Delta\!\left[\int X\, dm\right] \approx \int_0^t L\, dt', \qquad Q_{\mathrm{H}}^{\mathrm{eff}} = \frac{\int (\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}})\,dm}{\int \left(\varepsilon_{pp}/Q_{pp}^{\mathrm{eff}} + \varepsilon_{\mathrm{CNO}}/Q_{\mathrm{CNO}}\right) dm}
 ```
 
-This is a *fuel* check, not energy conservation. It is close to 1 only on the main sequence, where
-hydrogen burning supplies nearly all the luminosity; contraction, expansion and helium burning break
-it by design. What it does test exactly is the burning step itself:
-$`Q_{\mathrm{H}}\,[\int X\,dm]^0_t = \int\!\!\int (\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}})\,dm\,dt'`$.
+This is a *fuel* check, not energy conservation (that is the next section). It is close to 1 only on
+the main sequence, where hydrogen burning supplies nearly all the luminosity; contraction, expansion
+and helium burning break it by design. It used to be called the "energy budget" in the app and the
+About page; it is now called fuel accounting everywhere, and the app and CLI show it next to the
+total-energy check.
 
-**[measured]** ratio of the two sides: 0.9947 (1 M☉ to 4.57 Gyr); 0.9984, 0.9991, 0.9992 (1.5, 3 and
-5 M☉ to the end of the main sequence). The difference from 1 mixes the change of thermal and
-gravitational energy with numerical error; the check cannot separate them.
+**[measured]** 1 M☉ to 4.57 Gyr: 0.9899 (0.9949 with halved time steps); 1.8, 3 and 5 M☉ to the end
+of the main sequence: 0.9967, 0.9965, 0.9965 (5 M☉: 0.9992 with halved time steps). Halving the steps
+halves the deviation: it is the first-order time error of the explicit burning step, not a missing
+energy (before stage 1 the Sun gave 0.9947 with the single $`Q_{\mathrm{H}}`$). The burning step itself
+removes exactly the hydrogen implied by the per-channel rates, to $`10^{-9}`$ per step
+(`tests/evolution.rs`).
 
-### Total energy conservation (not implemented as a check)
+### Total energy conservation (plan 1.10)
 
 For constant mass and hydrostatic equilibrium:
 
@@ -99,15 +115,47 @@ Conventions that keep every term counted once:
 
 * $`u`$ is the thermal energy only (gas, radiation and, later, ionisation and degeneracy energy). It
   contains no rest mass and no nuclear binding energy; those enter only through
-  $`\varepsilon_{\mathrm{nuc}}`$.
+  $`\varepsilon_{\mathrm{nuc}}`$. Today $`u = \tfrac32 P_{\mathrm{gas}}/\rho + aT^4/\rho`$, returned by
+  the EOS (`EosState::u`).
 * $`\varepsilon_{\mathrm{nuc}}`$ is the heat given to the gas, with reaction neutrinos already
   removed in the $`Q`$ values. $`\varepsilon_\nu`$ is the thermal-neutrino loss only (zero today).
-* $`u`$ depends on composition through $`\mu`$. $`\Delta E_{\mathrm{int}}`$ computed from the two
-  models includes that change; the implemented $`\varepsilon_{\mathrm{grav}}`$ does not (it drops
-  the composition term of $`ds`$). The mismatch is a known residual of this equation, small on the
-  main sequence.
 * The work done at the surface, $`4\pi R^2 P_{\mathrm{ph}}\,dR/dt`$, is omitted; it is negligible
   for a photospheric boundary.
+
+*Implementation* (`Globals::run`, `Globals::energy_check`). Each model stores $`E_{\mathrm{int}}`$ and
+$`E_{\mathrm{grav}}`$ (trapezoid rule in $`m`$; the central point mass $`m_0`$ as a uniform sphere) and
+$`\int\varepsilon_{\mathrm{nuc}}\,dm`$ with the solver's midpoint rule. A run accumulates
+$`\int L\,dt`$ and $`\int\!\!\int\varepsilon_{\mathrm{nuc}}\,dm\,dt`$ with the end-of-step values,
+as in the implicit structure step, and reports
+
+```math
+\mathcal{R} = \frac{\int L\,dt - \int\!\!\int\varepsilon_{\mathrm{nuc}}\,dm\,dt + \Delta(E_{\mathrm{int}} + E_{\mathrm{grav}})}{\int L\,dt} = \mathcal{R}_{\mathrm{comp}} + \mathcal{R}_{\mathrm{num}}
+```
+
+*The two parts.* The implemented $`\varepsilon_{\mathrm{grav}}`$ drops the composition term of
+$`ds`$ (D17), while $`\Delta E_{\mathrm{int}}`$ computed from the two models contains it. At fixed
+$`P`$ and $`T`$ the missing heat is the change of the specific enthalpy $`h = u + P/\rho`$, so the run
+also accumulates
+
+```math
+\mathcal{R}_{\mathrm{comp}} \int L\,dt = \sum_{\mathrm{steps}} \int \left[h(P, T, X^{\mathrm{new}}) - h(P, T, X^{\mathrm{old}})\right] dm
+```
+
+at the previous model's $`P`$, $`T`$. It does not shrink with the time step; the remainder
+$`\mathcal{R}_{\mathrm{num}}`$ (time and mesh discretisation) does. No equation for the composition
+term is planned; this residual measures it.
+
+**[measured]** (`tests/evolution.rs`; default steps → halved steps)
+
+| Run | $`\mathcal{R}`$ | $`\mathcal{R}_{\mathrm{comp}}`$ | $`\mathcal{R}_{\mathrm{num}}`$ |
+|---|---|---|---|
+| 1 M☉ to 4.57 Gyr | $`-4.49 \to -4.51\times10^{-4}`$ | $`-4.48 \to -4.51\times10^{-4}`$ | $`-9.1 \to -4.7\times10^{-7}`$ |
+| 5 M☉ to the end of the main sequence | $`-1.057 \to -1.062\times10^{-3}`$ | $`-1.059 \to -1.063\times10^{-3}`$ | $`2.1 \to 1.0\times10^{-6}`$ |
+| 1.8 M☉, 3 M☉ to the end of the main sequence | $`-7.7\times10^{-4}`$, $`-9.1\times10^{-4}`$ | | $`1.2\times10^{-6}`$, $`2.4\times10^{-6}`$ |
+
+The numerical part halves with the time step (first order); the composition part converges. So on
+the main sequence the check closes to the composition term of $`\varepsilon_{\mathrm{grav}}`$, a few
+$`10^{-4}`$ of the radiated energy, and the numerics are three orders of magnitude below it.
 
 ### Limits
 
@@ -116,25 +164,6 @@ Conventions that keep every term counted once:
 * The mesh is fixed in $`q`$; a thin burning shell is resolved only by raising the number of points.
 
 ## Planned
-
-### Burn a mixed zone as one unit (C7, plan 1.1)
-
-Average the rate over the zone first, then burn and limit:
-
-```math
-\langle \dot X \rangle_{\mathrm{zone}} = \frac{\int_{\mathrm{zone}} \dot X\, dm}{\int_{\mathrm{zone}} dm}, \qquad X_{\mathrm{zone}}^{\mathrm{new}} = \max\!\left(0,\; \bar X_{\mathrm{zone}} + \langle \dot X \rangle_{\mathrm{zone}}\,\Delta t\right)
-```
-
-This removes a small inconsistency between the burning step and the time-step limit near hydrogen
-exhaustion (effect at most 0.1% today).
-
-### Helium time-step limit (C8, plan 1.2)
-
-Wherever $`\varepsilon_{3\alpha} > 0`$:
-
-```math
-|\Delta Y| \le \min\!\left(0.01,\ \max(0.3\,Y,\ 10^{-5})\right)
-```
 
 ### Mass loss (E1, plan phase 4)
 
@@ -239,7 +268,8 @@ opacity upgrades are in.
 
 ### Composition term in $`\varepsilon_{\mathrm{grav}}`$ (D17)
 
-Listed as neglected; small on the main sequence. No equation is planned yet.
+Listed as neglected; small on the main sequence. No equation is planned yet. Its size is now measured
+by the composition part of the total-energy check (plan 1.10, above).
 
 ---
 Previous: [Boundary conditions](06-boundary-conditions.md) · [Contents](README.md) · Next: [Rotation](08-rotation.md)

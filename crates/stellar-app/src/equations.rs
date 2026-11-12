@@ -128,9 +128,9 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "nuc_pp",
-        tex: "\\varepsilon_{pp} = 2.38\\times10^{6}\\;\\rho\\, X^2\\, f_{1}\\, g_{11}\\; T_6^{-2/3}\\, \\exp\\!\\left(-33.80\\, T_6^{-1/3}\\right)",
+        tex: "\\varepsilon_{pp} = \\psi\\,\\varepsilon_{pp,\\mathrm{I}}, \\qquad \\varepsilon_{pp,\\mathrm{I}} = 2.38\\times10^{6}\\;\\rho\\, X^2\\, f_{1}\\, g_{11}\\; T_6^{-2/3}\\, \\exp\\!\\left(-33.80\\, T_6^{-1/3}\\right)",
         svg: include_bytes!("../assets/equations/nuc_pp.svg"),
-        width: 395.78,
+        width: 531.87,
         height: 30.53,
     },
     Equation {
@@ -184,10 +184,10 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "mlt_defs",
-        tex: "g = \\frac{G m}{r^2}, \\qquad H_P = \\frac{P}{\\rho\\, g}, \\qquad \\ell = \\alpha_{\\mathrm{MLT}}\\, H_P",
+        tex: "g = \\frac{G m}{r^2}, \\qquad H_P = \\frac{P}{\\rho\\, g}, \\qquad \\ell = \\alpha_{\\mathrm{MLT}}\\, \\min\\!\\left(H_P,\\ \\sqrt{\\frac{P}{G\\rho^2}}\\right)",
         svg: include_bytes!("../assets/equations/mlt_defs.svg"),
-        width: 320.19,
-        height: 38.74,
+        width: 444.25,
+        height: 53.22,
     },
     Equation {
         id: "mlt_u",
@@ -345,10 +345,10 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "evo_burn_h",
-        tex: "\\frac{\\partial X}{\\partial t} = -\\frac{\\varepsilon_{pp} + \\varepsilon_{\\mathrm{CNO}}}{Q_{\\mathrm{H}}}, \\qquad Q_{\\mathrm{H}} = 6.27\\times10^{18}\\ \\mathrm{erg\\,g^{-1}}",
+        tex: "\\frac{\\partial X}{\\partial t} = -\\frac{\\varepsilon_{pp}}{Q_{pp}^{\\mathrm{eff}}} - \\frac{\\varepsilon_{\\mathrm{CNO}}}{Q_{\\mathrm{CNO}}}, \\qquad Q_{pp}^{\\mathrm{eff}} = 6.27\\times10^{18}\\,\\left(1 - 0.021\\,F_{\\mathrm{II}}\\right), \\qquad Q_{\\mathrm{CNO}} = 5.99\\times10^{18}\\ \\mathrm{erg\\,g^{-1}}",
         svg: include_bytes!("../assets/equations/evo_burn_h.svg"),
-        width: 377.46,
-        height: 38.53,
+        width: 699.60,
+        height: 42.80,
     },
     Equation {
         id: "evo_burn_he",
@@ -380,9 +380,9 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "evo_dt",
-        tex: "|\\Delta X| \\le \\min\\!\\left(0.01,\\ \\max(0.3\\,X,\\ 10^{-5})\\right), \\qquad \\Delta t_{\\mathrm{next}} = \\Delta t \\cdot \\min\\!\\left(2,\\ \\max\\!\\left(\\tfrac{1}{2},\\ \\frac{0.02}{\\max|\\Delta \\ln r, \\Delta\\ln P, \\Delta\\ln T, \\Delta\\ln L|}\\right)\\right)",
+        tex: "|\\Delta X| \\le \\min\\!\\left(0.01,\\ \\max(0.3\\,X,\\ 10^{-5})\\right)\\ \\ (\\text{same for } Y \\text{ where } \\varepsilon_{3\\alpha} > 0), \\qquad \\Delta t_{\\mathrm{next}} = \\Delta t \\cdot \\min\\!\\left(2,\\ \\max\\!\\left(\\tfrac{1}{2},\\ \\frac{0.02}{\\max|\\Delta \\ln r, \\Delta\\ln P, \\Delta\\ln T, \\Delta\\ln L|}\\right)\\right)",
         svg: include_bytes!("../assets/equations/evo_dt.svg"),
-        width: 831.59,
+        width: 1037.87,
         height: 40.87,
     },
     Equation {
@@ -436,10 +436,10 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "evo_budget",
-        tex: "Q_{\\mathrm{H}}\\left[\\int X\\, dm\\right]_{t}^{0} = \\int_0^t L\\, dt'",
+        tex: "\\sum_{\\mathrm{steps}} Q_{\\mathrm{H}}^{\\mathrm{eff}}\\,\\Delta\\!\\left[\\int X\\, dm\\right] \\approx \\int_0^t L\\, dt', \\qquad Q_{\\mathrm{H}}^{\\mathrm{eff}} = \\frac{\\int (\\varepsilon_{pp} + \\varepsilon_{\\mathrm{CNO}})\\,dm}{\\int \\left(\\varepsilon_{pp}/Q_{pp}^{\\mathrm{eff}} + \\varepsilon_{\\mathrm{CNO}}/Q_{\\mathrm{CNO}}\\right) dm}",
         svg: include_bytes!("../assets/equations/evo_budget.svg"),
-        width: 191.45,
-        height: 44.80,
+        width: 552.26,
+        height: 48.53,
     },
     Equation {
         id: "evo_overshoot",
@@ -468,6 +468,55 @@ pub static EQUATIONS: &[Equation] = &[
         svg: include_bytes!("../assets/equations/seis_asymptotic.svg"),
         width: 386.20,
         height: 47.32,
+    },
+    Equation {
+        id: "nuc_branch",
+        tex: "\\alpha = \\left(\\frac{Y}{4X}\\right)^{2} \\frac{\\langle\\sigma v\\rangle_{34}^{\\,2}}{\\langle\\sigma v\\rangle_{11}\\,\\langle\\sigma v\\rangle_{33}}, \\qquad \\phi = 1 + \\frac{2}{\\sqrt{1 + 2/\\alpha} + 1}, \\qquad F_{\\mathrm{II}} = \\frac{2\\,(\\phi - 1)}{\\phi}, \\qquad \\psi = \\phi\\,\\left(1 - 0.021\\,F_{\\mathrm{II}}\\right)",
+        svg: include_bytes!("../assets/equations/nuc_branch.svg"),
+        width: 762.38,
+        height: 48.66,
+    },
+    Equation {
+        id: "evo_zone_burn",
+        tex: "X_{\\mathrm{zone}}^{\\mathrm{new}} = \\max\\!\\left(0,\\; \\bar X_{\\mathrm{zone}} + \\langle \\dot X \\rangle_{\\mathrm{zone}}\\,\\Delta t\\right), \\qquad \\langle \\dot X \\rangle_{\\mathrm{zone}} = \\frac{\\int_{\\mathrm{zone}} \\dot X\\, dm}{\\int_{\\mathrm{zone}} dm}",
+        svg: include_bytes!("../assets/equations/evo_zone_burn.svg"),
+        width: 469.55,
+        height: 49.73,
+    },
+    Equation {
+        id: "evo_energy",
+        tex: "\\mathcal{R} = \\frac{\\int L\\,dt - \\int\\!\\!\\int\\varepsilon_{\\mathrm{nuc}}\\,dm\\,dt + \\Delta(E_{\\mathrm{int}} + E_{\\mathrm{grav}})}{\\int L\\,dt}, \\qquad E_{\\mathrm{int}} = \\int u\\,dm, \\qquad E_{\\mathrm{grav}} = -\\int \\frac{G m}{r}\\,dm",
+        svg: include_bytes!("../assets/equations/evo_energy.svg"),
+        width: 681.19,
+        height: 44.83,
+    },
+    Equation {
+        id: "puls_overtones",
+        tex: "\\Omega_k^2 = \\Gamma_1\\,(k + 1)(2k + 3) - 4 \\qquad \\text{(uniform-density sphere, } k \\text{ nodes)}",
+        svg: include_bytes!("../assets/equations/puls_overtones.svg"),
+        width: 482.97,
+        height: 19.51,
+    },
+    Equation {
+        id: "puls_cutoff",
+        tex: "\\omega_{\\mathrm{ac}} = \\frac{c_s}{2 H_P} \\ \\ \\text{at the photosphere}, \\qquad \\text{flagged if } \\omega/\\omega_{\\mathrm{ac}} > 0.5",
+        svg: include_bytes!("../assets/equations/puls_cutoff.svg"),
+        width: 430.57,
+        height: 33.16,
+    },
+    Equation {
+        id: "res_redshift",
+        tex: "v_z = \\frac{G M}{R\\,c} \\qquad \\text{(636 m/s for 1 M}_\\odot\\text{ at 1 R}_\\odot\\text{)}",
+        svg: include_bytes!("../assets/equations/res_redshift.svg"),
+        width: 309.99,
+        height: 35.43,
+    },
+    Equation {
+        id: "par_helium",
+        tex: "Y = Y_p + \\frac{\\Delta Y}{\\Delta Z}\\,Z, \\qquad Y_p = 0.249, \\quad \\frac{\\Delta Y}{\\Delta Z} = 1.5, \\qquad X = 1 - Y - Z",
+        svg: include_bytes!("../assets/equations/par_helium.svg"),
+        width: 500.46,
+        height: 35.26,
     },
 ];
 

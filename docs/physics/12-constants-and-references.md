@@ -78,7 +78,11 @@ Implemented physics and methods:
 * **Henyey, Forbes & Gould (1964)**, ApJ 139, 306: relaxation method.
 * **Clayton (1968)**, *Principles of Stellar Evolution and Nucleosynthesis*: weak screening, pp
   branching.
-* **Cox (1980)**, *Theory of Stellar Pulsation*: linear adiabatic wave equation.
+* **Cox (1980)**, *Theory of Stellar Pulsation*: linear adiabatic wave equation; classical
+  polytrope periods ($`\Omega^2 \approx 2.712`$ for $`n = 1.5`$, 9.26 for $`n = 3`$, quoted from memory
+  for the test of plan 1.3, **[check source]**).
+* **Pekeris (1938)**, ApJ 88, 189: radial modes of the uniform compressible sphere,
+  $`\Omega_k^2 = \Gamma_1(k+1)(2k+3) - 4`$ (reproduced by the solver to $`10^{-3}`$, plan 1.3).
 * **Brown et al. (1991)**, ApJ 368, 599; **Kjeldsen & Bedding (1995)**, A&A 293, 87: scaling
   relations.
 * **Asplund et al. (2009)**, ARA&A 47, 481; **IAU 2015 Resolution B3**: solar composition preset and

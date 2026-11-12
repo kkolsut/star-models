@@ -116,16 +116,31 @@ T_6 = \frac{T}{10^6\,\mathrm{K}}, \qquad T_8 = \frac{T}{10^8\,\mathrm{K}}
 *pp chain*
 
 ```math
-\varepsilon_{pp} = 2.38\times10^{6}\;\rho\, X^2\, f_{1}\, g_{11}\; T_6^{-2/3}\, \exp\!\left(-33.80\, T_6^{-1/3}\right)
+\varepsilon_{pp} = \psi\,\varepsilon_{pp,\mathrm{I}}, \qquad \varepsilon_{pp,\mathrm{I}} = 2.38\times10^{6}\;\rho\, X^2\, f_{1}\, g_{11}\; T_6^{-2/3}\, \exp\!\left(-33.80\, T_6^{-1/3}\right)
 ```
 
 ```math
 g_{11} = 1 + 0.0123\, T_6^{1/3} + 0.0109\, T_6^{2/3} + 0.0009\, T_6
 ```
 
-$`g_{11}`$ is a correction to the p + p reaction rate. The factor $`\psi`$ of the source formula, which
-accounts for the extra energy of the pp II and pp III branches (between 1 and about 1.5), is set to
-$`\psi = 1`$: only the pp I chain is counted.
+$`g_{11}`$ is a correction to the p + p reaction rate. $`\varepsilon_{pp,\mathrm{I}}`$ counts the pp I
+chain only. Once helium is abundant, ³He also burns with ⁴He (the pp II chain), which makes more
+helium per p + p reaction; $`\psi`$ accounts for it (pp III is neglected):
+
+```math
+\alpha = \left(\frac{Y}{4X}\right)^{2} \frac{\langle\sigma v\rangle_{34}^{\,2}}{\langle\sigma v\rangle_{11}\,\langle\sigma v\rangle_{33}}, \qquad \phi = 1 + \frac{2}{\sqrt{1 + 2/\alpha} + 1}, \qquad F_{\mathrm{II}} = \frac{2\,(\phi - 1)}{\phi}, \qquad \psi = \phi\,\left(1 - 0.021\,F_{\mathrm{II}}\right)
+```
+
+* $`\phi`$ (1 to 2) is the number of helium nuclei made per pp I chain, $`F_{\mathrm{II}}`$ the share
+  made through pp II, which deposits 2.1% less energy per helium nucleus.
+* The reaction rates $`\langle\sigma v\rangle`$ of p + p, ³He + ³He and ³He + ⁴He are integrated
+  numerically from the astrophysical factors $`S(0)`$ of Solar Fusion III (Acharya et al. 2025),
+  tabulated once and interpolated smoothly; the screening factors are included.
+* This is a hybrid: the pp I rate is still the 1990 fit, which is about 8% below the Solar Fusion III
+  p + p rate. The energy-dependence of $`S`$ ($`S'`$, $`S''`$) is not included yet.
+* $`\psi`$ is near 1 on the ZAMS ($`\phi = 1.03`$ at the Sun's centre) and grows as helium builds
+  up: at 4.57 Gyr $`\phi = 1.10`$ at the centre, where 19% of the helium is made through pp II.
+* The hydrogen consumed per unit energy changes with it; see [Evolution in time](12-evolution.md).
 
 *CNO cycle*
 
@@ -158,7 +173,9 @@ The charge products are:
 | α + α | 4 |
 | α + ⁸Be | 8 |
 
-The screening exponent is capped at 2, since weak screening is only valid for small values.
+The screening exponent is capped at 2, since weak screening is only valid for small values. Every model
+reports its largest exponent, with a warning above 0.3 and at the cap (see
+[Results](04-results.md#screening-exponent)).
 
 > EOS, opacity and nuclear rates sit behind interfaces (`Eos`, `Opacity`, `Nuclear`), so tabulated
 > physics can replace them without touching the solver.
