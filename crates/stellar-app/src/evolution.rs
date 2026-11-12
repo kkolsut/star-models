@@ -45,6 +45,11 @@ pub struct TrackPoint {
     pub phase: Phase,
     pub period_days: Option<f64>,
     pub pulsator: Option<PulsatorType>,
+    /// Total-energy residual and fuel accounting of the run up to this model.
+    pub energy_residual: Option<f64>,
+    pub fuel_ratio: Option<f64>,
+    /// Largest screening exponent of the model.
+    pub screening: f64,
 }
 
 impl TrackPoint {
@@ -77,6 +82,9 @@ impl TrackPoint {
             phase: g.phase,
             period_days: m.pulsation.as_ref().map(|p| p.period_days()),
             pulsator: pulsation::classify(g.teff, g.luminosity),
+            energy_residual: g.energy_check().map(|c| c.residual),
+            fuel_ratio: g.energy_check().map(|c| c.fuel_ratio),
+            screening: g.screening.max_exponent,
         }
     }
 }
@@ -87,12 +95,12 @@ pub fn history_csv(track: &[TrackPoint]) -> String {
     let mut s = String::from(
         "step,age_yr,phase,L_lsun,R_rsun,Teff_K,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,mixed_core_q,\
          conv_env_base_r,L_pp_frac,L_cno_frac,L_3a_frac,L_grav_frac,P_fund_days,pulsator,nu_max_uHz,delta_nu_uHz,\
-         delta_nu_asym_uHz,delta_Pi1_s\n",
+         delta_nu_asym_uHz,delta_Pi1_s,screening_max,energy_residual,fuel_ratio\n",
     );
     for (i, t) in track.iter().enumerate() {
         let _ = writeln!(
             s,
-            "{i},{:.6e},{:?},{:.6e},{:.6e},{:.2},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{},{},{:.4},{:.4},{:.4},{}",
+            "{i},{:.6e},{:?},{:.6e},{:.6e},{:.2},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{},{},{:.4},{:.4},{:.4},{},{:.4},{},{}",
             t.age_yr,
             t.phase,
             t.lum,
@@ -117,6 +125,9 @@ pub fn history_csv(track: &[TrackPoint]) -> String {
             t.delta_nu,
             t.delta_nu_asym,
             t.delta_pi1.map(|p| format!("{p:.2}")).unwrap_or_default(),
+            t.screening,
+            t.energy_residual.map(|r| format!("{r:.4e}")).unwrap_or_default(),
+            t.fuel_ratio.map(|r| format!("{r:.6}")).unwrap_or_default(),
         );
     }
     s

@@ -463,15 +463,25 @@ fn parameters(ui: &mut Ui, dark: bool, pr: &StarParams) {
         dark,
         "Helium mass fraction  Y",
         &format!("derived: Y = 1 − X − Z · current {:.4}", pr.y()),
-        "Not set directly; it is whatever mass is left after hydrogen and metals.",
+        "Not set directly; it is whatever mass is left after hydrogen and metals.\n\
+         Helium follows metallicity (checkbox under the sliders; CLI --helium-from-z): galaxies enrich helium together \
+         with metals. With the box ticked, Y follows Z as in the MIST models (Choi et al. 2016) and the X slider \
+         follows Z (Y_p is the primordial helium abundance):",
+    );
+    math(ui, "par_helium", "");
+    p(
+        ui,
+        "At Z = 0.0142 this gives the protosolar X = 0.7155 (the AGSS09 preset has 0.7154). It is an input mode only; \
+         the physics does not change. Measurements of Y_p are now about 0.004 lower (0.245); with the same protosolar \
+         anchor the slope would be 1.76.",
     );
     param(
         ui,
         dark,
         "Mixing-length parameter  α_MLT",
         &format!("default 1.8 · range 0.3 – 3.0 · current {:.2}", pr.alpha_mlt),
-        "In mixing-length theory a convective blob travels a distance l = α_MLT · H_P (H_P is the pressure scale height) \
-         before it dissolves into its surroundings. α_MLT only matters where convection is inefficient: in the \
+        "In mixing-length theory a convective blob travels a distance l = α_MLT · H_P (H_P is the pressure scale height, \
+         bounded near the centre) before it dissolves into its surroundings. α_MLT only matters where convection is inefficient: in the \
          superadiabatic layers just below the photosphere of stars with convective envelopes. There, a larger α_MLT \
          means more efficient convection, a smaller radius and a higher T_eff. Deep convection is almost exactly \
          adiabatic whatever α_MLT is. Real solar models calibrate α_MLT ≈ 1.7–2.2 to match the Sun.",
@@ -579,8 +589,8 @@ fn results(ui: &mut Ui, dark: bool) {
         "the energy generated inside (nuclear plus gravitational) must equal the energy leaving the surface. L₀ is the \
          luminosity of the innermost point. The integral uses the solver's own midpoint rule, so it integrates the same \
          difference equation the solver satisfies and holds by construction for a converged model: it is a \
-         discretisation consistency check, not an independent test of energy conservation (the independent energy \
-         budget of an evolution run is described in \"Evolution in time\"):",
+         discretisation consistency check, not an independent test of energy conservation (the independent \
+         total-energy check of an evolution run is described in \"Evolution in time\"):",
     );
     math(ui, "res_energy", "");
     term(ui, "Newton iterations:", "iterations in the last solver step (a continuation may take several steps).");
@@ -611,6 +621,12 @@ fn results(ui: &mut Ui, dark: bool) {
     );
     term(
         ui,
+        "ω/ω_ac (fund. mode):",
+        "frequency of that mode over the acoustic cut-off at the photosphere. The pulsation solver's surface condition \
+         needs it to be small; a warning appears above 0.5 (see \"Pulsations & oscillations\").",
+    );
+    term(
+        ui,
         "ν_max / Δν [μHz]:",
         "solar-like oscillation frequencies from the asteroseismic scaling relations (meaningful for stars with convective envelopes).",
     );
@@ -624,6 +640,31 @@ fn results(ui: &mut Ui, dark: bool) {
         "ΔΠ₁ [s]:",
         "asymptotic dipole g-mode period spacing of the largest candidate cavity. Every cavity is listed in More \
          profiles and in the JSON (g_cavities).",
+    );
+    term(
+        ui,
+        "Grav. redshift [m/s]:",
+        "light leaving the surface loses energy climbing out of the star's gravity. Expressed as the Doppler velocity \
+         that would give the same shift:",
+    );
+    math(ui, "res_redshift", "");
+    p(
+        ui,
+        "It is an output only: general relativity is not modelled in the structure (see \"Accuracy & limitations\").",
+    );
+    term(
+        ui,
+        "Screening exponent:",
+        "free electrons partly shield the charges of reacting nuclei, which speeds the reactions up by a factor \
+         f = exp(…) (see \"Microphysics\"). The formula used holds while the exponent is small (weak screening). The \
+         value shown is the largest exponent over the reactions that supply at least 1% of the nuclear energy, where \
+         they burn. Above 0.3 a warning says the rates are approximate; at the cap of 2 that they are unreliable. The \
+         ZAMS Sun has 0.23. Evolution runs also report the largest value of the run.",
+    );
+    term(
+        ui,
+        "Run: total-energy residual, fuel accounting:",
+        "evolved models only: the energy checks of the run up to this model, see \"Evolution in time\".",
     );
     sub(ui, "\"Sun today\" reference column");
     p(
@@ -769,25 +810,47 @@ fn microphysics(ui: &mut Ui, dark: bool) {
     );
 
     sub(ui, "Nuclear energy generation [erg g⁻¹ s⁻¹]");
-    p(ui, "The rate coefficients (2.38 × 10⁶, 8.67 × 10²⁷, 5.09 × 10¹¹) are those of Kippenhahn & Weigert (1990).");
-    math(ui, "nuc_t6", "");
-    math(ui, "nuc_pp", "pp chain");
-    math(ui, "nuc_psi", "");
     p(
         ui,
-        "g₁₁ is a correction to the p + p reaction rate. The factor ψ of the source formula, which accounts for the \
-         extra energy of the pp II and pp III branches (between 1 and about 1.5), is set to ψ = 1: only the pp I chain \
-         is counted.",
+        "The pp and CNO rates are built from the reaction rates of Solar Fusion III (Acharya et al. 2025). The rate of \
+         each reaction is the thermal average of its cross section, written with the astrophysical factor S(E) and the \
+         values S(0), S′(0), S″(0) recommended in their Table I (μ is the reduced mass, b sets the Coulomb barrier):",
     );
-    math(ui, "nuc_cno", "CNO cycle");
+    math(ui, "nuc_sigmav", "thermal reaction rate");
+    p(
+        ui,
+        "S(0) in MeV b: p + p 4.09 × 10⁻²⁵, ³He + ³He 5.21, ³He + ⁴He 5.61 × 10⁻⁴, p + ¹⁴N 1.68 × 10⁻³ (for the last \
+         only S(0) is recommended). The integrals are computed once, tabulated against temperature and interpolated \
+         smoothly. Compared with the formulas of Kippenhahn & Weigert (1990) used before, the p + p rate is 5–7% higher \
+         and the p + ¹⁴N rate about half.",
+    );
+    math(ui, "nuc_t6", "");
+    math(ui, "nuc_pp", "pp chain");
+    p(
+        ui,
+        "ε_pp,I counts the pp I chain only: two p + p reactions per helium nucleus, 26.20 MeV deposited. Once helium is \
+         abundant, ³He also burns with ⁴He (the pp II chain), which makes more helium per p + p reaction; ψ accounts for \
+         it (pp III is neglected):",
+    );
+    math(ui, "nuc_branch", "pp II branching");
+    p(
+        ui,
+        "• φ (1 to 2) is the number of helium nuclei made per pp I chain, F_II the share made through pp II, which \
+         deposits 2.1% less energy per helium nucleus.\n\
+         • α uses the same Solar Fusion III rates, with the screening factors.\n\
+         • ψ is near 1 on the ZAMS and grows as helium builds up: φ = 1.02 at the ZAMS Sun's centre, 1.10 at 4.57 Gyr, where 17% of the helium is made through pp II.\n\
+         • The hydrogen consumed per unit energy changes with it; see \"Evolution in time\".",
+    );
+    math(ui, "nuc_cno", "CNO cycle: the slowest step, p + ¹⁴N, sets the rate");
     math(ui, "nuc_c", "");
-    math(ui, "nuc_3a", "triple-α");
+    math(ui, "nuc_3a", "triple-α (Kippenhahn & Weigert 1990)");
     p(ui, "Weak electron screening (Salpeter / Clayton):");
     math(ui, "nuc_screen", "");
     p(
         ui,
         "The charge products are Z₁Z₂ = 1 (p + p), 7 (p + ¹⁴N, the slowest CNO step), and 4 and 8 (α + α, α + ⁸Be). \
-         The exponent is capped at 2, since weak screening is only valid for small values.",
+         The exponent is capped at 2, since weak screening is only valid for small values. Every model reports its \
+         largest exponent, with a warning above 0.3 and at the cap (see \"Results\").",
     );
     muted(
         ui,
@@ -811,6 +874,12 @@ fn transport(ui: &mut Ui, dark: bool) {
     sub(ui, "Convective transport: mixing-length theory (MLT)");
     p(ui, "Following Böhm-Vitense (1958) in the formulation of Kippenhahn, Weigert & Weiss (2012, §7):");
     math(ui, "mlt_defs", "gravity, pressure scale height, mixing length");
+    p(
+        ui,
+        "H_P grows without bound towards the centre, where g → 0. The mixing length therefore uses the smaller of H_P \
+         and √(P/Gρ²), which stays finite (Paxton et al. 2011). This changes only the convective velocity near the \
+         centre; the gradient there is adiabatic either way, and no global result moves.",
+    );
     math(ui, "mlt_u", "");
     math(ui, "mlt_cubic", "the MLT cubic");
     p(
@@ -1007,6 +1076,12 @@ fn evolution(ui: &mut Ui, dark: bool) {
     );
     sub(ui, "Composition");
     math(ui, "evo_burn_h", "hydrogen burning (pp chain and CNO cycle)");
+    p(
+        ui,
+        "Each channel uses its own energy per gram of hydrogen burnt: 26.20 MeV per helium nucleus for the pp I chain \
+         and 25.03 MeV for the CNO cycle, after neutrino losses. The pp II branch deposits 2.1% less than pp I, so \
+         Q_pp^eff falls with the pp II share F_II (see \"Microphysics\").",
+    );
     math(ui, "evo_burn_he", "helium burning (triple-α); its carbon counts as metals");
     math(ui, "evo_mix", "instant mixing");
     p(
@@ -1020,21 +1095,18 @@ fn evolution(ui: &mut Ui, dark: bool) {
         "H_P(r_cc) is interpolated between the mesh points around the boundary; min(H_P, r_cc) keeps the extension finite \
          for small cores. The overshoot is applied to the mixing only: the temperature gradient in the extension stays \
          radiative. The mixed core feeds more hydrogen into the burning region. With α_ov = 0.2 the main sequence of \
-         3 M☉ lasts 360 Myr instead of 286 Myr (+26%), and of 5 M☉ 93.7 Myr instead of 76.1 Myr (+23%). A 1.1 M☉ star, \
+         3 M☉ lasts 338 Myr instead of 269 Myr (+26%), and of 5 M☉ 88.6 Myr instead of 72.0 Myr (+23%). A 1.1 M☉ star, \
          which has no convective core, is unaffected. α_ov ≈ 0.2 is a typical calibration for intermediate-mass stars; \
          it depends on mass and is not universal.",
     );
-    p(
-        ui,
-        "Q_H is the pp-chain value (26.2 MeV per helium nucleus formed). The same value is used for the CNO cycle, \
-         whose energy per helium nucleus deposited in the star is slightly lower.",
-    );
+    p(ui, "After mixing, every mixed zone burns as one unit, at its mass-averaged rate:");
+    math(ui, "evo_zone_burn", "the same for helium");
     p(
         ui,
         "Burning uses the energy-generation rates of the previous model (an explicit step, kept small by the time-step \
-         limits below). The CNO catalyst abundance X_CNO = f_CNO · Z keeps its initial value. Mixing uses the \
-         Schwarzschild convective zones of the previous model, so a convective core that shrinks during the main \
-         sequence leaves a hydrogen gradient behind.",
+         limits below), and no zone burns more than it contains. The CNO catalyst abundance X_CNO = f_CNO · Z keeps its \
+         initial value. Mixing uses the Schwarzschild convective zones of the previous model, so a convective core \
+         that shrinks during the main sequence leaves a hydrogen gradient behind.",
     );
     sub(ui, "Structure with gravitational energy");
     p(ui, "The energy equation gains the gravitational term:");
@@ -1051,9 +1123,10 @@ fn evolution(ui: &mut Ui, dark: bool) {
     math(ui, "evo_dt", "");
     bullet(
         ui,
-        "Burning limit: no shell may lose more than 0.01 of X, or more than 30% of its hydrogen, in one step. A \
-         convective zone counts as a single shell. The 30% rule has a floor of ΔX = 10⁻⁵, and shells with \
-         X ≤ 10⁻⁸ are skipped, so the step does not shrink without bound as hydrogen runs out.",
+        "Burning limit: no shell may lose more than 0.01 of X, or more than 30% of its hydrogen, in one step; the \
+         same holds for helium wherever triple-α burns. A mixed zone counts as a single shell. The 30% rule has a \
+         floor of 10⁻⁵, and shells with X (or Y) ≤ 10⁻⁸ are skipped, so the step does not shrink without bound as \
+         the fuel runs out.",
     );
     bullet(
         ui,
@@ -1088,12 +1161,35 @@ fn evolution(ui: &mut Ui, dark: bool) {
     );
     term(ui, "Safety limits (always):", "3000 steps and an age of 30 Gyr.");
     sub(ui, "Checks");
-    p(ui, "The hydrogen burnt, times Q_H, must equal the energy radiated over the run:");
+    p(
+        ui,
+        "Total-energy check. Over a run, the energy radiated must equal the nuclear energy released minus the change of \
+         the star's thermal and gravitational energy (u is the thermal energy per gram; rest mass and nuclear binding \
+         energy enter only through ε_nuc):",
+    );
+    math(ui, "evo_energy", "");
+    p(
+        ui,
+        "The residual has two parts, reported separately. The ε_grav of the solver leaves out the heat from the change of \
+         composition at fixed P and T; the run adds that term up (the change of the enthalpy u + P/ρ), and it does not \
+         shrink with the time step. The rest is numerical and shrinks with the time step. For the Sun evolved to \
+         4.57 Gyr the residual is −4.5 × 10⁻⁴, of which −4.45 × 10⁻⁴ is the composition term and −9 × 10⁻⁷ numerical \
+         (halved by halving the time steps); for 5 M☉ to the end of the main sequence −1.09 × 10⁻³ and 2 × 10⁻⁶. \
+         Automated tests require below 1% and check both parts on halving the steps.",
+    );
+    p(
+        ui,
+        "Fuel accounting. The hydrogen burnt, each step with the effective energy per gram of the model it burnt in, \
+         against the energy radiated:",
+    );
     math(ui, "evo_budget", "");
     p(
         ui,
-        "For the Sun evolved to 4.57 Gyr the ratio is 0.995 (an automated test). Along every run the virial check stays \
-         at 1 to about 10⁻⁴, and the energy check, which includes ε_grav, at 1.",
+        "It is close to 1 only on the main sequence, where hydrogen burning supplies nearly all the luminosity. For the \
+         Sun evolved to 4.57 Gyr it is 0.990 (0.995 with halved time steps: the difference is the first-order error of \
+         the explicit burning step); for 3 M☉ to the end of the main sequence 0.996. Along every run the virial check \
+         stays at 1 to about 10⁻⁴, and the energy check, which includes ε_grav, at 1. The app shows the total-energy \
+         residual and the fuel accounting under the checks of an evolved model; the CLI prints them.",
     );
     sub(ui, "Time-step convergence");
     p(
@@ -1103,7 +1199,7 @@ fn evolution(ui: &mut Ui, dark: bool) {
          explicitly with the previous model's rates: each halving roughly halves the difference. At the default \
          settings the errors are small compared with the physics uncertainties:\n\
          • 1 M☉ at 4.57 Gyr: L, R and T_c within about 0.1%.\n\
-         • 3 M☉: main-sequence lifetime within about 0.6% (285.9 Myr against about 284.2 Myr extrapolated); \
+         • 3 M☉: main-sequence lifetime within about 0.6% (268.6 Myr against about 266.9 Myr extrapolated); \
          convective-core mass at X_c = 0.3 within 0.1%.\n\
          • Values exactly at the end of the main sequence scatter by up to about 1%, because the last step lands \
          anywhere below X_c = 10⁻³.\n\
@@ -1152,7 +1248,7 @@ fn evolution(ui: &mut Ui, dark: bool) {
     muted(
         ui,
         dark,
-        "Typical runs: the Sun to 4.57 Gyr in 26 steps (0.3 s). A 5 M☉ star from the ZAMS across the Hertzsprung gap \
+        "Typical runs: the Sun to 4.57 Gyr in 27 steps (0.3 s). A 5 M☉ star from the ZAMS across the Hertzsprung gap \
          to 2600 K takes about 1650 steps (15 s), computed in the background while the timeline fills.",
     );
 }
@@ -1172,16 +1268,25 @@ fn pulsation(ui: &mut Ui, dark: bool) {
         "The dimensionless eigenvalue Ω² is an extra unknown of the boundary-value problem. It is solved with the same \
          Henyey method as the structure, with three unknowns per mesh point (ξ, p, Ω²). The fundamental mode is the \
          solution without nodes in ξ. During evolution the previous model's mode is the starting guess, which keeps \
-         the solver on the fundamental branch. Period and pulsation constant:",
+         the solver on the fundamental branch. At the midpoints between mesh points r, P and ρ are geometric means, \
+         as in the structure solver. The surface condition treats the photosphere as a perfect reflector. That holds \
+         when the mode frequency is well below the acoustic cut-off of the atmosphere; the ratio is reported with \
+         every mode, and a warning appears above 0.5:",
     );
+    math(ui, "puls_cutoff", "");
+    p(ui, "For the ZAMS Sun ω/ω_ac = 0.095. Period and pulsation constant:");
     math(ui, "puls_period", "");
     p(ui, "Validation: for a uniform-density sphere the solver reproduces the exact result");
     math(ui, "puls_homogeneous", "");
+    p(ui, "and its overtones (Pekeris 1938), which the library computes with a given number of nodes:");
+    math(ui, "puls_overtones", "");
     p(
         ui,
-        "and the ZAMS Sun's fundamental radial mode comes out at 0.99 hours. This mode is not observed in the Sun; \
-         the standard solar model Model S gives 64.6 minutes (258 μHz). The agreement is partly a coincidence, since the model Sun has \
-         R = 1.11 R☉.",
+        "to 10⁻³ for k = 0–3. Polytropes of index 1.5 and 3 give fundamental Ω² = 2.706 and 9.254, in agreement \
+         to 10⁻⁴ with an independent calculation (the same equation solved by shooting in Lane–Emden variables). \
+         Doubling the mesh from 800 to 1600 points changes the solar period by 4 × 10⁻⁵. The ZAMS Sun's fundamental \
+         radial mode comes out at 1.00 hours. This mode is not observed in the Sun; the standard solar model Model S \
+         gives 64.6 minutes (258 μHz). The agreement is partly a coincidence, since the model Sun has R = 1.12 R☉.",
     );
     sub(ui, "What is calculated and what is not");
     term(ui, "Calculated:", "the fundamental adiabatic radial mode: period, Ω², Q and the mode shape ξ(r).");
@@ -1194,8 +1299,9 @@ fn pulsation(ui: &mut Ui, dark: bool) {
     term(
         ui,
         "Not modelled:",
-        "driving and damping (growth rates), the excitation mechanism, amplitudes, overtones and non-radial modes. \
-         δ Scuti stars in particular usually pulsate in several radial and non-radial modes at once.",
+        "driving and damping (growth rates), the excitation mechanism, amplitudes and non-radial modes. Radial overtones \
+         are computed by the library (and tested) but not shown in the app. δ Scuti stars in particular usually \
+         pulsate in several radial and non-radial modes at once.",
     );
     sub(ui, "Which stars pulsate: the instability strip");
     p(
@@ -1248,7 +1354,7 @@ fn pulsation(ui: &mut Ui, dark: bool) {
     p(
         ui,
         "Δν from the interior replaces the scaling relation by a value that depends on the structure; for the ZAMS Sun \
-         the two agree to 1% (116.0 against 115.0 μHz). ΔΠ₁ is computed separately for every connected N² > 0 region \
+         the two agree to 1% (114.8 against 113.7 μHz). ΔΠ₁ is computed separately for every connected N² > 0 region \
          (a candidate g-mode cavity: a radiative core, the radiative zone between a convective core and envelope, a \
          radiative envelope); regions are never summed. The value over the whole region is the low-frequency limit. \
          Both are asymptotic estimates (high radial order), not computed spectra, and Δν carries the model's surface \
@@ -1399,8 +1505,8 @@ fn limitations(ui: &mut Ui, dark: bool) {
     );
     p(
         ui,
-        "It is not quantitatively solar. With X = 0.70 and Z = 0.02 the 1 M☉ model has L ≈ 0.42 L☉, R ≈ 1.11 R☉, \
-         T_eff ≈ 4400 K and a thin convective envelope (base at 0.97 R). A detailed ZAMS Sun has L ≈ 0.7 L☉, \
+        "It is not quantitatively solar. With X = 0.70 and Z = 0.02 the 1 M☉ model has L ≈ 0.42 L☉, R ≈ 1.12 R☉, \
+         T_eff ≈ 4380 K and a thin convective envelope (base at 0.97 R). A detailed ZAMS Sun has L ≈ 0.7 L☉, \
          R ≈ 0.89 R☉ and its envelope base near 0.71 R. The leading suspects, whose shares have not been isolated: the \
          textbook Kramers opacity is too high in the core (the leading suspect for the low luminosity) and far too low \
          at 10⁵–10⁶ K, and the EOS has no ionisation zones.",
@@ -1420,8 +1526,8 @@ fn limitations(ui: &mut Ui, dark: bool) {
     bullet(
         ui,
         "Main-sequence lifetimes follow the model luminosities. The analytic Sun is underluminous (0.42 L☉ at the ZAMS), \
-         so it burns slowly and leaves the main sequence after about 14 Gyr instead of about 10 Gyr. Intermediate-mass \
-         and massive stars come out within about 20% of detailed models (for example 1.41 Gyr for 1.8 M☉ and 76 Myr \
+         so it burns slowly and leaves the main sequence after about 15.1 Gyr instead of about 10 Gyr. Intermediate-mass \
+         and massive stars come out within about 25% of detailed models (for example 1.32 Gyr for 1.8 M☉ and 72 Myr \
          for 5 M☉, against roughly 1.2–1.5 Gyr and 90–100 Myr).",
     );
     bullet(
@@ -1460,6 +1566,17 @@ fn limitations(ui: &mut Ui, dark: bool) {
     bullet(
         ui,
         "Very massive stars (above about 50 M☉) approach the Eddington limit, where this simple treatment becomes crude.",
+    );
+    bullet(
+        ui,
+        "General relativity. The structure equations are Newtonian; the relativistic corrections are \
+         GM/(Rc²) ≈ 2 × 10⁻⁶ for the Sun and 1.2 × 10⁻⁵ for 60 M☉, below the discretisation error. The gravitational \
+         redshift of the surface light is reported as an output (636 m/s for 1 M☉ at 1 R☉).",
+    );
+    bullet(
+        ui,
+        "Screening beyond the weak regime. The weak-screening formula is used with its exponent capped at 2; each \
+         model reports its largest exponent and warns above 0.3 and at the cap.",
     );
     sub(ui, "Planned");
     p(
@@ -1556,7 +1673,8 @@ fn references(ui: &mut Ui, dark: bool) {
     term(
         ui,
         "Kippenhahn & Weigert (1990),",
-        "Stellar Structure and Evolution, 1st ed., Springer: the analytic pp, CNO and triple-α rate formulas.",
+        "Stellar Structure and Evolution, 1st ed., Springer: the triple-α rate formula (and the pp and CNO formulas \
+         used before the Solar Fusion III rates).",
     );
     term(
         ui,
@@ -1572,11 +1690,32 @@ fn references(ui: &mut Ui, dark: bool) {
         "Principles of Stellar Evolution and Nucleosynthesis, McGraw-Hill: thermonuclear rates and weak screening.",
     );
     term(ui, "Asplund, Grevesse, Sauval & Scott (2009),", "ARA&A 47, 481: the AGSS09 solar composition preset.");
+    term(
+        ui,
+        "Acharya et al. (2025),",
+        "Rev. Mod. Phys. 97, 035002 (\"Solar Fusion III\"): the astrophysical factors S(0), S′(0), S″(0) behind the \
+         pp and CNO rates and the pp II branching factor ψ.",
+    );
+    term(
+        ui,
+        "Paxton et al. (2011),",
+        "ApJS 192, 3 (MESA), §5.1: the bounded pressure scale height in the mixing length.",
+    );
+    term(
+        ui,
+        "Choi et al. (2016),",
+        "ApJ 823, 102 (MIST), §3.1: Y_p and ΔY/ΔZ of the \"helium follows metallicity\" mode.",
+    );
     term(ui, "IAU 2015 Resolution B3:", "nominal solar radius, luminosity and effective temperature.");
     term(
         ui,
         "Cox (1980),",
         "Theory of Stellar Pulsation, Princeton University Press: the linear adiabatic wave equation and its boundary conditions.",
+    );
+    term(
+        ui,
+        "Pekeris (1938),",
+        "ApJ 88, 189: the radial modes of the uniform-density sphere, used to test the pulsation solver.",
     );
     term(
         ui,

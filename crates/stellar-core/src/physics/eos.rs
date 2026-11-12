@@ -29,7 +29,9 @@ impl Eos for IdealGasRadiation {
         let cp = R_GAS / mu * (1.5 + 12.0 * (1.0 - beta) / beta + (4.0 - 3.0 * beta).powi(2) / b2);
         let nabla_ad = 2.0 * (4.0 - 3.0 * beta) / (32.0 - 24.0 * beta - 3.0 * b2);
         let gamma1 = (32.0 - 24.0 * beta - 3.0 * b2) / (24.0 - 21.0 * beta);
-        EosState { rho, p_gas, p_rad, beta, mu, nabla_ad, cp, delta, gamma1 }
+        // u = (3/2) P_gas/ρ + 3 P_rad/ρ = (3/2 + 3(1 − β)/β) P_gas/ρ (gas plus radiation).
+        let u = (1.5 + 3.0 * (1.0 - beta) / beta) * p_gas / rho;
+        EosState { rho, p_gas, p_rad, beta, mu, nabla_ad, cp, delta, gamma1, u }
     }
 }
 
@@ -67,6 +69,17 @@ mod tests {
         assert!((s.gamma1 - 5.0 / 3.0).abs() < 5e-3);
         let cp_ideal = 2.5 * R_GAS / sun().mu();
         assert!((s.cp / cp_ideal - 1.0).abs() < 0.05);
+        let u_ideal = 1.5 * R_GAS * 1.5e7 / sun().mu();
+        assert!((s.u / u_ideal - 1.0).abs() < 0.05, "u = {}", s.u);
+    }
+
+    /// u = (3/2) P_gas/ρ + a T⁴/ρ, independently of how β is used.
+    #[test]
+    fn internal_energy_gas_plus_radiation() {
+        let (p, t) = (1e16, 3e7);
+        let s = IdealGasRadiation.eval(p, t, &sun());
+        let expected = 1.5 * s.p_gas / s.rho + A_RAD * t.powi(4) / s.rho;
+        assert!((s.u / expected - 1.0).abs() < 1e-12, "{} vs {expected}", s.u);
     }
 
     #[test]

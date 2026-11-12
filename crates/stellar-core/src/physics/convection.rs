@@ -1,7 +1,14 @@
 //! Convection: Schwarzschild criterion plus mixing-length theory (MLT), in the
 //! formulation of Kippenhahn, Weigert & Weiss (2012, §7).
 //!
-//! With mixing length l = α H_P:
+//! With mixing length l = α H̃_P, where the scale height is bounded so that it
+//! stays finite at the centre (Paxton et al. 2011, ApJS 192, 3, §5.1):
+//!
+//! H̃_P = min(P / (ρ g), √(P / (G ρ²)))
+//!
+//! The ordinary H_P = P/(ρg) is kept wherever it comes from the temperature
+//! gradient itself (in U and in the convective velocity below).
+//!
 //!
 //! U = 3 a c T³ / (c_P ρ² κ l²) · √(8 H_P / (g δ)),   W = ∇_rad − ∇_ad
 //!
@@ -10,7 +17,7 @@
 //!
 //! η³ + (8U/9)(η² + 2Uη − W) = 0,   ∇ = ∇_ad + η(η + 2U),   ∇ − ∇_e = η².
 
-use crate::constants::{A_RAD, C};
+use crate::constants::{A_RAD, C, G};
 
 /// Local quantities needed by MLT.
 #[derive(Clone, Copy, Debug)]
@@ -41,12 +48,17 @@ pub struct MltResult {
     pub f_conv: f64,
 }
 
+/// Scale height for the mixing length, min(P/(ρg), √(P/(Gρ²))): finite as g → 0.
+pub fn bounded_scale_height(p: f64, rho: f64, g: f64) -> f64 {
+    (p / (rho * g)).min((p / (G * rho * rho)).sqrt())
+}
+
 pub fn mlt(i: &MltInput) -> MltResult {
     if !(i.nabla_rad > i.nabla_ad) {
         return MltResult { nabla: i.nabla_rad, convective: false, v_conv: 0.0, f_conv: 0.0 };
     }
     let hp = i.p / (i.rho * i.g);
-    let lm = i.alpha * hp;
+    let lm = i.alpha * bounded_scale_height(i.p, i.rho, i.g);
     let u = (3.0 * A_RAD * C * i.t.powi(3) / (i.cp * i.rho * i.rho * i.kappa * lm * lm)
         * (8.0 * hp / (i.g * i.delta)).sqrt())
     .clamp(0.0, 1e100);
@@ -138,6 +150,27 @@ mod tests {
         let r = mlt(&input(1e-4, 1e-9));
         assert!(r.convective);
         assert!((r.nabla - 1.0).abs() < 1e-2, "∇ = {}", r.nabla);
+    }
+
+    /// Plan 1.4: at g → 0 the mixing length stays finite (√(P/Gρ²)) and MLT
+    /// returns finite results with ∇_ad ≤ ∇ ≤ ∇_rad. (As the buoyancy vanishes,
+    /// convection becomes inefficient and ∇ → ∇_rad; the innermost mesh point
+    /// sits at m₀ > 0, where it is still adiabatic.)
+    #[test]
+    fn bounded_scale_height_at_the_centre() {
+        let (p, rho) = (1e17, 100.0);
+        let cap = (p / (G * rho * rho)).sqrt();
+        assert_eq!(bounded_scale_height(p, rho, 0.0), cap);
+        assert_eq!(bounded_scale_height(p, rho, 1e-3), cap);
+        // Far from the centre the ordinary scale height is used.
+        assert_eq!(bounded_scale_height(p, rho, 1e6), p / (rho * 1e6));
+        for g in [1e-30, 1e-10, 1e-3, 1.0] {
+            let mut i = input(1.8, 0.1);
+            i.g = g;
+            let r = mlt(&i);
+            assert!(r.convective && r.nabla.is_finite() && r.v_conv.is_finite(), "g = {g}: {r:?}");
+            assert!(r.nabla >= 0.4 && r.nabla <= 1.0, "g = {g}: ∇ = {}", r.nabla);
+        }
     }
 
     #[test]

@@ -8,50 +8,86 @@ cause. In the code the rates are the `Nuclear` trait.
 Source: `crates/stellar-core/src/physics/nuclear.rs` (rates),
 `crates/stellar-core/src/structure/evolve.rs` (composition).
 
-The rate fits are those of Kippenhahn & Weigert (1990). The book itself was not available for the
-source check of 2026-11-11 (no legitimate copy found), so equation and page numbers in it are not
-recorded. The fits were instead compared with the published reaction-rate compilations they are
-built on (originals read on ADS; conversion $`T_9^{1/3} = 0.1\,T_6^{1/3}`$, $`T_9 = 0.1\,T_8`$):
+The pp and CNO rates are built from Solar Fusion III (Acharya et al. 2025, Rev. Mod. Phys. 97,
+035002; plan 1.6, decided 2026-11-12). The triple-α rate is the fit of Kippenhahn & Weigert (1990).
+
+*Source check of Solar Fusion III* (LaTeX source of arXiv:2405.06470 read 2026-11-12): eq. 3 is the
+thermal rate, eq. 4 the expansion $`S(E) \simeq S(0) + S'(0)E + \tfrac12 S''(0)E^2`$ (E in MeV), and
+Table I lists:
+
+| Reaction | $`S(0)`$ [MeV b] | $`S'(0)`$ [b] | $`S''(0)`$ [b MeV⁻¹] | Text |
+|---|---|---|---|---|
+| ¹H(p,e⁺ν)²H | $`4.09\times10^{-25}`$ | $`4.5\times10^{-24}`$ | $`9.9\times10^{-23}`$ | §III.F: $`S'/S = 11.0 \pm 0.2`$ MeV⁻¹, $`S''/S = 242 \pm 72`$ MeV⁻² (corrections of about 7% and 0.5% at the solar Gamow peak) |
+| ³He(³He,2p)⁴He | 5.21 | −4.90 | 22.42 | §IV.B: $`S(E) = 5.21 - 4.90E + 11.21E^2`$ MeV b, so the ½ of eq. 4 is confirmed |
+| ³He(α,γ)⁷Be | $`5.61\times10^{-4}`$ | $`-3.03\times10^{-4}`$ | – | §V.E: $`S'/S = -0.54 \pm 0.07`$ MeV⁻¹ for E = 0–500 keV; "second derivative consistent with zero" |
+| ¹⁴N(p,γ)¹⁵O | $`1.68\times10^{-3}`$ | – | – | §IX: sum of the partial $`S(0)`$ (Table XI), 1.68 ± 0.14 keV b; no derivatives recommended |
+
+The same review confirms weak (Salpeter) screening for $`Z_1 Z_2 < 10`$ in the solar core (§X.B).
+
+### Rates
+
+*Thermal rates* (eq. 3 of Solar Fusion III), for p + p, ³He + ³He, ³He + ⁴He and p + ¹⁴N:
+
+```math
+\langle\sigma v\rangle = \sqrt{\frac{8}{\pi\mu}}\,(kT)^{-3/2} \int_0^\infty S(E)\, \exp\!\left(-\frac{E}{kT} - \frac{b}{\sqrt{E}}\right) dE, \qquad b = \pi\alpha_{\mathrm{fs}} Z_1 Z_2 \sqrt{2\mu c^2}, \qquad S(E) = S(0) + S'(0)\,E + \tfrac12 S''(0)\,E^2
+```
+
+* Reduced masses from atomic masses (¹H 1.007825, ³He 3.016029, ⁴He 4.002603, ¹⁴N 14.003074 u), as
+  in the 1990 fits (their exponent 33.80 for p + p needs $`\mu = 0.5039`$; with $`\mu = 1/2`$ it
+  would be 33.72, a 4% change of the rate).
+* The integral is computed by composite Simpson quadrature over ±12 widths of the Gamow peak,
+  tabulated once at first use on 161 points in $`T_6^{-1/3}`$ for $`1 \le T_6 \le 200`$, and
+  interpolated with cubic Hermite polynomials (C¹, rule 3); outside the table it is extrapolated
+  linearly in $`T_6^{-1/3}`$. The table reproduces the quadrature to better than $`10^{-4}`$ in
+  $`\ln\langle\sigma v\rangle`$ (unit test).
+* $`S(E)`$ is kept non-negative. The ³He + ⁴He slope is valid to 500 keV and the ¹⁴N(p,γ) rate has
+  no resonances: both hold for hydrogen burning, below about $`T_6 = 100`$.
+
+*pp chain.* The pp I rate times the branching factor $`\psi`$ (next section):
+
+```math
+\varepsilon_{pp} = \psi\,\varepsilon_{pp,\mathrm{I}}, \qquad \varepsilon_{pp,\mathrm{I}} = \frac{r_{11}}{2}\,\frac{E_{\mathrm{I}}}{\rho}, \qquad r_{11} = \tfrac12\, n_p^2\, \langle\sigma v\rangle_{11}\, f_1, \qquad n_p = \frac{\rho X}{m_{\mathrm{H}}}
+```
+
+$`E_{\mathrm{I}} = 4 m_{\mathrm{H}}\, Q_{pp,\mathrm{I}} = 26.20`$ MeV is the energy deposited per completed
+pp I chain (two p + p reactions).
+
+*CNO cycle.* The slowest step, p + ¹⁴N, sets the rate; in CN equilibrium all catalysts are counted
+as ¹⁴N:
+
+```math
+\varepsilon_{\mathrm{CNO}} = n_p\, n_{14}\, \langle\sigma v\rangle_{1,14}\, f_7\, \frac{E_{\mathrm{CNO}}}{\rho}, \qquad n_{14} = \frac{\rho X_{\mathrm{CNO}}}{m_{14}}, \qquad X_{\mathrm{CNO}} = f_{\mathrm{CNO}}\, Z
+```
+
+$`E_{\mathrm{CNO}} = 4 m_{\mathrm{H}}\, Q_{\mathrm{CNO}} = 25.03`$ MeV per cycle. (Fowler et al. 1975 quote
+24.970 MeV; the 0.25% difference comes from the neutrino energies. Taking both energies from the
+$`Q`$ values of the burning step keeps the fuel accounting exact.)
+
+*Triple-α* (Kippenhahn & Weigert 1990)
+
+```math
+\varepsilon_{3\alpha} = 5.09\times10^{11}\;\rho^2\, Y^3\, f_{4}\, f_{8}\; T_8^{-3}\, \exp\!\left(-\frac{44.027}{T_8}\right)
+```
+
+**[measured]** against the replaced 1990 fits (unscreened, pp I only; unit test): the Solar Fusion III
+p + p rate is 1.050, 1.054, 1.057, 1.065 times the fit at $`T_6 = 10`$, 15, 20, 30 (estimated "about
+8%" before $`S'`$ and $`S''`$ were included); the ¹⁴N(p,γ) rate is 0.520, 0.527, 0.534, 0.546 times
+the fit (estimated 0.52–0.56 with constant $`S`$, below).
+
+*The replaced 1990 fits, for reference.* Before plan 1.6 the code used, as given by Kippenhahn &
+Weigert (1990),
+$`\varepsilon_{pp} = 2.38\times10^{6}\rho X^2 f_1 g_{11} T_6^{-2/3}\exp(-33.80\,T_6^{-1/3})`$ with
+$`g_{11} = 1 + 0.0123 T_6^{1/3} + 0.0109 T_6^{2/3} + 0.0009 T_6`$, and
+$`\varepsilon_{\mathrm{CNO}} = 8.67\times10^{27}\rho X X_{\mathrm{CNO}} f_7 g_{14,1} T_6^{-2/3}\exp(-152.28\,T_6^{-1/3})`$
+with $`g_{14,1} = 1 + 0.0027 T_6^{1/3} - 0.00778 T_6^{2/3} - 0.000149 T_6`$. The book was not
+available for the source check of 2026-11-11; the fits were compared with the compilations they are
+built on (originals read on ADS; $`T_9^{1/3} = 0.1\,T_6^{1/3}`$, $`T_9 = 0.1\,T_8`$):
 
 | Fit | Compilation entry | Exponent and correction polynomial | Prefactor re-derived |
 |---|---|---|---|
 | pp | Harris et al. (1983), ARA&A 21, 165, Table 1 (p. 168), H1(P,E+NU)H2: $`3.82\times10^{-15}`$ (same polynomial and exponent in Fowler et al. 1975, Table 1, p. 72, with 4.21e-15) | 33.80 and 0.0123, 0.0109, 0.000938 → 0.0009: agree | $`2.377\times10^{6}`$ with $`n_p = \rho X/m_{\mathrm{H}}`$ and 13.1 MeV per p + p reaction (half of 26.2 MeV); code 2.38e6 |
 | CNO | Fowler, Caughlan & Zimmerman (1975), ARA&A 13, 69, Table 1 (p. 78), N14(P,G)O15: $`5.08\times10^{7}`$, "Q = 24.970 per N14(P,G)O15 reaction for full CN-cycle" | 152.28 and 0.0027, −0.00778, −0.000149: agree; the source's further terms ($`T_9^{4/3}`$, $`T_9^{5/3}`$, $`\exp[-(T_9/3.090)^2]`$, resonances) are dropped | $`8.674\times10^{27}`$ with $`n_p = \rho X/m_{\mathrm{H}}`$, $`n_{14} = \rho X_{\mathrm{CNO}}/(14\,m_u)`$ and 24.97 MeV; code 8.67e27 |
-| triple-α | Harris et al. (1983), Table 1 (p. 168), HE4(2A,G)C12: $`2.79\times10^{-8}\,T_9^{-3}\exp(-4.4027/T_9)`$, Q = 7.275 (the same high-temperature term in the ORNL reproduction of Caughlan & Fowler 1988); the 1975 entry (p. 74) had 2.49e-8 and 4.4109 | 44.027: agrees | $`5.100\times10^{11}`$ with $`\rho^2Y^3N_A/384`$ and 7.275 MeV; code 5.09e11 |
-
-No disagreement with the compilations was found; the book's printed coefficients and
-its section numbers remain unverified.
-
-### Rates
-
-*pp chain.* The pp I branch only; the branching factor $`\psi`$ is taken as 1.
-
-```math
-\varepsilon_{pp} = 2.38\times10^{6}\;\rho\, X^2\, f_{1}\, g_{11}\; T_6^{-2/3}\, \exp\!\left(-33.80\, T_6^{-1/3}\right)
-```
-
-```math
-g_{11} = 1 + 0.0123\, T_6^{1/3} + 0.0109\, T_6^{2/3} + 0.0009\, T_6
-```
-
-> The About page and `equations.json` call $`g_{11}`$ "$`\psi`$" (finding B1). The name used here is
-> the correct one.
-
-*CNO cycle.* The slowest step, p + ¹⁴N, sets the rate.
-
-```math
-\varepsilon_{\mathrm{CNO}} = 8.67\times10^{27}\;\rho\, X\, X_{\mathrm{CNO}}\, f_{7}\, g_{14,1}\; T_6^{-2/3}\, \exp\!\left(-152.28\, T_6^{-1/3}\right)
-```
-
-```math
-g_{14,1} = 1 + 0.0027\, T_6^{1/3} - 0.00778\, T_6^{2/3} - 0.000149\, T_6, \qquad X_{\mathrm{CNO}} = f_{\mathrm{CNO}}\, Z
-```
-
-*Triple-α*
-
-```math
-\varepsilon_{3\alpha} = 5.09\times10^{11}\;\rho^2\, Y^3\, f_{4}\, f_{8}\; T_8^{-3}\, \exp\!\left(-\frac{44.027}{T_8}\right)
-```
+| triple-α | Harris et al. (1983), Table 1 (p. 168), HE4(2A,G)C12: $`2.79\times10^{-8}\,T_9^{-3}\exp(-4.4027/T_9)`$, Q = 7.275 (the same high-temperature term in the ORNL reproduction of Caughlan & Fowler 1988); the 1975 entry (p. 74) had 2.49e-8 and 4.4109 | 44.027: agrees | $`5.100\times10^{11}`$ with $`\rho^2Y^3N_A/384`$ and 7.275 MeV; code 5.09e11 (still used) |
 
 ### Electron screening
 
@@ -68,119 +104,98 @@ f_{Z_1 Z_2} = \exp\!\left(0.188\, Z_1 Z_2\, \zeta\, \rho^{1/2}\, T_6^{-3/2}\righ
 | α + α | 4 |
 | α + ⁸Be | 8 |
 
-### Composition changes
-
-```math
-\frac{\partial X}{\partial t} = -\frac{\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{H}}}, \qquad Q_{\mathrm{H}} = 6.27\times10^{18}\ \mathrm{erg\,g^{-1}}
-```
-
-```math
-\frac{\partial Y}{\partial t} = -\frac{\partial X}{\partial t} - \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad \frac{\partial Z}{\partial t} = \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad Q_{\mathrm{He}} = 5.85\times10^{17}\ \mathrm{erg\,g^{-1}}
-```
-
-* $`Q_{\mathrm{H}}`$ is 26.2 MeV per helium nucleus, the pp-chain value after neutrino losses. It is
-  used for the CNO cycle as well.
-* $`Q_{\mathrm{He}}`$ is 7.275 MeV per carbon nucleus.
-* Carbon from helium burning is counted in $`Z`$. The catalyst abundance $`X_{\mathrm{CNO}}`$ keeps
-  its initial value.
-* The fits assume that ³He and the CNO isotopes are in equilibrium.
-
-## Planned
-
 ### pp branching factor (D11, plan 1.6)
 
 Let $`r_{11}`$, $`r_{33}`$, $`r_{34}`$ be the rates of p + p, ³He + ³He and ³He + ⁴He. With ³He in
 equilibrium, $`r_{11} = 2 r_{33} + r_{34}`$. Helium production relative to the pp I branch alone:
 
 ```math
-\phi = \frac{2\,(r_{33} + r_{34})}{r_{11}} = 1 - \alpha + \sqrt{\alpha\,(\alpha + 2)}, \qquad \alpha = C_\alpha \left(\frac{Y}{4X}\right)^{2} \exp\!\left(-100\,T_6^{-1/3}\right)
+\phi = \frac{2\,(r_{33} + r_{34})}{r_{11}} = 1 + \frac{2}{\sqrt{1 + 2/\alpha} + 1}, \qquad \alpha = \left(\frac{n_4}{n_p}\right)^{2} \frac{\langle\sigma v\rangle_{34}^{\,2}}{\langle\sigma v\rangle_{11}\,\langle\sigma v\rangle_{33}}, \qquad \frac{n_4}{n_p} = \frac{Y}{4X}
 ```
 
-$`\phi`$ runs from 1 to 2. The fraction of helium made through pp II and the energy factor (pp II
-gives 25.66 MeV instead of 26.20 MeV to the gas; pp III is neglected, safe below
-$`T_6 \approx 20`$):
+The form of $`\phi`$ is the stable equivalent of $`1 - \alpha + \sqrt{\alpha(\alpha + 2)}`$; $`\phi`$
+runs from 1 to 2. The fraction of helium made through pp II, and the energy factor (pp II gives
+25.66 MeV instead of 26.20 MeV to the gas; pp III is neglected, safe below $`T_6 \approx 20`$):
 
 ```math
 F_{\mathrm{II}} = \frac{2\,(\phi - 1)}{\phi}, \qquad \psi = \phi\,\left(1 - 0.021\,F_{\mathrm{II}}\right), \qquad \varepsilon_{pp} = \psi\,\varepsilon_{pp,\mathrm{I}}
 ```
 
-*Fuel consumption must change with it.* $`\phi`$ counts helium nuclei, $`\psi`$ counts energy, so the
-energy delivered per gram of hydrogen burnt depends on the branch:
+*How $`\alpha`$ is computed.* From its definition, with the thermal rates of the previous section
+(one evaluation, Solar Fusion III with $`S'`$ and $`S''`$), the number ratio from the atomic masses,
+$`n_4/n_p = (Y/m_4)/(X/m_{\mathrm{H}}) \approx Y/4X`$, and the screening factors
+$`f_{34}^2/(f_{11} f_{33})`$.
+
+* **[measured]** pp II share in the models: centre of the ZAMS Sun $`\phi = 1.025`$
+  ($`F_{\mathrm{II}} = 0.048`$); centre of the Sun at 4.57 Gyr $`\phi = 1.096`$ ($`F_{\mathrm{II}} = 0.175`$).
+  Reported, not tested against a range (the analytic Sun is not a solar model).
+*Check value.* The leading-order approximation of $`\alpha`$ (constant $`S`$, no screening, leading
+Gamow term), with $`\tau_{ij} = 42.49\,(Z_i^2 Z_j^2\,\mu_{ij})^{1/3}\,T_6^{-1/3}`$ and
+$`2\tau_{34} - \tau_{11} - \tau_{33} = 99.98\,T_6^{-1/3}`$, is
 
 ```math
-\frac{\partial X}{\partial t}\bigg|_{pp} = -\frac{\varepsilon_{pp}}{Q_{pp}^{\mathrm{eff}}}, \qquad Q_{pp}^{\mathrm{eff}} = Q_{pp,\mathrm{I}}\,\frac{\psi}{\phi} = Q_{pp,\mathrm{I}}\left(1 - 0.021\,F_{\mathrm{II}}\right), \qquad Q_{pp,\mathrm{I}} = 6.27\times10^{18}\ \mathrm{erg\,g^{-1}}
+\alpha \simeq C_\alpha \left(\frac{Y}{4X}\right)^{2} \exp\!\left(-100\,T_6^{-1/3}\right), \qquad C_\alpha \simeq \frac{S_{34}^{2}}{S_{11}\,S_{33}}\left(\frac{4\,\mu_{11}\,\mu_{33}}{\mu_{34}^{2}}\right)^{1/3} \simeq 1.49\times10^{17}
 ```
 
-Here $`\varepsilon_{pp,\mathrm{I}}`$ is the baseline rate (pp I only) and $`\varepsilon_{pp}`$ the
-corrected one. The baseline must use the same rate convention as $`\alpha`$ below. In a fully
-consistent calculation it is built from the same $`\langle\sigma v\rangle_{11}`$, with $`E_{\mathrm{I}}`$
-the energy deposited per completed pp I chain:
+It is used only as a check of the quadrature: with constant $`S(0)`$ and integer mass numbers the
+quadrature gives $`C_\alpha = 1.47`$, 1.46, $`1.45\times10^{17}`$ at $`T_6 = 10`$, 15, 30 (unit test,
+as computed for these pages on 2026-11-11). The value $`1.2\times10^{17}`$ once quoted from
+memory of Clayton (1968) is not used (decided 2026-11-12, attribution dropped).
+
+### Composition changes
+
+The hydrogen consumption follows each channel's energy per gram (D12, plan 1.5; with pp branching,
+plan 1.6). $`\phi`$ counts helium nuclei and $`\psi`$ energy, so the energy delivered per gram of
+hydrogen burnt by the pp chain depends on the branch:
 
 ```math
-r_{11} = \tfrac{1}{2}\,n_p^{2}\,\langle\sigma v\rangle_{11}, \qquad \varepsilon_{pp,\mathrm{I}} = \frac{r_{11}}{2\rho}\,E_{\mathrm{I}}
+\frac{\partial X}{\partial t} = -\frac{\varepsilon_{pp}}{Q_{pp}^{\mathrm{eff}}} - \frac{\varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{CNO}}}, \qquad Q_{pp}^{\mathrm{eff}} = Q_{pp,\mathrm{I}}\,\frac{\psi}{\phi} = Q_{pp,\mathrm{I}}\left(1 - 0.021\,F_{\mathrm{II}}\right)
 ```
 
-Using the implemented (1990) fit for $`\varepsilon_{pp,\mathrm{I}}`$ with a modern $`\alpha`$ is a
-hybrid; it is allowed as an interim step if it is called that and the difference between the two
-p + p rates is stated (about 8%, see [Validity](11-validity-and-roadmap.md)).
-
-For large $`\alpha`$ the expression for $`\phi`$ subtracts nearly equal numbers; evaluate the
-equivalent form
-
 ```math
-\phi = 1 + \frac{2}{\sqrt{1 + 2/\alpha} + 1}
-``` Most of the extra helium production is already carried by
-$`\psi`$ in $`\varepsilon_{pp}`$. Keeping the fixed $`Q_{pp,\mathrm{I}}`$ with the corrected rate
-would therefore underestimate hydrogen consumption by at most 2.1% ($`F_{\mathrm{II}} = 1`$),
-within the pp I/II approximation.
-
-*How $`\alpha`$ is obtained.* The specification is the definition, evaluated with consistently
-defined thermal rates $`\langle\sigma v\rangle`$ from one evaluation (Solar Fusion III), including
-their energy dependence and screening. Solar Fusion III does not tabulate thermal rates for these
-reactions: it gives $`S(0)`$, $`S'(0)`$, $`S''(0)`$ (Table I) for the expansion of its eq. 4, and
-$`\langle\sigma v\rangle`$ is its eq. 3 integrated with them (Acharya et al. 2025, Rev. Mod. Phys. 97,
-035002, §I.B; arXiv:2405.06470 read 2026-11-11):
-
-```math
-\alpha = \left(\frac{n_4}{n_p}\right)^{2} \frac{\langle\sigma v\rangle_{34}^{\,2}}{\langle\sigma v\rangle_{11}\,\langle\sigma v\rangle_{33}}, \qquad \frac{n_4}{n_p} = \frac{Y}{4X}
+Q_{pp,\mathrm{I}} = 6.27\times10^{18}, \qquad Q_{\mathrm{CNO}} = 5.99\times10^{18}\ \mathrm{erg\,g^{-1}}
 ```
 
-The closed form with $`C_\alpha`$ above is its leading-order approximation (constant $`S`$ factors,
-no screening, leading Gamow term), with reduced masses $`\mu_{ij}`$ in atomic mass units:
-
 ```math
-C_\alpha \simeq \frac{S_{34}^{2}}{S_{11}\,S_{33}}\left(\frac{4\,\mu_{11}\,\mu_{33}}{\mu_{34}^{2}}\right)^{1/3}
+\frac{\partial Y}{\partial t} = -\frac{\partial X}{\partial t} - \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad \frac{\partial Z}{\partial t} = \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad Q_{\mathrm{He}} = 5.85\times10^{17}\ \mathrm{erg\,g^{-1}}
 ```
 
-With the Solar Fusion III values (Table I, in MeV b; checked against the paper)
-$`S_{11}(0) = 4.09\times10^{-25}`$, $`S_{33}(0) = 5.21`$, $`S_{34}(0) = 5.61\times10^{-4}`$ and $`\mu_{11} = 1/2`$,
-$`\mu_{33} = 3/2`$, $`\mu_{34} = 12/7`$, this gives $`C_\alpha \simeq 1.49\times10^{17}`$ (computed
-by the reviewer of these pages and re-computed here; the exponent 100 follows from the same Gamow
-terms: with $`\tau_{ij} = 42.49\,(Z_i^2 Z_j^2\,\mu_{ij})^{1/3}\,T_6^{-1/3}`$,
-$`2\tau_{34} - \tau_{11} - \tau_{33} = 99.98\,T_6^{-1/3}`$). It is an
-estimate for checking the implementation, not a precision fit. Integrating eq. 3 of Solar Fusion III
-numerically with the same constant $`S(0)`$ values gives $`C_\alpha = 1.47`$, 1.46 and
-$`1.45\times10^{17}`$ at $`T_6 = 10`$, 15 and 30 (the next term of the Gamow expansion; re-computed
-2026-11-11).
+* 26.731 MeV per ⁴He is $`6.398\times10^{18}`$ erg/g. After neutrino losses the pp I chain deposits
+  26.20 MeV ($`Q_{pp,\mathrm{I}}`$) and the CNO cycle 25.03 MeV ($`Q_{\mathrm{CNO}}`$).
+* $`Q_{\mathrm{He}}`$ is 7.275 MeV per carbon nucleus.
+* Keeping the fixed $`Q_{pp,\mathrm{I}}`$ with the branching-corrected rate would underestimate the
+  hydrogen consumption by up to 2.1% ($`F_{\mathrm{II}} = 1`$).
+* Carbon from helium burning is counted in $`Z`$. The catalyst abundance $`X_{\mathrm{CNO}}`$ keeps
+  its initial value.
+* The fits assume that ³He and the CNO isotopes are in equilibrium.
+* **[measured]** effect of the per-channel $`Q`$ alone: main sequence 4.3% shorter for 3 M☉ (285.89 →
+  273.52 Myr) and 4.4% for 5 M☉ (76.09 → 72.71 Myr).
 
-The value $`1.2\times10^{17}`$ quoted earlier from memory of Clayton (1968) is of the same size.
-*Decided 2026-11-12:* the attribution is dropped, not verified (the book was not available). The
-constant used and tested is the one computed above from Solar Fusion III; no number from Clayton
-enters the code or the tests. The earlier expectation that a
-modern value would be "several times smaller" was wrong and is withdrawn.
+### Screening diagnostic (plan 1.11)
 
-### Newer rates (D11)
+Every model reports its largest weak-screening exponent, over the channels that supply at least 1%
+of the nuclear luminosity and the points where such a channel burns at more than 1% of its peak
+rate; an evolution run also keeps the largest value of any of its models. For the pp chain the
+exponent of ³He + ³He ($`Z_1 Z_2 = 4`$, through $`\alpha`$) is the largest. The app and the CLI
+warn
 
-*Decided 2026-11-12: rates built from Solar Fusion III, no intermediate fit.* The pp
-(¹H(p,e⁺ν)²H) and CNO-bottleneck (¹⁴N(p,γ)¹⁵O) rates are computed from eq. 3 of Acharya et al.
-(2025) with $`S(E)`$ from their eq. 4 and the $`S(0)`$, $`S'(0)`$, $`S''(0)`$ of their Table I.
-Rule 3 asks for smooth functions the solver can differentiate, so eq. 3 is integrated numerically
-once (for example in a `build.rs` or a unit-tested generator) on a grid in $`\log T`$ fine enough
-that a cubic Hermite interpolant of $`\ln N_A\langle\sigma v\rangle`$ reproduces the quadrature to
-$`10^{-4}`$; the table is embedded with `include_bytes!` or as a `const` array (rule 1). The same
-generator gives $`\alpha`$ of the pp branching consistently (plan 1.6). For ¹⁴N(p,γ), eq. 4
-neglects the resonances, which matter only above about $`T_6 \approx 100`$ (outside hydrogen
-burning in the models of this code); the validity limit is stated with the rate.
+* above 0.3: outside the weak regime, the rates are approximate;
+* at the cap (2): the rates are unreliable.
+
+**[measured]** ZAMS Sun: 0.23 (³He + ³He, largest at $`m/M = 0.54`$; at the centre p + p 0.046,
+³He + ³He 0.18, p + ¹⁴N 0.32, the last not counted since CNO gives 0.1% of the energy). The
+warning stays in force as the helium-ignition gate until plan 9.7. 0.5 M☉ ZAMS: 0.45 (³He + ³He),
+so cool dense cores of low-mass stars get the "outside the weak regime" warning; 3, 5, 10, 20 M☉:
+0.12, 0.07, 0.04, 0.02 (p + ¹⁴N).
+
+## Planned
+
+### Kippenhahn–Weigert–Weiss (2012) fits (not adopted)
+
+The pp and ¹⁴N(p,γ) rates are now built from Solar Fusion III (implemented, plan 1.6, see
+[Rates](#rates)). The plan asked for an embedded table (`include_bytes!` or a `const` array); the
+code instead tabulates the quadrature once at first use (`OnceLock`), which needs no file access
+either (rule 1) and keeps the coefficients of Table I in the source.
 
 Why not the interim fits: the Kippenhahn, Weigert & Weiss (2012) coefficients below could not be
 checked (book and NACRE not available on 2026-11-11 or 2026-11-12), and the plan already required
@@ -199,8 +214,8 @@ For the comparison asked for above: Solar Fusion III gives $`S_{1,14}(0) = 1.68\
 rates (1975, behind the implemented CNO fit, and the 1988 reproduction) at $`T_6 = 15`$–30 (rough: $`S'`$, $`S''`$ and
 resonances neglected; computed 2026-11-11). The implemented CNO rate is therefore probably about a
 factor 2 too high at main-sequence temperatures. The rates built from Solar Fusion III (above)
-contain the reduction by construction; the quadrature with $`S'`$ and $`S''`$ replaces this rough
-estimate in plan 1.6, and the change of CNO lifetimes it causes is reported there.
+contain the reduction by construction; the quadrature replaced this rough estimate in plan 1.6
+(measured ratio 0.520–0.546 at $`T_6 = 10`$–30, see [Rates](#rates)).
 
 ```math
 \varepsilon_{pp} = 2.57\times10^{4}\;\psi\, f_{11}\, g_{11}\;\rho\, X^2\; T_9^{-2/3} \exp\!\left(-3.381\, T_9^{-1/3}\right)
@@ -217,17 +232,6 @@ g_{11} = 1 + 3.82\,T_9 + 1.51\,T_9^2 + 0.144\,T_9^3 - 0.0114\,T_9^4
 ```math
 g_{14,1} = 1 - 2.00\,T_9 + 3.41\,T_9^2 - 2.43\,T_9^3
 ```
-
-### Energy per gram by channel (D12, plan 1.5)
-
-26.731 MeV per ⁴He is $`6.398\times10^{18}`$ erg/g. After neutrino losses:
-
-```math
-Q_{pp,\mathrm{I}} = 6.27\times10^{18}, \qquad Q_{\mathrm{CNO}} = 5.99\times10^{18}\ \mathrm{erg\,g^{-1}}, \qquad \frac{\partial X}{\partial t} = -\frac{\varepsilon_{pp}}{Q_{pp}^{\mathrm{eff}}} - \frac{\varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{CNO}}}
-```
-
-$`Q_{pp}^{\mathrm{eff}} = Q_{pp,\mathrm{I}}`$ as long as $`\psi = 1`$; with branching it is the
-expression given above.
 
 ### Carbon and oxygen (D18, plan 9.5)
 
@@ -300,8 +304,8 @@ Consequence: the degenerate EOS makes a helium core appear, but the model must n
 predicting helium ignition (core mass, luminosity at the tip, the flash) until screening has a
 prescription covering weak, intermediate and strong regimes. The prescription chosen is given in
 the next section; the gate stays until it is implemented and tested.
-Until then: report the largest screening exponent reached in a run, and warn when it exceeds about
-0.3 (still approximately weak) and when it hits the cap.
+Until then the largest screening exponent of every model and run is reported, with warnings above
+0.3 and at the cap ([Screening diagnostic](#screening-diagnostic-plan-111), implemented in plan 1.11).
 
 ### Screening prescription for all regimes (decided)
 

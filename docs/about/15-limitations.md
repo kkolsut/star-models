@@ -11,10 +11,10 @@ It is **not quantitatively solar**. With $`X = 0.70`$ and $`Z = 0.02`$:
 
 | 1 M☉ ZAMS | $`L`$ | $`R`$ | Convective envelope base |
 |---|---|---|---|
-| This model | ≈ 0.42 L☉ | ≈ 1.11 R☉ | $`0.97\,R`$ (thin) |
+| This model | ≈ 0.42 L☉ | ≈ 1.12 R☉ | $`0.97\,R`$ (thin) |
 | Detailed ZAMS Sun | ≈ 0.7 L☉ | ≈ 0.89 R☉ | ≈ $`0.71\,R`$ |
 
-This model also has $`T_{\mathrm{eff}} \approx 4400`$ K. The leading suspects for the difference are
+This model also has $`T_{\mathrm{eff}} \approx 4380`$ K. The leading suspects for the difference are
 listed below; their shares have not been isolated:
 
 * the textbook Kramers opacity is too high in the core (the leading suspect for the low luminosity) and
@@ -33,13 +33,13 @@ equations are solved accurately. They say nothing about how realistic the physic
 
 * **Lifetimes:** main-sequence lifetimes follow the model luminosities.
   * The analytic Sun is underluminous (0.42 L☉ at the ZAMS), so it burns slowly. It leaves the main
-    sequence after about 14 Gyr instead of about 10 Gyr.
-  * Intermediate-mass and massive stars come out within about 20% of detailed models:
+    sequence after about 15.1 Gyr instead of about 10 Gyr.
+  * Intermediate-mass and massive stars come out within about 25% of detailed models:
 
     | Mass | This model | Detailed models |
     |---|---|---|
-    | 1.8 M☉ | 1.41 Gyr | roughly 1.2–1.5 Gyr |
-    | 5 M☉ | 76 Myr | roughly 90–100 Myr |
+    | 1.8 M☉ | 1.32 Gyr | roughly 1.2–1.5 Gyr |
+    | 5 M☉ | 72 Myr | roughly 90–100 Myr |
 * **After the main sequence** the results are qualitative.
   * Without electron degeneracy, hydrogen and helium ionisation or molecular opacities, low-mass stars
     do not climb the red giant branch.
@@ -66,6 +66,12 @@ equations are solved accurately. They say nothing about how realistic the physic
   modes.
 * Very massive stars (above about 50 M☉) approach the Eddington limit, where this simple treatment
   becomes crude.
+* General relativity. The structure equations are Newtonian; the relativistic corrections are
+  $`GM/(Rc^2) \approx 2\times10^{-6}`$ for the Sun and $`1.2\times10^{-5}`$ for 60 M☉, below the
+  discretisation error. The gravitational redshift of the surface light is reported as an output
+  (636 m/s for 1 M☉ at 1 R☉).
+* Screening beyond the weak regime. The weak-screening formula is used with its exponent capped at 2;
+  each model reports its largest exponent and warns above 0.3 and at the cap.
 
 ## Planned
 

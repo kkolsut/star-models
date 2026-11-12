@@ -77,3 +77,7 @@ About page as the plan describes.
 > Stage 2 (plan 2.1 step overshoot, plan 2.2 seismic diagnostics) is implemented on branch
 > `agent/convective`, ahead of stage 1; its **[measured]** numbers were taken there (2026-11-12)
 > and do not change the default results.
+> Stage 1 (plan 1.1–1.11; pp and ¹⁴N(p,γ) rates and the pp branching from Solar Fusion III with
+> $`S(0)`$, $`S'`$, $`S''`$ of its Table I) is implemented on branch `agent/small-corrections`. It
+> changes the default results (1.5 and 1.6, by up to a few per cent; 1.1 by $`10^{-5}`$); every **[measured]** number that moved was re-run there (task 1.9, 2026-11-12) and
+> `tests/regression.rs` was re-pinned.

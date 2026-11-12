@@ -78,7 +78,14 @@ Implemented physics and methods:
 * **Henyey, Forbes & Gould (1964)**, ApJ 139, 306: relaxation method.
 * **Clayton (1968)**, *Principles of Stellar Evolution and Nucleosynthesis*: weak screening, pp
   branching.
-* **Cox (1980)**, *Theory of Stellar Pulsation*: linear adiabatic wave equation.
+* **Cox (1980)**, *Theory of Stellar Pulsation*: linear adiabatic wave equation. Classical polytrope
+  eigenvalues ($`\Omega^2 \approx 2.712`$ for $`n = 1.5`$, 9.26 for $`n = 3`$) were quoted from memory
+  **[check source]**; candidate sources: Hurley, Roberts & Wright (1966), ApJ 143, 535;
+  Schwarzschild (1941), ApJ 94, 245; Christensen-Dalsgaard & Mullan (1994), MNRAS 270, 921. The
+  test of plan 1.3 uses an independent shooting calculation instead (2.70587, 9.25471; see
+  [Pulsations](09-pulsations.md)).
+* **Pekeris (1938)**, ApJ 88, 189: radial modes of the uniform compressible sphere,
+  $`\Omega_k^2 = \Gamma_1(k+1)(2k+3) - 4`$ (reproduced by the solver to $`10^{-3}`$, plan 1.3).
 * **Brown et al. (1991)**, ApJ 368, 599; **Kjeldsen & Bedding (1995)**, A&A 293, 87: scaling
   relations.
 * **Asplund et al. (2009)**, ARA&A 47, 481; **IAU 2015 Resolution B3**: solar composition preset and
@@ -173,6 +180,7 @@ External review, 2026-11-11, and task 0.3 (same date; originals read unless stat
 | Radiative + conductive harmonic sum | 3 | agrees; the conduction fit is not chosen | Cassisi et al. 2007, §2, eq. 1 (arXiv version) |
 | KW1990 pp, CNO, 3α fits (implemented) | 4 | exponents and polynomials agree; prefactors re-derived to within 0.3%; the book itself not read | Harris et al. 1983, Table 1, p. 168; Fowler, Caughlan & Zimmerman 1975, Table 1, pp. 72, 78 |
 | Solar Fusion III $`S_{11}`$, $`S_{33}`$, $`S_{34}`$, $`S_{1,14}`$; $`\langle\sigma v\rangle`$ | 4 | agree. SF III gives $`S(0)`$, $`S'`$, $`S''`$, not thermal rates; $`C_\alpha = 1.45`$–$`1.47\times10^{17}`$ by integration (leading order 1.49). With constant $`S_{1,14}`$ the ¹⁴N(p,γ) rate is 0.52–0.56 of the rate behind the implemented CNO fit (rough estimate) | Acharya et al. 2025, Table I, eqs. 3–4 |
+| Solar Fusion III $`S'(0)`$, $`S''(0)`$ (checked 2026-11-12, LaTeX source of arXiv:2405.06470) | 4 | Table I: $`S'_{11} = 4.5\times10^{-24}`$ b, $`S''_{11} = 9.9\times10^{-23}`$ b MeV⁻¹ (§III.F: 11.0 MeV⁻¹ and 242 MeV⁻² times $`S(0)`$); $`S'_{33} = -4.90`$ b, $`S''_{33} = 22.42`$ b MeV⁻¹ (§IV.B fit $`5.21 - 4.90E + 11.21E^2`$ confirms the ½ of eq. 4); $`S'_{34} = -3.03\times10^{-4}`$ b ($`-0.54`$ MeV⁻¹, valid 0–500 keV), $`S''_{34}`$ not given; $`S_{1,14}`$: $`S(0)`$ only. Coded in plan 1.6 | Acharya et al. 2025, Table I, eq. 4, §§III.F, IV.B, V.E, IX |
 | ¹²C(α,γ) and 3α $`Q`$ values | 4 | agree | AME2020 (Wang et al. 2021) |
 | CF88 ¹²C(α,γ) rate | 4 | transcribed from a reproduction only; gate stays | ORNL CF88 Fortran, reaction 62 |
 | Screening: plasma free energy, $`H_{ij}`$, quantum correction $`t_{ij}`$ | 4 | agree | Chugunov & DeWitt 2009, eqs. 12, 24, 25, A4, §§II, IV; Potekhin & Chabrier 2012, eq. 22 |
