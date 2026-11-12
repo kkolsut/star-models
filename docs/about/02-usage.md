@@ -58,7 +58,7 @@
 | Tab | What it shows |
 |---|---|
 | **Profiles (P, T, ρ)** | Pressure, temperature and density against radius $`r/R`$ or mass $`m/M`$. The three plots share the x axis and the hover cursor. |
-| **More profiles** | Luminosity and enclosed mass, opacity, nuclear energy generation by process, temperature gradients, chemical composition, gravitational energy release, convective velocity, convective flux fraction and gas-pressure fraction. The x axis can also be $`\log P`$, which spreads out the thin outer envelope. |
+| **More profiles** | Luminosity and enclosed mass, opacity, nuclear energy generation by process, temperature gradients, chemical composition, gravitational energy release, convective velocity, convective flux fraction and gas-pressure fraction, the propagation diagram ($`N`$, $`S_1`$, $`S_2`$) with the asymptotic spacings, and the sound speed. The x axis can also be $`\log P`$, which spreads out the thin outer envelope. |
 | **Cross-section** | A slice through the star: temperature on the left half and density on the right. Convective zones carry animated cells. |
 | **3D model** | A cut-away sphere with animated radiative and convective energy transport. It can be coloured by hydrogen content to show the helium core, and pulsates when the star is in the instability strip. |
 | **HR diagram** | The model on a computed ZAMS line, with the evolutionary track of the current run, the instability strip, the present-day Sun and the pinned models. |

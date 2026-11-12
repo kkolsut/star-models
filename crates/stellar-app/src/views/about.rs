@@ -362,8 +362,9 @@ fn usage(ui: &mut Ui, dark: bool) {
         ui,
         "More profiles:",
         "luminosity and enclosed mass, opacity, nuclear energy generation by process, temperature gradients, \
-         chemical composition, gravitational energy release, convective velocity, convective flux fraction and \
-         gas-pressure fraction. The x axis can also be log P, which spreads out the thin outer envelope.",
+         chemical composition, gravitational energy release, convective velocity, convective flux fraction, \
+         gas-pressure fraction, the propagation diagram (N, S₁, S₂) with the asymptotic spacings, and the sound speed. \
+         The x axis can also be log P, which spreads out the thin outer envelope.",
     );
     term(
         ui,
@@ -486,6 +487,18 @@ fn parameters(ui: &mut Ui, dark: bool, pr: &StarParams) {
     param(
         ui,
         dark,
+        "Core overshoot  α_ov  (Advanced)",
+        &format!("default 0 (off) · range 0 – 0.5 · current {:.2}", pr.alpha_ov),
+        "Step overshoot of a convective core, used by evolution runs only. Before each mixing step the convective \
+         core is extended from its Schwarzschild boundary r_cc to r_ov = r_cc + α_ov · min(H_P(r_cc), r_cc), and the \
+         whole region is mixed. Mixing only: the temperature gradient in the extension stays radiative, so a ZAMS \
+         model does not change. A larger α_ov feeds more hydrogen into the core and lengthens the main sequence of \
+         stars with convective cores; it has no effect on stars without one. Calibrations for intermediate-mass \
+         stars give α_ov ≈ 0.2, with a dependence on mass; the value is not universal.",
+    );
+    param(
+        ui,
+        dark,
         "Mesh points  N  (Advanced)",
         &format!("default 800 · range 200 – 3000 (logarithmic) · current {}", pr.n_points),
         "Number of points of the mass grid (see \"Numerical method\"). More points give a more accurate but slower \
@@ -534,6 +547,12 @@ fn results(ui: &mut Ui, dark: bool) {
         ui,
         "Convective core [m/M]:",
         "mass fraction of the convective region around the centre, or \"none\" if the centre is radiative. Its radius is shown in the views.",
+    );
+    term(
+        ui,
+        "Mixed core [m/M]:",
+        "shown when α_ov > 0: the convective core extended by step overshoot, i.e. the region mixed in the next \
+         evolution step (see \"Evolution in time\").",
     );
     term(
         ui,
@@ -595,6 +614,17 @@ fn results(ui: &mut Ui, dark: bool) {
         "ν_max / Δν [μHz]:",
         "solar-like oscillation frequencies from the asteroseismic scaling relations (meaningful for stars with convective envelopes).",
     );
+    term(
+        ui,
+        "Δν asymptotic [μHz]:",
+        "large frequency separation from the interior, [2 ∫ dr / c_s]⁻¹ (see \"Pulsations & oscillations\").",
+    );
+    term(
+        ui,
+        "ΔΠ₁ [s]:",
+        "asymptotic dipole g-mode period spacing of the largest candidate cavity. Every cavity is listed in More \
+         profiles and in the JSON (g_cavities).",
+    );
     sub(ui, "\"Sun today\" reference column");
     p(
         ui,
@@ -643,6 +673,8 @@ fn profiles(ui: &mut Ui, dark: bool) {
         ("X", "hydrogen mass fraction (uniform in ZAMS models, depleted by burning during evolution)"),
         ("Y", "helium mass fraction"),
         ("Z", "metal mass fraction"),
+        ("c_s_cm_s", "adiabatic sound speed c_s = √(Γ₁ P / ρ) [cm s⁻¹]"),
+        ("N2_s-2", "buoyancy frequency squared N² = (g²ρ/P)[δ(∇_ad − ∇) + ∇_μ] [s⁻²]; < 0 where Ledoux-unstable"),
     ];
     egui::Grid::new("csv_cols").num_columns(2).striped(true).spacing([16.0, 3.0]).show(ui, |ui| {
         for name in CSV_COLUMNS {
@@ -655,7 +687,7 @@ fn profiles(ui: &mut Ui, dark: bool) {
     sub(ui, "Summary JSON");
     p(
         ui,
-        "params: the input parameters (mass, x, z, alpha_mlt, f_cno, n_points).\n\
+        "params: the input parameters (mass, x, z, alpha_mlt, f_cno, n_points, alpha_ov).\n\
          physics: the description of the physics used.\n\
          globals: every quantity of \"Results: global quantities\", plus newton_iterations, max_correction and residuals.\n\
          convective_zones: one entry per zone, with q_inner, q_outer, r_inner and r_outer (r in units of R).",
@@ -795,7 +827,12 @@ fn transport(ui: &mut Ui, dark: bool) {
         "Just below the photosphere: convection is inefficient (U ≫ 1) and ∇ rises towards ∇_rad. This superadiabatic layer \
          is the only place where α_MLT matters.",
     );
-    muted(ui, dark, "Not included: convective overshooting, semiconvection, turbulent pressure.");
+    p(
+        ui,
+        "Overshoot: with α_ov > 0 a convective core is extended for the composition mixing only (see \"Evolution in \
+         time\"); the temperature gradient in the extension stays radiative, so the structure equations are unchanged.",
+    );
+    muted(ui, dark, "Not included: overshoot of envelopes, semiconvection, turbulent pressure.");
 }
 
 fn boundaries(ui: &mut Ui, dark: bool) {
@@ -972,6 +1009,21 @@ fn evolution(ui: &mut Ui, dark: bool) {
     math(ui, "evo_burn_h", "hydrogen burning (pp chain and CNO cycle)");
     math(ui, "evo_burn_he", "helium burning (triple-α); its carbon counts as metals");
     math(ui, "evo_mix", "instant mixing");
+    p(
+        ui,
+        "Step overshoot (input α_ov, default 0 = off): before mixing, a convective core that starts at the centre is \
+         extended from its Schwarzschild boundary r_cc to",
+    );
+    math(ui, "evo_overshoot", "every mesh point with r ≤ r_ov is mixed with the core");
+    p(
+        ui,
+        "H_P(r_cc) is interpolated between the mesh points around the boundary; min(H_P, r_cc) keeps the extension finite \
+         for small cores. The overshoot is applied to the mixing only: the temperature gradient in the extension stays \
+         radiative. The mixed core feeds more hydrogen into the burning region. With α_ov = 0.2 the main sequence of \
+         3 M☉ lasts 360 Myr instead of 286 Myr (+26%), and of 5 M☉ 93.7 Myr instead of 76.1 Myr (+23%). A 1.1 M☉ star, \
+         which has no convective core, is unaffected. α_ov ≈ 0.2 is a typical calibration for intermediate-mass stars; \
+         it depends on mass and is not universal.",
+    );
     p(
         ui,
         "Q_H is the pp-chain value (26.2 MeV per helium nucleus formed). The same value is used for the CNO cycle, \
@@ -1179,6 +1231,29 @@ fn pulsation(ui: &mut Ui, dark: bool) {
          relations, shown in the results panel:",
     );
     math(ui, "seis_scaling", "");
+    sub(ui, "Characteristic frequencies and asymptotic spacings");
+    p(ui, "Every model also carries the sound speed, the Lamb frequency and the buoyancy (Brunt–Väisälä) frequency N:");
+    math(ui, "seis_cs_lamb", "sound speed and Lamb frequency");
+    math(ui, "seis_n2", "buoyancy frequency; φ = 1 for the ideal-gas EOS");
+    p(
+        ui,
+        "∇_μ is taken from the profile by differences. N² < 0 marks Ledoux instability. In a homogeneous model it \
+         coincides with the convective (Schwarzschild) flag; with a composition gradient a Schwarzschild-unstable layer \
+         can have N² > 0. The definition N² = g(Γ₁⁻¹ d ln P/dr − d ln ρ/dr) agrees with this formula to a median of \
+         2 × 10⁻⁵ in an evolved 3 M☉ model; it serves as a test only, because it differences nearly equal numbers. \
+         p modes propagate where the frequency is above both N and S_l, g modes where it is below both (the propagation \
+         diagram in More profiles).",
+    );
+    math(ui, "seis_asymptotic", "asymptotic large separation and dipole period spacing");
+    p(
+        ui,
+        "Δν from the interior replaces the scaling relation by a value that depends on the structure; for the ZAMS Sun \
+         the two agree to 1% (116.0 against 115.0 μHz). ΔΠ₁ is computed separately for every connected N² > 0 region \
+         (a candidate g-mode cavity: a radiative core, the radiative zone between a convective core and envelope, a \
+         radiative envelope); regions are never summed. The value over the whole region is the low-frequency limit. \
+         Both are asymptotic estimates (high radial order), not computed spectra, and Δν carries the model's surface \
+         errors.",
+    );
     muted(
         ui,
         dark,
@@ -1218,6 +1293,11 @@ fn views(ui: &mut Ui, dark: bool) {
     bullet(
         ui,
         "log P axis: centre on the left. It is useful because the outer 10% of the radius spans almost half of the pressure range (46% for the Sun), and the outer 1% still spans about a fifth.",
+    );
+    bullet(
+        ui,
+        "Propagation diagram: N/2π where N² > 0, and the Lamb frequencies S₁/2π and S₂/2π, in μHz. Below the plots, \
+         the asymptotic Δν and every candidate g-mode cavity with its ΔΠ₁.",
     );
     sub(ui, "Cross-section");
     p(
@@ -1355,7 +1435,12 @@ fn limitations(ui: &mut Ui, dark: bool) {
         "The hydrogen-burning shell after the main sequence is thin in mass. Global results are converged at 800 points \
          (5 M☉ crossing: L within 0.2% of 3000 points), but more mesh points resolve the shell's profile better.",
     );
-    bullet(ui, "Not included: convective overshooting, semiconvection, mass loss, rotational mixing, neutrino losses.");
+    bullet(
+        ui,
+        "Core overshoot is a step in the mixing only (α_ov, off by default); its value is a calibration, not a \
+         prediction. Not included: diffusive (exponential) overshoot, envelope overshoot, semiconvection, mass loss, \
+         rotational mixing, neutrino losses.",
+    );
     bullet(
         ui,
         "Pulsation: the period is computed, but driving is not. The instability strip is an empirical band, so stars \
@@ -1368,7 +1453,10 @@ fn limitations(ui: &mut Ui, dark: bool) {
         ui,
         "Tabulated opacities (OPAL/OP, low-temperature molecular tables) and detailed model atmospheres (a grey Eddington atmosphere is used).",
     );
-    bullet(ui, "Neutrino losses; rotation; magnetic fields; mass loss; element diffusion; overshooting.");
+    bullet(
+        ui,
+        "Neutrino losses; rotation; magnetic fields; mass loss; element diffusion; non-radial oscillation modes.",
+    );
     bullet(
         ui,
         "Very massive stars (above about 50 M☉) approach the Eddington limit, where this simple treatment becomes crude.",

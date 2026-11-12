@@ -36,6 +36,8 @@ pub const CSV_COLUMNS: &[&str] = &[
     "X",
     "Y",
     "Z",
+    "c_s_cm_s",
+    "N2_s-2",
 ];
 
 /// Profile as CSV (one row per mesh point, centre to surface).
@@ -73,6 +75,8 @@ pub fn profile_csv(model: &StarModel) -> String {
             p.x[k],
             p.y[k],
             p.z[k],
+            p.cs.get(k).copied().unwrap_or(f64::NAN),
+            p.n2.get(k).copied().unwrap_or(f64::NAN),
         ];
         for (i, v) in row.iter().enumerate() {
             if i > 0 {
@@ -111,8 +115,9 @@ pub fn summary_json(model: &StarModel) -> String {
 /// Evolutionary track as CSV: one row per model.
 pub fn track_csv(models: &[&StarModel]) -> String {
     let mut s = String::from(
-        "age_yr,phase,L_lsun,Teff_K,R_rsun,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,conv_env_base_r,\
-         frac_pp,frac_cno,frac_3a,frac_grav,P_fund_days,Q_days,pulsator,nu_max_uHz,delta_nu_uHz\n",
+        "age_yr,phase,L_lsun,Teff_K,R_rsun,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,mixed_core_q,conv_env_base_r,\
+         frac_pp,frac_cno,frac_3a,frac_grav,P_fund_days,Q_days,pulsator,nu_max_uHz,delta_nu_uHz,delta_nu_asym_uHz,\
+         delta_Pi1_s\n",
     );
     for m in models {
         let g = &m.globals;
@@ -120,7 +125,7 @@ pub fn track_csv(models: &[&StarModel]) -> String {
         let pulsator = crate::pulsation::classify(g.teff, g.luminosity).map(|p| p.label()).unwrap_or("");
         let _ = writeln!(
             s,
-            "{:.6e},{:?},{:.6e},{:.2},{:.6e},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{:.6e},{:.5},{},{:.4},{:.4}",
+            "{:.6e},{:?},{:.6e},{:.2},{:.6e},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{:.6e},{:.5},{},{:.4},{:.4},{:.4},{}",
             g.age_yr,
             g.phase,
             g.luminosity,
@@ -133,6 +138,7 @@ pub fn track_csv(models: &[&StarModel]) -> String {
             g.y_c,
             g.he_core_q,
             g.conv_core_q,
+            g.mixed_core_q,
             g.conv_env_base_r.map(|r| format!("{r:.5}")).unwrap_or_default(),
             g.frac_pp,
             g.frac_cno,
@@ -143,6 +149,8 @@ pub fn track_csv(models: &[&StarModel]) -> String {
             pulsator,
             g.nu_max_uhz,
             g.delta_nu_uhz,
+            g.delta_nu_asym_uhz,
+            crate::seismic::main_cavity(&g.g_cavities).map(|c| format!("{:.2}", c.delta_pi1_s)).unwrap_or_default(),
         );
     }
     s

@@ -18,6 +18,7 @@ pub mod constants;
 pub mod output;
 pub mod physics;
 pub mod pulsation;
+pub mod seismic;
 pub mod solver;
 pub mod structure;
 

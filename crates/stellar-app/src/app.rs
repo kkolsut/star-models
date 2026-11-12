@@ -498,6 +498,14 @@ impl StarApp {
                     .on_hover_text("mass fraction of metals in C, N and O (feeds the CNO cycle)");
                 ui.add(egui::Slider::new(&mut self.params.f_cno, 0.0..=1.0).max_decimals(2));
                 ui.end_row();
+                ui.label("Core overshoot α_ov").on_hover_text(
+                    "step overshoot of a convective core during evolution: the mixed region extends \
+                     α_ov · min(H_P, r_cc) beyond the Schwarzschild boundary r_cc (mixing only; \
+                     the temperature gradient there stays radiative). 0 = off",
+                );
+                let (olo, ohi) = StarParams::ALPHA_OV_RANGE;
+                ui.add(egui::Slider::new(&mut self.params.alpha_ov, olo..=ohi).max_decimals(2));
+                ui.end_row();
                 ui.label("Mesh points");
                 ui.add(egui::Slider::new(&mut self.params.n_points, 200..=3000).logarithmic(true));
                 ui.end_row();
@@ -586,6 +594,14 @@ impl StarApp {
                 if g.conv_core_q > 0.0 { format!("{:.4}", g.conv_core_q) } else { "none".into() },
                 "none".into(),
             );
+            if model.params.alpha_ov > 0.0 {
+                row(
+                    "Mixed core [m/M]",
+                    "convective core plus step overshoot (α_ov): the region mixed in the next evolution step",
+                    if g.mixed_core_q > 0.0 { format!("{:.4}", g.mixed_core_q) } else { "none".into() },
+                    "none".into(),
+                );
+            }
             row(
                 "Conv. env. base [r/R]",
                 "",
@@ -612,6 +628,24 @@ impl StarApp {
                 "scaling relations from g, T_eff and mean density: estimates, not a computed oscillation spectrum",
                 format!("{:.0} / {:.1}", g.nu_max_uhz, g.delta_nu_uhz),
                 "3090 / 135".into(),
+            );
+            row(
+                "Δν asymptotic [μHz]",
+                "calculated from the interior: Δν = [2 ∫ dr / c_s]⁻¹ (asymptotic, high radial order; \
+                 dominated by the outer layers)",
+                format!("{:.1}", g.delta_nu_asym_uhz),
+                "135".into(),
+            );
+            let cavity = stellar_core::seismic::main_cavity(&g.g_cavities);
+            row(
+                "ΔΠ₁ [s]",
+                "asymptotic dipole g-mode period spacing of the largest candidate cavity (connected N² > 0 \
+                 region; low-frequency estimate). Every cavity is listed in Profiles › More profiles › \
+                 Propagation diagram and in the summary JSON",
+                cavity
+                    .map(|c| format!("{:.0} ({} {:.2}–{:.2} R)", c.delta_pi1_s, c.label(), c.r_inner, c.r_outer))
+                    .unwrap_or_else(|| "–".into()),
+                "–".into(),
             );
         });
         if let Some(kind) = stellar_core::pulsation::classify(g.teff, g.luminosity) {

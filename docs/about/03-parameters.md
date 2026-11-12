@@ -11,6 +11,7 @@ shows each current value.
 | Helium mass fraction | $`Y`$ | derived | $`Y = 1 - X - Z`$ |
 | Mixing-length parameter | $`\alpha_{\mathrm{MLT}}`$ | 1.8 | 0.3 – 3.0 |
 | CNO fraction of $`Z`$ (Advanced) | $`f_{\mathrm{CNO}}`$ | 0.7 | 0 – 1 |
+| Core overshoot (Advanced) | $`\alpha_{\mathrm{ov}}`$ | 0 (off) | 0 – 0.5 |
 | Mesh points (Advanced) | $`N`$ | 800 | 200 – 3000 (logarithmic) |
 
 ## Mass $`M`$
@@ -64,6 +65,20 @@ Real solar models calibrate $`\alpha_{\mathrm{MLT}} \approx 1.7\text{–}2.2`$ t
 The fraction of the metals that is carbon, nitrogen and oxygen. The CNO-cycle rate uses
 $`X_{\mathrm{CNO}} = f_{\mathrm{CNO}}\,Z`$. It only matters for stars hot enough to burn hydrogen via
 the CNO cycle.
+
+## Core overshoot $`\alpha_{\mathrm{ov}}`$ (Advanced)
+
+Step overshoot of a convective core, used by evolution runs only. Before each mixing step the
+convective core is extended from its Schwarzschild boundary $`r_{\mathrm{cc}}`$ to
+$`r_{\mathrm{ov}} = r_{\mathrm{cc}} + \alpha_{\mathrm{ov}}\min(H_P(r_{\mathrm{cc}}), r_{\mathrm{cc}})`$, and
+the whole region is mixed (see [Evolution in time](12-evolution.md#composition)).
+
+* Mixing only: the temperature gradient in the extension stays radiative, so a ZAMS model does not
+  change.
+* A larger $`\alpha_{\mathrm{ov}}`$ feeds more hydrogen into the core and lengthens the main sequence of
+  stars with convective cores. Stars without one are not affected.
+* Calibrations for intermediate-mass stars give $`\alpha_{\mathrm{ov}} \approx 0.2`$, with a dependence
+  on mass; the value is not universal.
 
 ## Mesh points $`N`$ (Advanced)
 

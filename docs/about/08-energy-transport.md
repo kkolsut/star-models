@@ -70,7 +70,11 @@ The two limits:
   $`\nabla_{\mathrm{rad}}`$. This superadiabatic layer is the only place where $`\alpha_{\mathrm{MLT}}`$
   matters.
 
-> Not included: convective overshooting, semiconvection, turbulent pressure.
+Overshoot: with $`\alpha_{\mathrm{ov}} > 0`$ a convective core is extended for the composition mixing only
+(see [Evolution in time](12-evolution.md#composition)). The temperature gradient in the extension
+stays radiative, so the structure equations are unchanged.
+
+> Not included: overshoot of envelopes, semiconvection, turbulent pressure.
 
 ---
 ← Previous: [Microphysics](07-microphysics.md) · [Contents](README.md) · Next: [Boundary conditions](09-boundary-conditions.md) →

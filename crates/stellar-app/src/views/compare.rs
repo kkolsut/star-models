@@ -24,6 +24,7 @@ const ROWS: &[Row] = &[
     ("Mass [M☉]", |g, _| format!("{:.3}", g.mass)),
     ("X / Y / Z", |_, p| format!("{:.3} / {:.3} / {:.4}", p.x, p.y(), p.z)),
     ("α_MLT", |_, p| format!("{:.2}", p.alpha_mlt)),
+    ("α_ov (core overshoot)", |_, p| format!("{:.2}", p.alpha_ov)),
     ("Radius [R☉]", |g, _| format!("{:.4}", g.radius)),
     ("Luminosity [L☉]", |g, _| fmt_value(g.luminosity)),
     ("T_eff [K]", |g, _| format!("{:.0}", g.teff)),
@@ -32,6 +33,13 @@ const ROWS: &[Row] = &[
     ("ρ_c [g cm⁻³]", |g, _| fmt_value(g.rhoc)),
     ("P_c [dyn cm⁻²]", |g, _| format!("{:.4e}", g.pc)),
     ("Convective core [m/M]", |g, _| if g.conv_core_q > 0.0 { format!("{:.4}", g.conv_core_q) } else { "none".into() }),
+    ("Mixed core [m/M]", |g, _| if g.mixed_core_q > 0.0 { format!("{:.4}", g.mixed_core_q) } else { "none".into() }),
+    ("Δν asymptotic / scaling [μHz]", |g, _| format!("{:.1} / {:.1}", g.delta_nu_asym_uhz, g.delta_nu_uhz)),
+    ("ΔΠ₁ largest cavity [s]", |g, _| {
+        stellar_core::seismic::main_cavity(&g.g_cavities)
+            .map(|c| format!("{:.0}", c.delta_pi1_s))
+            .unwrap_or_else(|| "–".into())
+    }),
     ("Conv. envelope base [r/R]", |g, _| g.conv_env_base_r.map(|r| format!("{r:.4}")).unwrap_or_else(|| "none".into())),
     ("pp / CNO / 3α [%]", |g, _| {
         format!("{:.1} / {:.1} / {:.2}", 100.0 * g.frac_pp, 100.0 * g.frac_cno, 100.0 * g.frac_3a)

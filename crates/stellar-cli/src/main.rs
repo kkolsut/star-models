@@ -33,6 +33,9 @@ struct Args {
     /// Number of mesh points
     #[arg(long, default_value_t = 800)]
     points: usize,
+    /// Step overshoot of a convective core, α_ov in units of min(H_P, r_cc) (0–0.5; mixing only, used by --evolve)
+    #[arg(long, default_value_t = 0.0)]
+    alpha_ov: f64,
     /// Write the radial profile to this CSV file
     #[arg(short, long)]
     output: Option<String>,
@@ -92,6 +95,12 @@ fn print_summary(m: &StarModel) {
     println!("  energy: pp {:.1}%  CNO {:.1}%  3α {:.2}%", 100.0 * g.frac_pp, 100.0 * g.frac_cno, 100.0 * g.frac_3a);
     if g.conv_core_q > 0.0 {
         println!("  convective core: m/M = {:.4}, r/R = {:.4}", g.conv_core_q, g.conv_core_r);
+        if m.params.alpha_ov > 0.0 {
+            println!(
+                "  mixed core (α_ov = {}): m/M = {:.4}, r/R = {:.4}",
+                m.params.alpha_ov, g.mixed_core_q, g.mixed_core_r
+            );
+        }
     } else {
         println!("  radiative core");
     }
@@ -103,6 +112,22 @@ fn print_summary(m: &StarModel) {
         "  zones: {}",
         m.zones.iter().map(|z| format!("[r/R {:.4}–{:.4}]", z.r_inner, z.r_outer)).collect::<Vec<_>>().join(" ")
     );
+    println!(
+        "  seismic: Δν = {:.2} μHz (asymptotic), {:.2} μHz (scaling); ν_max = {:.0} μHz (scaling)",
+        g.delta_nu_asym_uhz, g.delta_nu_uhz, g.nu_max_uhz
+    );
+    if g.g_cavities.is_empty() {
+        println!("  candidate g-mode cavities: none");
+    }
+    for c in &g.g_cavities {
+        println!(
+            "  candidate g-mode cavity ({}): r/R {:.4}–{:.4}, ΔΠ₁ = {:.1} s (asymptotic estimate)",
+            c.label(),
+            c.r_inner,
+            c.r_outer,
+            c.delta_pi1_s
+        );
+    }
     let r = &g.residuals;
     println!(
         "  checks: virial {:.5}  energy {:.5} (discretisation)  Newton iters {}  max|F| {:.1e}",
@@ -128,7 +153,9 @@ fn main() -> Result<()> {
         alpha_mlt: args.alpha,
         f_cno: args.f_cno,
         n_points: args.points,
+        alpha_ov: args.alpha_ov,
     };
+    base.validate().map_err(anyhow::Error::msg)?;
     let mut ctl = Printer { verbose: args.verbose };
 
     if let Some(masses) = &args.sweep {

@@ -9,6 +9,7 @@ These are shown in the left panel, the Compare table and the JSON export.
 | $`T_{\mathrm{eff}}`$ [K], $`\log g`$ [cgs] | Effective temperature and surface gravity (see [below](#effective-temperature-and-surface-gravity)) |
 | $`T_c`$, $`\rho_c`$, $`P_c`$ | Temperature, density and pressure at the innermost mesh point ($`m = 10^{-6} M`$), which are effectively the central values |
 | Convective core [$`m/M`$] | Mass fraction of the convective region around the centre, or "none" if the centre is radiative. Its radius is shown in the views. |
+| Mixed core [$`m/M`$] | Shown when $`\alpha_{\mathrm{ov}} > 0`$: the convective core extended by step overshoot, i.e. the region mixed in the next evolution step |
 | Conv. envelope base [$`r/R`$] | Inner edge of the outer convection zone, or "none" if the envelope is radiative. It is the zone that reaches within $`10^{-6}`$ of the total mass from the surface. |
 | pp / CNO / 3α [%] | Share of the total nuclear energy production from the pp chain, the CNO cycle and helium burning |
 | Virial check | Should be 1 (see [below](#virial-check)) |
@@ -20,6 +21,8 @@ These are shown in the left panel, the Compare table and the JSON export.
 | $`X_c`$ / He core [$`m/M`$] | Central hydrogen mass fraction, and the mass fraction of the hydrogen-exhausted core ($`X < 10^{-3}`$) |
 | Fund. radial mode | Period of the fundamental radial pulsation mode, see [Pulsations & oscillations](13-pulsations.md) |
 | $`\nu_{\max}`$ / $`\Delta\nu`$ [μHz] | Solar-like oscillation frequencies from the asteroseismic scaling relations (meaningful for stars with convective envelopes) |
+| Δν asymptotic [μHz] | Large frequency separation from the interior, $`[2\int dr/c_s]^{-1}`$, see [Pulsations & oscillations](13-pulsations.md#characteristic-frequencies-and-asymptotic-spacings) |
+| ΔΠ₁ [s] | Asymptotic dipole g-mode period spacing of the largest candidate cavity; every cavity is listed in More profiles and in the JSON (`g_cavities`) |
 
 ## Effective temperature and surface gravity
 

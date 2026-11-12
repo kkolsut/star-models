@@ -77,17 +77,10 @@ strip. Since the model's $`T_{\mathrm{eff}}`$ is itself off for cool stars
 
 These use only $`M`$, $`R`$ and $`T_{\mathrm{eff}}`$, not the interior.
 
-## Planned
-
-### Geometric means (C10, plan 1.3)
-
-For consistency with the structure solver, at interval midpoints:
-
-```math
-r_{k+1/2} = \sqrt{r_k\,r_{k+1}}, \qquad P_{k+1/2} = \sqrt{P_k\,P_{k+1}}, \qquad \rho_{k+1/2} = \sqrt{\rho_k\,\rho_{k+1}}
-```
-
 ### Characteristic frequencies (E4 stage 1, plan 2.2)
+
+Source: `crates/stellar-core/src/seismic.rs`; `Profile::cs`, `Profile::n2`; `Globals::delta_nu_asym_uhz`,
+`Globals::g_cavities`. Diagnostics only: nothing feeds back into the structure.
 
 *Sound speed, Lamb frequency and buoyancy (Brunt–Väisälä) frequency*
 
@@ -112,7 +105,10 @@ the planned EOS it is replaced by the general composition term $`B`$ of
 N^2 = \frac{g^2 \rho}{P}\left[\delta\left(\nabla_{\mathrm{ad}} - \nabla\right) + B\right]
 ```
 
-This is the production expression: it does not difference nearly equal numbers. The definition
+This is the production expression: it does not difference nearly equal numbers. $`\nabla_\mu`$ is
+taken by centred differences of $`\ln\mu`$ and $`\ln P`$ along the mesh (one-sided at the ends);
+$`\delta`$, $`\nabla_{\mathrm{ad}}`$ and the actual $`\nabla`$ come from the EOS and the MLT of the
+model. The definition
 itself serves as a cross-check on the same profile (it is noisy in the deep interior, so it is a
 test, not the output):
 
@@ -135,6 +131,16 @@ N^2 = g\left(\frac{1}{\Gamma_1}\frac{d\ln P}{dr} - \frac{d\ln\rho}{dr}\right)
 Both come from integrals over the existing profiles. The first replaces the $`\Delta\nu`$ scaling
 relation by a value that depends on the interior.
 
+*Implementation.* The $`\Delta\nu`$ integral uses the trapezoid rule in $`r`$, with
+$`r_0/c_{s,0}`$ for the part inside the innermost point. A cavity is a run of consecutive points with
+$`A = N^2 P/(g^2\rho) > 10^{-4}`$; the tolerance keeps the noise of nearly adiabatic layers (of either
+sign, $`|A| \lesssim 10^{-6}`$) from opening spurious cavities, while radiative zones have
+$`A \sim 0.1`$. Each cavity is reported with its edges in $`r/R`$ and $`m/M`$, $`\int N\,dr/r`$, its
+own $`\Delta\Pi_1`$, a location (core, between convective regions, reaching the surface) and a flag
+for thin layers ($`\ln(r_2/r_1) < 0.1`$ away from the centre, for example the radiative layer above a
+convective envelope). The single number shown in the results panel is the cavity with the largest
+$`\int N\,dr/r`$ that is not thin.
+
 *Limits of the g-mode integral.* $`r_1`$ to $`r_2`$ is one connected g-mode cavity, a radiative
 region with $`N^2 > 0`$. Disconnected regions are **not** summed: modes trapped in different
 cavities form separate sequences. The output is therefore one value per radiative region, labelled
@@ -152,6 +158,31 @@ are the best-known case). The per-cavity values are diagnostics, not predicted s
 
 Both formulas are asymptotic (high radial order). The integrand $`1/c_s`$ is dominated by the outer
 layers, so $`\Delta\nu`$ carries the model's surface errors.
+
+### How good this is **[measured]**
+
+* **N² against the convective flag** (ZAMS, 0.5–5 M☉): $`N^2 \le 0`$ at every convective point
+  ($`A \le -10^{-11}`$ at most) and $`A > 10^{-3}`$ at every interior radiative point.
+* **N² against its definition** (3 M☉ at 200 Myr, $`X_c \approx 0.3`$, away from composition jumps):
+  median relative difference $`2.4\times10^{-5}`$; worst 2.2% where $`A > 10^{-2}`$; worst
+  $`|\Delta A| = 7\times10^{-4}`$ in the nearly adiabatic radiative layers just below the photosphere.
+* **Schwarzschild and Ledoux** differ in evolved models: in the same model one layer at the edge of the
+  shrinking core is Schwarzschild-unstable but has $`N^2 > 0`$ (149 against 148 points).
+* **Δν.** ZAMS Sun: 115.96 μHz asymptotic against 115.01 μHz scaling (+0.8%). The ratio falls with
+  mass, to 0.91 for 3 and 5 M☉ ZAMS models.
+* **ΔΠ₁.** ZAMS Sun: one cavity, the radiative core to 0.967 R (the envelope base), ΔΠ₁ = 3206 s,
+  plus a thin surface layer. 1.5 M☉: the zone between core and envelope, 3512 s. 3 M☉: the radiative
+  envelope, 5646 s. All tests in `tests/seismic.rs`.
+
+## Planned
+
+### Geometric means (C10, plan 1.3)
+
+For consistency with the structure solver, at interval midpoints:
+
+```math
+r_{k+1/2} = \sqrt{r_k\,r_{k+1}}, \qquad P_{k+1/2} = \sqrt{P_k\,P_{k+1}}, \qquad \rho_{k+1/2} = \sqrt{\rho_k\,\rho_{k+1}}
+```
 
 ### Non-radial modes, Cowling approximation (E4 stage 2, plan 9.1)
 

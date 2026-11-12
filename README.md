@@ -46,7 +46,7 @@ on standard GNOME/KDE desktops).
 | Tab | What it shows |
 |---|---|
 | **Profiles (P, T, ρ)** | log P, log T, log ρ against r/R or m/M, with linked axes and a shared cursor. Convective zones are shaded. Pinned models are overlaid. |
-| **More profiles** | L/L_s and m/M, opacity κ, ε split into pp, CNO and 3α, ∇_rad vs ∇_ad vs ∇ (shows *why* a layer is convective), convective velocity, F_conv/F and β = P_gas/P. The x axis can be r/R, m/M or **log P**; log P spreads out the thin outer envelope. |
+| **More profiles** | L/L_s and m/M, opacity κ, ε split into pp, CNO and 3α, ∇_rad vs ∇_ad vs ∇ (shows *why* a layer is convective), convective velocity, F_conv/F and β = P_gas/P, the propagation diagram (N, S₁, S₂) with the candidate g-mode cavities, and the sound speed. The x axis can be r/R, m/M or **log P**; log P spreads out the thin outer envelope. |
 | **Cross-section** | Split disc with temperature on the left and density on the right (log color scales). Convective zones are outlined and carry animated convection cells. Hover to read the local state. |
 | **3D model** | A cut-away sphere: one octant removed, cut faces coloured by T or ρ, and the energy-generating (or convective) core as a ball in the corner. The surface has the black-body colour at T_eff. Animated transport: photon sparks random-walk outward through radiative zones, convection cells carry rising hot (amber) and sinking cool (blue) gas, the surface shows granulation for a convective envelope, and a convective core "boils". Drag to rotate, scroll or pinch to zoom at the cursor (up to 400×, e.g. **Zoom to surface layers** for the Sun's thin envelope), right- or shift-drag to pan, double-click to reset. Hover to read the local state. |
 | **HR diagram** | The model on a ZAMS line computed for the current composition, with the **evolutionary track** of the current run (hover for age, phase, X_c and pulsation), the approximate **classical instability strip**, the present-day Sun and the pinned models. |
@@ -78,7 +78,7 @@ The **Scale** switch (Evolution section of the left panel, also repeated in the 
 
 **True size** (Cross-section and 3D model) draws the star to scale relative to its largest radius in the run, with a faint outline of that maximum.
 
-For every model the **fundamental radial pulsation mode** is computed from the linear adiabatic wave equation (period, mode shape). When the star lies in the instability strip it is flagged as a **δ Scuti-type** (near the main sequence) or **Cepheid-type** pulsator, and the 3D model pulsates with the computed mode shape. Solar-like oscillation frequencies (ν_max, Δν) come from the asteroseismic scaling relations.
+For every model the **fundamental radial pulsation mode** is computed from the linear adiabatic wave equation (period, mode shape). When the star lies in the instability strip it is flagged as a **δ Scuti-type** (near the main sequence) or **Cepheid-type** pulsator, and the 3D model pulsates with the computed mode shape. Solar-like oscillation frequencies (ν_max, Δν) come from the asteroseismic scaling relations; Δν is also computed from the interior (sound travel time), and the asymptotic g-mode period spacing ΔΠ₁ for every candidate cavity (connected N² > 0 region). Evolution runs can include step overshoot of a convective core (α_ov, off by default).
 
 Examples:
 

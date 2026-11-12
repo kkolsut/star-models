@@ -68,7 +68,30 @@ After each burning step, every convective zone of the previous model is mixed co
 X \;\leftarrow\; \bar X_{\mathrm{zone}} = \frac{\int_{\mathrm{zone}} X\, dm}{\int_{\mathrm{zone}} dm} \qquad \text{(same for } Y, Z\text{)}
 ```
 
-There is no mixing outside the Schwarzschild boundaries.
+### Step overshoot of convective cores (D16, plan 2.1)
+
+Input $`\alpha_{\mathrm{ov}}`$ (`StarParams::alpha_ov`), default 0 (off), range 0–0.5. Before the
+mixing step, a convective zone that starts at the innermost point is extended from its Schwarzschild
+boundary $`r_{\mathrm{cc}}`$ (interpolated linearly in $`\nabla_{\mathrm{rad}} - \nabla_{\mathrm{ad}}`$) to
+
+```math
+r_{\mathrm{ov}} = r_{\mathrm{cc}} + \alpha_{\mathrm{ov}}\,\min\!\left(H_P(r_{\mathrm{cc}}),\ r_{\mathrm{cc}}\right), \qquad \alpha_{\mathrm{ov}} \approx 0.2
+```
+
+* Every mesh point with $`r \le r_{\mathrm{ov}}`$ is mixed with the core, and the burning rate is
+  averaged over the same region for the time-step limit. A convective run reached by the extension is
+  merged into it.
+* $`H_P(r_{\mathrm{cc}})`$ is interpolated linearly in $`r`$ between the two points around the
+  boundary. At the boundary $`H_P`$ is finite, so the bounded scale height of plan 1.4 is not needed
+  here; $`\min(H_P, r_{\mathrm{cc}})`$ limits small cores.
+* Mixing only: the temperature gradient in the extension stays radiative, and the structure
+  equations do not see $`\alpha_{\mathrm{ov}}`$. A ZAMS model is identical for every value.
+* Output: the mixed-core mass and radius (`mixed_core_q`, `mixed_core_r`) next to the convective core;
+  equal to it for $`\alpha_{\mathrm{ov}} = 0`$.
+
+Envelope overshoot and overshoot of convective shells are not included.
+
+There is no other mixing outside the Schwarzschild boundaries.
 
 ### How good this is **[measured]**
 
@@ -83,7 +106,14 @@ There is no mixing outside the Schwarzschild boundaries.
 * **The mixing length is unbounded at the centre**, because $`H_P \to \infty`$ as $`g \to 0`$:
   $`\alpha H_P / r = 4900`$ at the innermost point of the 5 M☉ core. Only the plotted velocity is
   affected.
-* **Missing overshoot** is the largest convection-related error in the evolution results.
+* **Overshoot lengthens the main sequence.** Main-sequence lifetime for
+  $`\alpha_{\mathrm{ov}} = 0, 0.1, 0.2`$: 285.9, 323.6, 360.1 Myr for 3 M☉ and 76.1, 85.2, 93.7 Myr for
+  5 M☉ (+26% and +23% at 0.2). The largest mixed core of the 3 M☉ run grows from 0.176 to 0.243 of the
+  mass. 1.1 M☉, which keeps a radiative core, is bit-identical with and without overshoot to 5 Gyr.
+  Fuel accounting closes to 0.15% in all six runs (`tests/overshoot.rs`). The default stays 0 until
+  the joint assessment (plan 7.7).
+* **The step is not a prediction.** Without overshoot (the default) the convection-related error of the
+  evolution results is still dominated by its absence.
 
 ## Planned
 
@@ -102,15 +132,6 @@ which is the minimum above. Paxton et al. attribute it to Eggleton (1971), but t
 mixing-length formulae (Appendix, eq. 57). Eggleton (1972, MNRAS 156, 361), p. 364, only notes
 that $`H_P \to \infty`$ at the centre and "perhaps should be replaced by something which tends to
 a finite value"; it gives no formula. Cite Paxton et al. 2011 for the formula.
-
-### Step overshoot of convective cores (D16, plan 2.1)
-
-Applied in the mixing step only; the temperature gradient in the extension stays radiative.
-$`r_{\mathrm{cc}}`$ is the Schwarzschild boundary of the core.
-
-```math
-r_{\mathrm{ov}} = r_{\mathrm{cc}} + \alpha_{\mathrm{ov}}\,\min\!\left(H_P(r_{\mathrm{cc}}),\ r_{\mathrm{cc}}\right), \qquad \alpha_{\mathrm{ov}} \approx 0.2
-```
 
 ### Ledoux criterion and semiconvection (D17, plan phase 8)
 

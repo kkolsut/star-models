@@ -50,7 +50,8 @@ Sun; the standard solar model Model S (Christensen-Dalsgaard et al. 1996) gives 
 | **Calculated** | the fundamental adiabatic radial mode: period, $`\Omega^2`$, $`Q`$ and the mode shape $`\xi(r)`$ |
 | **Empirical inference** | membership of the instability strip, from the model's position in the HR diagram |
 | **Scaling relations** | $`\nu_{\max}`$ and $`\Delta\nu`$, estimated from $`g`$, $`T_{\mathrm{eff}}`$ and the mean density |
-| **Not modelled** | driving and damping (growth rates), the excitation mechanism, amplitudes, overtones and non-radial modes |
+| **Asymptotic estimates** | $`\Delta\nu`$ from the sound travel time, and $`\Delta\Pi_1`$ for every candidate g-mode cavity, from the profiles of $`c_s`$ and $`N`$ |
+| **Not modelled** | driving and damping (growth rates), the excitation mechanism, amplitudes, overtones and non-radial mode frequencies |
 
 δ Scuti stars in particular usually pulsate in several radial and non-radial modes at once, which a
 fundamental radial-mode solver cannot represent.
@@ -93,6 +94,41 @@ asteroseismic scaling relations, shown in the results panel:
 ```math
 \nu_{\max} = 3090\,\mu\mathrm{Hz}\;\frac{g}{g_\odot}\left(\frac{T_{\mathrm{eff}}}{T_{\mathrm{eff},\odot}}\right)^{-1/2}, \qquad \Delta\nu = 135.1\,\mu\mathrm{Hz}\,\sqrt{\frac{\bar\rho}{\bar\rho_\odot}}
 ```
+
+## Characteristic frequencies and asymptotic spacings
+
+Every model also carries the sound speed, the Lamb frequency and the buoyancy (Brunt–Väisälä)
+frequency $`N`$:
+
+```math
+c_s^2 = \frac{\Gamma_1 P}{\rho}, \qquad S_l^2 = \frac{l(l+1)\,c_s^2}{r^2}
+```
+
+```math
+N^2 = \frac{g^2 \rho}{P}\left[\delta\left(\nabla_{\mathrm{ad}} - \nabla\right) + \varphi\,\nabla_\mu\right], \qquad \nabla_\mu = \frac{d\ln\mu}{d\ln P}, \qquad \varphi = 1
+```
+
+* $`\nabla_\mu`$ is taken from the profile by differences; $`\varphi = 1`$ holds for the ideal-gas EOS.
+* $`N^2 < 0`$ marks Ledoux instability. In a homogeneous model it coincides with the convective
+  (Schwarzschild) flag; with a composition gradient a Schwarzschild-unstable layer can have
+  $`N^2 > 0`$.
+* The definition $`N^2 = g(\Gamma_1^{-1}\,d\ln P/dr - d\ln\rho/dr)`$ agrees with this formula to a
+  median of $`2\times10^{-5}`$ in an evolved 3 M☉ model. It is a test only, because it differences
+  nearly equal numbers.
+* p modes propagate where the frequency is above both $`N`$ and $`S_l`$, g modes where it is below
+  both. More profiles shows this propagation diagram.
+
+```math
+\Delta\nu = \left[2\int_0^R \frac{dr}{c_s}\right]^{-1}, \qquad \Delta\Pi_1 = \frac{2\pi^2}{\sqrt{2}}\left[\int_{r_1}^{r_2} N\,\frac{dr}{r}\right]^{-1}
+```
+
+* $`\Delta\nu`$ from the interior replaces the scaling relation by a value that depends on the
+  structure. For the ZAMS Sun the two agree to 1% (116.0 against 115.0 μHz).
+* $`\Delta\Pi_1`$ is computed separately for every connected $`N^2 > 0`$ region: a radiative core, the
+  radiative zone between a convective core and envelope, or a radiative envelope. Regions are never
+  summed. The value over the whole region is the low-frequency limit.
+* Both are asymptotic estimates (high radial order), not computed spectra. $`\Delta\nu`$ carries the
+  model's surface errors.
 
 > Real Cepheids change their radius by a few percent, and δ Scuti stars by much less. Periods range from
 > about half an hour to weeks. The animation is not to scale in time or amplitude.

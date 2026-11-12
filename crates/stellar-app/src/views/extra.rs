@@ -1,7 +1,7 @@
 //! Additional profiles of the current model: luminosity and mass, opacity,
 //! energy generation by process, temperature gradients (why each layer is
 //! convective), composition, gravitational energy, convective velocity,
-//! convective flux and β.
+//! convective flux and β, the propagation diagram (N, S₁, S₂) and the sound speed.
 
 use egui::{Id, RichText};
 use egui_plot::{Corner, Legend, Line, Plot, PlotPoints};
@@ -72,6 +72,17 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
     let link = Id::unique("extra_link");
     let all = vec![true; n];
 
+    // Characteristic frequencies as cyclic frequencies [μHz].
+    let to_uhz = 1e6 / std::f64::consts::TAU;
+    // (Models read from old files may lack c_s and N²: treat them as empty.)
+    let n2 = |k: usize| p.n2.get(k).copied().unwrap_or(0.0);
+    let nu_n: Vec<f64> = (0..n).map(|k| n2(k).max(0.0).sqrt() * to_uhz).collect();
+    let stable: Vec<bool> = (0..n).map(|k| n2(k) > 0.0).collect();
+    let lamb = |l: u32| -> Vec<f64> {
+        p.cs.iter().zip(&p.r).map(|(&c, &r)| stellar_core::seismic::lamb_frequency(l, c, r) * to_uhz).collect()
+    };
+    let (nu_s1, nu_s2) = (lamb(1), lamb(2));
+
     let l_surf = p.l[n - 1];
     let l_norm: Vec<f64> = p.l.iter().map(|l| l / l_surf).collect();
 
@@ -81,7 +92,7 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
 
     convective_caption(ui, v.dark);
     let label_rows = 3.0 * (ui.text_style_height(&egui::TextStyle::Body) + ui.spacing().item_spacing.y);
-    // Three rows fit the window; the fourth row (convection) is reached by scrolling.
+    // Three rows fit the window; the rows below (convection, seismic) are reached by scrolling.
     let h = ((ui.available_height() - label_rows - 3.0 * ui.spacing().item_spacing.y) / 3.0).max(110.0);
 
     egui::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
@@ -206,6 +217,75 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
                 Corner::LeftBottom,
                 |_| Range::UNIT,
             );
+            panel(
+                &mut cols[0],
+                v,
+                "Propagation diagram: p modes above N and S_l, g modes below both",
+                "cyclic frequency [μHz]",
+                true,
+                vec![
+                    Series {
+                        name: "N/2π (buoyancy, where N² > 0)".into(),
+                        slot: 0,
+                        pts: segments(&xs, &nu_n, &stable, true),
+                    },
+                    Series { name: "S₁/2π (Lamb, l = 1)".into(), slot: 1, pts: vec![points(&xs, &nu_s1, true)] },
+                    Series { name: "S₂/2π (Lamb, l = 2)".into(), slot: 2, pts: vec![points(&xs, &nu_s2, true)] },
+                ],
+                h,
+                link,
+                Corner::RightTop,
+                |_| Range::EMPTY,
+            );
+            panel(
+                &mut cols[1],
+                v,
+                "Adiabatic sound speed c_s = √(Γ₁ P / ρ)",
+                "c_s [cm s⁻¹]",
+                true,
+                vec![Series { name: "c_s".into(), slot: 0, pts: vec![points(&xs, &p.cs, true)] }],
+                h,
+                link,
+                Corner::LeftBottom,
+                |_| Range::EMPTY,
+            );
         });
+        cavities_table(ui, v);
     });
+}
+
+/// The candidate g-mode cavities of the current model, with their asymptotic ΔΠ₁.
+fn cavities_table(ui: &mut egui::Ui, v: &ViewCtx<'_>) {
+    let g = &v.model.globals;
+    ui.add_space(4.0);
+    ui.label(RichText::new("Asymptotic spacings").strong());
+    ui.label(format!(
+        "Δν = {:.2} μHz from [2 ∫ dr / c_s]⁻¹ (scaling relation: {:.2} μHz). Asymptotic, dominated by the outer layers.",
+        g.delta_nu_asym_uhz, g.delta_nu_uhz
+    ));
+    if g.g_cavities.is_empty() {
+        ui.label("No region with N² > 0: no candidate g-mode cavity.");
+        return;
+    }
+    egui::Grid::new("g_cavities").num_columns(4).striped(true).spacing([16.0, 3.0]).show(ui, |ui| {
+        ui.label(RichText::new("candidate cavity").strong());
+        ui.label(RichText::new("r / R").strong());
+        ui.label(RichText::new("m / M").strong());
+        ui.label(RichText::new("ΔΠ₁ [s]").strong());
+        ui.end_row();
+        for c in &g.g_cavities {
+            ui.label(c.label());
+            ui.monospace(format!("{:.4} – {:.4}", c.r_inner, c.r_outer));
+            ui.monospace(format!("{:.4} – {:.4}", c.q_inner, c.q_outer));
+            ui.monospace(format!("{:.1}", c.delta_pi1_s));
+            ui.end_row();
+        }
+    });
+    ui.label(
+        RichText::new(
+            "Each connected N² > 0 region is a separate candidate cavity; they are not summed. ΔΠ₁ = 2π²/√2 · \
+             [∫ N dr/r]⁻¹ over the whole region is the low-frequency asymptotic estimate, not a predicted spectrum.",
+        )
+        .color(theme::secondary(v.dark)),
+    );
 }
