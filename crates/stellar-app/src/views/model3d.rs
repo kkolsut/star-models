@@ -8,6 +8,11 @@
 //! * Convective zones: circulating cells, with rising hot gas (light) and
 //!   sinking cool gas (blue). A convective envelope shows granulation on the
 //!   surface, and a convective core "boils".
+//! * Rotation, display only (plan 5.1): for ω = Ω/Ω_crit > 0 the drawing is
+//!   stretched into the Roche shape about the y axis, and the surface is
+//!   coloured by the gravity-darkened local T_eff (`stellar_core::rotation`).
+//!   The interior is not recomputed; interior points are stretched with the
+//!   surface for the picture.
 //!
 //! Rendering is done on the CPU: triangles are rotated, shaded, depth-sorted
 //! (painter's algorithm) and handed to egui as one mesh. Overlays (photons,
@@ -20,6 +25,7 @@ use std::sync::Arc;
 
 use egui::{Align2, Color32, FontId, Mesh, PointerButton, Pos2, Rect, Sense, Shape, Stroke, Vec2, pos2, vec2};
 use stellar_core::StarModel;
+use stellar_core::rotation::{self, RocheStar, roche_gravity, roche_x};
 
 use super::cross_section::{Field, colorbar, interp};
 use super::{ViewCtx, fmt_value};
@@ -77,6 +83,58 @@ pub enum FaceQuantity {
     Density,
     /// Hydrogen mass fraction: shows the helium core growing during evolution.
     Hydrogen,
+}
+
+/// Gravity-darkening exponent used for the rotating display.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum GdBeta {
+    /// 0.08 with a convective envelope reaching below 0.99 R, else 0.25.
+    Auto,
+    /// β = 0.25, radiative envelope (von Zeipel 1924).
+    VonZeipel,
+    /// β = 0.08, convective envelope (Lucy 1967).
+    Lucy,
+}
+
+impl GdBeta {
+    fn value(self, model: &StarModel) -> f64 {
+        match self {
+            GdBeta::Auto => rotation::beta_for(model),
+            GdBeta::VonZeipel => rotation::BETA_RADIATIVE,
+            GdBeta::Lucy => rotation::BETA_CONVECTIVE,
+        }
+    }
+}
+
+/// Colatitude θ from the rotation (y) axis of a model-space point.
+fn colatitude(p: V3) -> f64 {
+    let r = dot(p, p).sqrt();
+    if r < 1e-9 { 0.0 } else { ((p[1] / r).clamp(-1.0, 1.0) as f64).acos() }
+}
+
+/// Stretch a point of the spherical drawing (radius 1 = R_pole) into the Roche
+/// shape for ω = Ω/Ω_crit: every point moves radially by x(θ).
+fn roche_deform(omega: f64, p: V3) -> V3 {
+    if omega <= 0.0 {
+        return p;
+    }
+    scale(p, roche_x(omega, colatitude(p)) as f32)
+}
+
+/// Outward surface normal of the Roche surface at the direction of `p`:
+/// along −g_eff = −g_r r̂ − g_θ θ̂.
+fn roche_normal(omega: f64, p: V3) -> V3 {
+    let r_hat = normalize(p);
+    let rho = (p[0] * p[0] + p[2] * p[2]).sqrt();
+    if omega <= 0.0 || rho < 1e-6 {
+        return r_hat;
+    }
+    let theta = colatitude(p);
+    let (gr, gt) = roche_gravity(omega, theta);
+    let (st, ct) = (theta.sin() as f32, theta.cos() as f32);
+    let (cp, sp) = (p[0] / rho, p[2] / rho);
+    let theta_hat = [ct * cp, -st, ct * sp];
+    normalize(add(scale(r_hat, -gr as f32), scale(theta_hat, -gt as f32)))
 }
 
 /// Seconds of animation time per pulsation cycle (the real period is shown in the legend).
@@ -155,6 +213,10 @@ pub struct Model3dState {
     pub amplitude: f32,
     /// During an evolution run: draw the star to scale, relative to its largest radius in the run.
     pub true_size: bool,
+    /// Rotation for display: ω = Ω/Ω_crit (0 = not rotating).
+    pub spin_omega: f32,
+    /// Gravity-darkening exponent of the rotating display.
+    pub gd_beta: GdBeta,
     sim_time: f64,
     /// Zoom onto the envelope on the next frame (needs the canvas size).
     pending_surface_zoom: bool,
@@ -179,6 +241,8 @@ impl Default for Model3dState {
             pulsate: true,
             amplitude: 0.06,
             true_size: false,
+            spin_omega: 0.0,
+            gd_beta: GdBeta::Auto,
             sim_time: 0.0,
             pending_surface_zoom: false,
             scene: None,
@@ -577,6 +641,25 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
             .on_hover_text("radial pulsation, shown when the star lies in the instability strip")
             .on_disabled_hover_text("this model is outside the instability strip: no classical pulsation");
     });
+    ui.horizontal_wrapped(|ui| {
+        ui.label("Rotation ω = Ω/Ω_crit:").on_hover_text(
+            "display only: the Roche shape of a uniformly rotating star with the polar radius of this model, \
+             and gravity darkening T_eff ∝ g_eff^β. Shape only, interior not recomputed.",
+        );
+        ui.add(egui::Slider::new(&mut state.spin_omega, 0.0..=rotation::OMEGA_MAX as f32).max_decimals(2));
+        ui.label("β:");
+        ui.selectable_value(&mut state.gd_beta, GdBeta::Auto, "auto").on_hover_text(
+            "0.08 (Lucy 1967) if the model has a convective envelope reaching below 0.99 R, else 0.25 (von Zeipel 1924)",
+        );
+        ui.selectable_value(&mut state.gd_beta, GdBeta::VonZeipel, "0.25")
+            .on_hover_text("von Zeipel (1924): radiative envelope");
+        ui.selectable_value(&mut state.gd_beta, GdBeta::Lucy, "0.08").on_hover_text("Lucy (1967): convective envelope");
+        if state.spin_omega > 0.0 {
+            ui.label(
+                egui::RichText::new("shape only, interior not recomputed").small().color(theme::secondary(dark)),
+            );
+        }
+    });
     ui.horizontal(|ui| {
         ui.add(egui::Slider::new(&mut state.zoom, 0.3..=400.0).logarithmic(true).text("zoom").max_decimals(1));
         if ui.button("Zoom to surface layers").on_hover_text("magnify the outer envelope at the cut").clicked() {
@@ -642,6 +725,10 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
         _ => (1.0, v.model.globals.radius),
     };
     let rot = Rot::new(state.yaw, state.pitch);
+    // Rotation for display: Roche shape and gravity-darkened surface.
+    let spin_omega = state.spin_omega.clamp(0.0, rotation::OMEGA_MAX as f32) as f64;
+    let spin = (spin_omega > 0.0).then(|| RocheStar::of_model(v.model, spin_omega, Some(state.gd_beta.value(v.model))));
+    let deform = |p: V3| roche_deform(spin_omega, p);
 
     // "Zoom to surface layers": centre on the middle of the envelope at the cut.
     if std::mem::take(&mut state.pending_surface_zoom) {
@@ -649,14 +736,14 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
         let depth = (1.0 - base).max(0.004);
         state.zoom = (0.45 / depth).clamp(1.0, 400.0);
         let target = face_point(0, 0.5 * (base + 1.0), std::f32::consts::FRAC_PI_4);
-        let q = rot.apply(target);
+        let q = rot.apply(deform(target));
         state.pan = -vec2(q[0], -q[1]) * base_px * state.zoom * size;
     }
 
     let scale_px = base_px * state.zoom * size;
     let origin = center + state.pan;
     let project = |p: V3| -> (Pos2, f32) {
-        let q = rot.apply(p);
+        let q = rot.apply(deform(p));
         (pos2(origin.x + q[0] * scale_px, origin.y - q[1] * scale_px), q[2])
     };
     let t = state.sim_time as f32;
@@ -701,7 +788,8 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
     let pulse_light = if pulse.is_some() { 1.0 - 2.5 * amp * pulse_s } else { 1.0 };
     for vtx in &scene.verts {
         let (s, z) = project(scale(vtx.p, disp(vtx.r)));
-        let n = rot.apply(vtx.n);
+        let spun = spin.as_ref().filter(|_| vtx.kind != Kind::Face);
+        let n = rot.apply(if spun.is_some() { roche_normal(spin_omega, vtx.p) } else { vtx.n });
         screen.push(s);
         depth.push(z);
         nz.push(n[2]);
@@ -711,7 +799,9 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
             Kind::Surface => {
                 let gran = if scene.envelope_convective { 1.0 + 0.07 * granulation(vtx.p, t * 0.6, 18.0) } else { 1.0 };
                 let k = (0.38 + 0.62 * diffuse) * gran * pulse_light;
-                vtx.c.map(|c| c * k + 0.30 * spec)
+                // Rotating: black-body colour at the gravity-darkened local T_eff.
+                let base = spun.map_or(vtx.c, |star| blackbody(star.teff(colatitude(vtx.p))));
+                base.map(|c| c * k + 0.30 * spec)
             }
             Kind::Face => {
                 let k = 0.80 + 0.20 * diffuse;
@@ -892,7 +982,27 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
             fmt_value(r_max)
         )
     });
-    draw_legend(&painter, rect, scene, v.model, dark, dot_r, LegendExtras { pulsing: pulse.is_some(), size_note });
+    let spin_note = spin.as_ref().map(|star| {
+        format!(
+            "rotating (display only, interior not recomputed): ω = {:.2}, v_eq = {:.0} km/s, R_eq/R_pole = {:.3}, \
+             β = {:.2}, T_eff pole/equator = {:.0}/{:.0} K",
+            star.omega,
+            star.v_equator() / 1e5,
+            star.r_equator() / star.r_pole,
+            star.beta,
+            star.teff(0.0),
+            star.teff(std::f64::consts::FRAC_PI_2)
+        )
+    });
+    draw_legend(
+        &painter,
+        rect,
+        scene,
+        v.model,
+        dark,
+        dot_r,
+        LegendExtras { pulsing: pulse.is_some(), size_note, spin_note },
+    );
 
     // Hover read-out: front-most triangle under the pointer.
     if let Some(m) = resp.hover_pos()
@@ -911,21 +1021,38 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut Model3dState) {
             (w0 >= 0.0 && w1 >= 0.0 && w2 >= 0.0).then(|| {
                 let vs = &scene.verts;
                 let r = w0 * vs[i0 as usize].r + w1 * vs[i1 as usize].r + w2 * vs[i2 as usize].r;
-                (vs[i0 as usize].kind, r)
+                let p =
+                    add(add(scale(vs[i0 as usize].p, w0), scale(vs[i1 as usize].p, w1)), scale(vs[i2 as usize].p, w2));
+                (vs[i0 as usize].kind, r, p)
             })
         });
-        if let Some((kind, r)) = hit {
+        if let Some((kind, r, hit_p)) = hit {
             let pr = &v.model.profile;
             let rn = &scene.rn;
             let s = r as f64;
             let log_at =
                 |ys: &[f64]| 10f64.powf(interp(rn, &ys.iter().map(|y| y.max(1e-300).log10()).collect::<Vec<_>>(), s));
             let text = match kind {
-                Kind::Surface => format!(
-                    "Photosphere (r/R = 1)\nT_eff = {:.0} K\nsurface colour: black body at T_eff{}",
-                    v.model.globals.teff,
-                    if scene.envelope_convective { "\nmottling: granulation (convective envelope)" } else { "" }
-                ),
+                Kind::Surface => match spin.as_ref() {
+                    Some(star) => {
+                        let theta = colatitude(hit_p);
+                        format!(
+                            "Photosphere, rotating (display only)\nlatitude {:.0}°\nR/R_pole = {:.4}\nlocal T_eff = {:.0} K \
+                             (∝ g_eff^{:.2})\nlocal log g_eff = {:.3}\nnon-rotating model: T_eff = {:.0} K",
+                            90.0 - theta.to_degrees(),
+                            star.x(theta),
+                            star.teff(theta),
+                            star.beta,
+                            star.g_eff(theta).max(1e-300).log10(),
+                            v.model.globals.teff
+                        )
+                    }
+                    None => format!(
+                        "Photosphere (r/R = 1)\nT_eff = {:.0} K\nsurface colour: black body at T_eff{}",
+                        v.model.globals.teff,
+                        if scene.envelope_convective { "\nmottling: granulation (convective envelope)" } else { "" }
+                    ),
+                },
                 _ => {
                     let k = rn.partition_point(|&x| x < s).min(rn.len() - 1);
                     let zone = if pr.convective[k] { "convective" } else { "radiative" };
@@ -967,6 +1094,8 @@ struct LegendExtras {
     pulsing: bool,
     /// Explanation of the true-size view, when active.
     size_note: Option<String>,
+    /// Rotating display: ω, v_eq, shape and gravity darkening.
+    spin_note: Option<String>,
 }
 
 fn draw_legend(
@@ -978,7 +1107,7 @@ fn draw_legend(
     dot_r: f32,
     extras: LegendExtras,
 ) {
-    let LegendExtras { pulsing, size_note } = extras;
+    let LegendExtras { pulsing, size_note, spin_note } = extras;
     // Icons sit on a chip of face colour, as they appear on the star.
     let chip = scene.field.color_at(&scene.rn, 0.85);
     let ink = theme::primary(dark);
@@ -1013,6 +1142,9 @@ fn draw_legend(
         "photons, convection cells and granulation are illustrative: a 1D model, not a 3D simulation".into(),
     ));
     if let Some(note) = size_note {
+        lines.push((None, note));
+    }
+    if let Some(note) = spin_note {
         lines.push((None, note));
     }
     if let Some(p) = &scene.pulsation {

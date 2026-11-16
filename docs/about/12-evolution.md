@@ -1,7 +1,8 @@
 # 12. Evolution in time
 
 Starting from the ZAMS model, **Evolve** follows the star in time on the same mass mesh. The total mass
-is constant: there is no mass loss. Each time step has two parts:
+is constant unless the wind is switched on (see [Mass loss](#mass-loss); off by default). Each time step
+has two parts:
 
 1. The composition changes by nuclear burning and convective mixing.
 2. The structure is solved again, including the energy released or absorbed as layers contract or
@@ -102,6 +103,50 @@ for Newton, and the luminosity unknown is re-scaled to the current luminosity ev
 * **Newton failure** (no convergence within 40 iterations): the step is divided by 3 and retried, up
   to 12 times. The smallest step is 1 year.
 * **First step:** 10% of the burning limit, at most $`10^6`$ years.
+* **Wind limit** (with mass loss): $`|\Delta M|/M \le 10^{-3}`$ per step.
+
+## Mass loss
+
+Off by default (**mass loss (wind)** in the Evolution section, `--wind` in the CLI). When on, the
+star loses mass at the rate
+
+```math
+\log\left(-\dot M\right) = -8.158 + 1.769\,\log\frac{L}{L_\odot} - 1.676\,\log T_{\mathrm{eff}} + 0.69\,\log\frac{Z}{0.019} \qquad (T_{\mathrm{eff}} \ge 8000\ \mathrm{K};\ M_\odot\,\mathrm{yr}^{-1})
+```
+
+```math
+-\dot M = 4\times10^{-13}\,\eta\,\frac{L\,R}{M} \qquad (T_{\mathrm{eff}} < 8000\ \mathrm{K};\ L, R, M \text{ in solar units};\ M_\odot\,\mathrm{yr}^{-1})
+```
+
+* **Hot stars:** the linear form of the de Jager, Nieuwenhuijzen & van der Hucht (1988) fit (§4,
+  remark 3), times the metallicity factor of Vink, de Koter & Lamers (2001, eqs. 21–22). Multiplying
+  the two is a choice made here, not a prescription of either paper. $`Z`$ is the surface value.
+* **Cool stars:** Reimers (1975), with $`\eta = 0.477`$ by default (McDonald & Zijlstra 2015,
+  calibrated on low-mass red giants in globular clusters; for other stars an extrapolation).
+* The two meet as a step at 8000 K. **efficiency** (default 1) multiplies both rates.
+
+Each step the mass changes explicitly, with the rate of the previous model. The mesh stays fixed in
+$`q = m/M`$, so a mesh point no longer follows the same gas: before the structure is solved, the
+composition and the previous model's $`\ln P`$, $`\ln T`$ are interpolated to the new mesh at fixed
+mass $`m`$. $`\varepsilon_{\mathrm{grav}}`$ then compares the same gas. (Comparing at fixed $`q`$ would
+miss a term proportional to $`\dot M`$ that does not shrink with the time step.)
+
+```math
+M \leftarrow M + \dot M\,\Delta t, \qquad m_k = q_k\,M, \qquad f^{\mathrm{prev}}_k = f^{\mathrm{old}}\!\left(q_k\,\frac{M + \dot M\,\Delta t}{M}\right), \qquad \frac{|\Delta M|}{M} \le 10^{-3}
+```
+
+Measured with the default composition ($`Z = 0.02`$) and 800 points, to the end of the main sequence:
+
+| Mass | Ṁ on the ZAMS [M☉/yr] | Final mass | Lost |
+|---|---:|---:|---:|
+| 5 M☉ | $`3.9\times10^{-11}`$ | 4.995 M☉ | 0.10% |
+| 20 M☉ | $`2.8\times10^{-8}`$ | 19.52 M☉ | 2.4% |
+| 60 M☉ | $`1.3\times10^{-6}`$ | 51.39 M☉ | 14.3% |
+
+The 60 M☉ main sequence ends at almost the same age (3.54 against 3.52 Myr) but at 16% lower
+luminosity. Below about 15 M☉ the wind is negligible on the main sequence. The gas uncovered by the wind
+decompresses; in the 60 M☉ run this absorbs about $`10^{-4}`$ of the luminosity in the outer 1% of the
+mass. Halving every step limit changes the final 60 M☉ mass by $`5\times10^{-5}`$ of itself.
 
 ## Evolutionary phases
 
@@ -144,6 +189,17 @@ composition term and $`-9\times10^{-7}`$ numerical (halved by halving the time s
 end of the main sequence they are $`-1.09\times10^{-3}`$ and $`2\times10^{-6}`$. Automated tests
 require below 1% and check both parts on halving the steps.
 
+With a wind, the gas removed carries off its thermal and gravitational energy, $`E_{\mathrm{wind}}`$
+(negative: the star loses bound gas). It is reported as a third part:
+
+```math
+E_{\mathrm{wind}} = \sum_{\mathrm{steps}} \int_{M_{\mathrm{new}}}^{M_{\mathrm{old}}} \left(u - \frac{G m}{r}\right) dm, \qquad \mathcal{R} = \frac{\int L\,dt - \int\!\!\int\varepsilon_{\mathrm{nuc}}\,dm\,dt + \Delta(E_{\mathrm{int}} + E_{\mathrm{grav}}) + E_{\mathrm{wind}}}{\int L\,dt}
+```
+
+For 60 M☉ to the end of the main sequence $`E_{\mathrm{wind}}/\int L\,dt = -5.0\times10^{-4}`$, and the
+residual is $`-3.16\times10^{-3}`$, nearly all of it the composition term, as without a wind
+($`-3.24\times10^{-3}`$); the numerical part is $`-2.3\times10^{-5}`$.
+
 **Fuel accounting.** The hydrogen burnt, each step with the effective energy per gram of the model it
 burnt in, against the energy radiated:
 
@@ -151,8 +207,15 @@ burnt in, against the energy radiated:
 \sum_{\mathrm{steps}} Q_{\mathrm{H}}^{\mathrm{eff}}\,\Delta\!\left[\int X\, dm\right] \approx \int_0^t L\, dt', \qquad Q_{\mathrm{H}}^{\mathrm{eff}} = \frac{\int (\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}})\,dm}{\int \left(\varepsilon_{pp}/Q_{pp}^{\mathrm{eff}} + \varepsilon_{\mathrm{CNO}}/Q_{\mathrm{CNO}}\right) dm}
 ```
 
+With a wind, the hydrogen carried off, $`X_s|\Delta M|`$ with the surface value $`X_s`$, is not
+counted as burnt:
+
+```math
+\Delta X_{\mathrm{burnt}} = -\Delta\!\left[\int X\,dm\right] - X_s\,|\Delta M|
+```
+
 It is close to 1 only on the main sequence, where hydrogen burning supplies nearly all the
-luminosity. For the Sun evolved to 4.57 Gyr it is 0.990 (0.995 with halved time steps: the difference
+luminosity. 60 M☉ with a wind gives 1.0012 (1.0003 without). For the Sun evolved to 4.57 Gyr it is 0.990 (0.995 with halved time steps: the difference
 is the first-order error of the explicit burning step); for 3 M☉ to the end of the main sequence
 0.996. Along every run:
 
@@ -194,7 +257,8 @@ cargo run --release -p stellar-core --example timestep_study
 
 ## In the app
 
-* **Evolution section** (left panel): choose the stop condition and press **Evolve**.
+* **Evolution section** (left panel): choose the stop condition and press **Evolve**. Tick **mass
+  loss (wind)** for a run with a wind, with its **efficiency** and **Reimers η**.
   * **Stop** interrupts a run.
   * **Continue** resumes it from its latest model, for example with a later stop condition.
   * **Reset to ZAMS** discards the run.
@@ -209,8 +273,10 @@ cargo run --release -p stellar-core --example timestep_study
   * $`X_c`$ by more than 0.02;
   * the phase or the pulsation state.
 * **Exports:** **Pin current model** pins the selected age. **Track CSV** exports the global
-  properties of every timeline model. The Time evolution tab exports every step (history CSV).
-* **Time evolution tab:** twelve linked time-series panels covering the whole run.
+  properties of every timeline model. The Time evolution tab exports every step (history CSV). Both
+  have the current mass and $`\dot M`$ as columns (`M_msun`, `Mdot_msun_yr`).
+* **Time evolution tab:** twelve linked time-series panels covering the whole run; a run with a wind
+  adds two (mass, mass-loss rate), and the timeline shows $`M`$ and $`\dot M`$.
   * The x axis is age, or model number, which spreads out the fast phases after the main sequence.
   * Vertical lines mark phase changes, and a vertical marker shows the selected age.
   * Shaded intervals in the period panel mark the instability strip.

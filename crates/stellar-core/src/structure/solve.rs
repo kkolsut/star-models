@@ -120,14 +120,17 @@ pub fn newton(
     ctl: &mut dyn SolveControl,
 ) -> Result<StarModel, SolveError> {
     let comp = params.composition().map_err(|e| SolveError::InvalidParams(e.to_string()))?;
-    solve_structure(params, physics, q, vec![comp; q.len()], None, y0, l_scale, opts, ctl)
+    solve_structure(params, params.mass, physics, q, vec![comp; q.len()], None, y0, l_scale, opts, ctl)
 }
 
 /// Solve the structure equations for a given composition profile and,
-/// during evolution, the previous time step (for ε_grav).
+/// during evolution, the previous time step (for ε_grav). `mass_msun` is the
+/// current mass [M☉]; it differs from `params.mass` (the initial mass) in an
+/// evolution run with a wind.
 #[allow(clippy::too_many_arguments)]
 pub fn solve_structure(
     params: &StarParams,
+    mass_msun: f64,
     physics: &Physics,
     q: &[f64],
     comps: Vec<Composition>,
@@ -137,7 +140,7 @@ pub fn solve_structure(
     opts: NewtonOptions,
     ctl: &mut dyn SolveControl,
 ) -> Result<StarModel, SolveError> {
-    let mass = params.mass * crate::constants::M_SUN;
+    let mass = mass_msun * crate::constants::M_SUN;
     let mut problem = StructureProblem::new(physics, mass, q, comps[0], params.alpha_mlt, l_scale);
     problem.comp = comps;
     problem.prev = prev;
@@ -191,7 +194,7 @@ fn homology_guess(model: &StarModel, target: &StarParams) -> (Vec<f64>, Vec<f64>
     // R ∝ M^a, P ∝ M²/R⁴, T ∝ M/R, L ∝ M^b. The unknown L/L_scale is kept;
     // only the luminosity scale changes.
     let (a, b) = (0.75, 3.5);
-    let d = (target.mass / model.params.mass).ln();
+    let d = (target.mass / model.globals.mass).ln();
     for k in 0..q_new.len() {
         y[k * NVAR + I_LNR] += a * d;
         y[k * NVAR + I_LNP] += (2.0 - 4.0 * a) * d;
@@ -208,7 +211,8 @@ fn continuation(
     physics: &Physics,
     ctl: &mut dyn SolveControl,
 ) -> Result<StarModel, SolveError> {
-    let start = from.params.clone();
+    // Start from the model's current mass (an evolved model may have lost mass).
+    let start = StarParams { mass: from.globals.mass, ..from.params.clone() };
     if start == *target && !from.solution.is_empty() {
         return Ok(from.clone());
     }

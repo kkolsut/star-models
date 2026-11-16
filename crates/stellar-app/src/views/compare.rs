@@ -21,7 +21,16 @@ pub enum CompareAction {
 type Row = (&'static str, fn(&Globals, &stellar_core::StarParams) -> String);
 
 const ROWS: &[Row] = &[
-    ("Mass [M☉]", |g, _| format!("{:.3}", g.mass)),
+    ("Mass [M☉]", |g, p| {
+        if (g.mass - p.mass).abs() > 1e-9 * p.mass {
+            format!("{:.3} (initial {:.3})", g.mass, p.mass)
+        } else {
+            format!("{:.3}", g.mass)
+        }
+    }),
+    ("Mass-loss rate Ṁ [M☉/yr]", |g, _| {
+        if g.mdot_msun_yr < 0.0 { format!("{:.2e}", g.mdot_msun_yr) } else { "–".into() }
+    }),
     ("X / Y / Z", |_, p| format!("{:.3} / {:.3} / {:.4}", p.x, p.y(), p.z)),
     ("α_MLT", |_, p| format!("{:.2}", p.alpha_mlt)),
     ("α_ov (core overshoot)", |_, p| format!("{:.2}", p.alpha_ov)),

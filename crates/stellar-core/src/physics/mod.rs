@@ -7,6 +7,7 @@
 pub mod atmosphere;
 pub mod convection;
 pub mod eos;
+pub mod mass_loss;
 pub mod nuclear;
 pub mod opacity;
 

@@ -239,7 +239,9 @@ fn overview(ui: &mut Ui, dark: bool, physics: &Physics) {
     );
     p(
         ui,
-        "Models are spherically symmetric, non-rotating and non-magnetic, without mass loss. The defaults are those \
+        "Models are spherically symmetric, non-rotating and non-magnetic. Evolution runs can include mass loss by a \
+         stellar wind (off by default), and the 3D view can show the shape of a rotating star (display only). The \
+         defaults are those \
          of the Sun (1 M☉, X = 0.70, Z = 0.02, α_MLT = 1.8). The default model is therefore the young Sun as it was \
          about 4.6 billion years ago. Press Evolve to follow the star in time: hydrogen burns to helium, the core \
          contracts, the envelope expands, and the star moves along an evolutionary track in the HR diagram. Stars \
@@ -527,6 +529,14 @@ fn parameters(ui: &mut Ui, dark: bool, pr: &StarParams) {
         "Stop at:",
         "end of main sequence (X_c < 10⁻³, default), a given age in Gyr (default 4.57), or as far as possible.",
     );
+    term(
+        ui,
+        "Mass loss (wind):",
+        "off by default. When on, the star loses mass at the de Jager et al. (1988) rate times (Z/0.019)^0.69 for \
+         T_eff ≥ 8000 K and the Reimers (1975) rate below (see \"Evolution in time\"). efficiency (default 1, range \
+         0–10) multiplies both rates; Reimers η (default 0.477, range 0–5) is the McDonald & Zijlstra (2015) \
+         calibration on low-mass red giants, an extrapolation for other stars. Applies to the next Evolve or Continue.",
+    );
     p(
         ui,
         "The time-step controls are fixed (see \"Evolution in time\"). The mesh-points setting also applies to evolution: more points resolve the thin hydrogen-burning shell after the main sequence better.",
@@ -539,6 +549,11 @@ fn parameters(ui: &mut Ui, dark: bool, pr: &StarParams) {
     );
     term(ui, "Overlay quantity (Compare):", "which profile is overlaid for all models.");
     term(ui, "3D: cut faces, core as sphere, animate, speed, auto-rotate, zoom:", "see \"How the views are made\".");
+    term(
+        ui,
+        "3D: rotation ω = Ω/Ω_crit (0–0.95, default 0) and β (auto, 0.25, 0.08):",
+        "Roche shape and gravity darkening of the surface, display only: the interior is not recomputed.",
+    );
     term(ui, "Cross-section: animate convection cells:", "turns the cell animation on or off.");
 }
 
@@ -768,7 +783,11 @@ fn equations(ui: &mut Ui) {
         "ZAMS models are chemically homogeneous: X, Y, Z are the same everywhere. Evolved models store a composition \
          per mesh point, set by burning and convective mixing (see \"Evolution in time\").",
     );
-    bullet(ui, "No neutrino losses, rotation, magnetic fields, mass loss or element diffusion.");
+    bullet(
+        ui,
+        "No neutrino losses, rotation in the structure, magnetic fields or element diffusion. Mass loss acts only \
+         in evolution runs with the wind on (see \"Evolution in time\").",
+    );
 }
 
 fn microphysics(ui: &mut Ui, dark: bool) {
@@ -1070,7 +1089,7 @@ fn evolution(ui: &mut Ui, dark: bool) {
     p(
         ui,
         "Starting from the ZAMS model, Evolve follows the star in time on the same mass mesh (the total mass is \
-         constant: no mass loss). Each time step has two parts. First the composition changes by nuclear burning \
+         constant unless the wind is switched on; see \"Mass loss\" below). Each time step has two parts. First the composition changes by nuclear burning \
          and convective mixing. Then the structure is solved again, including the energy released or absorbed as \
          layers contract or expand.",
     );
@@ -1139,6 +1158,44 @@ fn evolution(ui: &mut Ui, dark: bool) {
          smallest step is 1 year.",
     );
     bullet(ui, "First step: 10% of the burning limit, at most 10⁶ years.");
+    bullet(ui, "Wind limit (with mass loss): |ΔM|/M ≤ 10⁻³ per step.");
+    sub(ui, "Mass loss");
+    p(
+        ui,
+        "Off by default (mass loss (wind) in the Evolution section, --wind in the CLI). When on, the star loses mass \
+         at the rate",
+    );
+    math(ui, "evo_wind_hot", "");
+    math(ui, "evo_wind_cool", "");
+    bullet(
+        ui,
+        "Hot stars: the linear form of the de Jager, Nieuwenhuijzen & van der Hucht (1988) fit (§4, remark 3), times \
+         the metallicity factor of Vink, de Koter & Lamers (2001, eqs. 21–22). Multiplying the two is a choice made \
+         here, not a prescription of either paper. Z is the surface value.",
+    );
+    bullet(
+        ui,
+        "Cool stars: Reimers (1975), with η = 0.477 by default (McDonald & Zijlstra 2015, calibrated on low-mass red \
+         giants in globular clusters; for other stars an extrapolation).",
+    );
+    bullet(ui, "The two meet as a step at 8000 K. efficiency (default 1) multiplies both rates.");
+    p(
+        ui,
+        "Each step the mass changes explicitly, with the rate of the previous model. The mesh stays fixed in q = m/M, \
+         so a mesh point no longer follows the same gas: before the structure is solved, the composition and the \
+         previous model's ln P, ln T are interpolated to the new mesh at fixed mass m. ε_grav then compares the same \
+         gas. (Comparing at fixed q would miss a term proportional to Ṁ that does not shrink with the time step.)",
+    );
+    math(ui, "evo_wind_mesh", "");
+    p(
+        ui,
+        "Measured with the default composition (Z = 0.02) and 800 points, to the end of the main sequence: 5 M☉ loses 0.10% (Ṁ = 3.9 × 10⁻¹¹ \
+         M☉/yr on the ZAMS), 20 M☉ 2.4% (2.8 × 10⁻⁸ M☉/yr) and 60 M☉ 14.3% (1.3 × 10⁻⁶ M☉/yr; it ends at 51.39 M☉). \
+         The 60 M☉ main sequence ends at almost the same age (3.54 against 3.52 Myr) but at 16% lower luminosity. \
+         Below about 15 M☉ the wind is negligible on the main sequence. The gas uncovered by the wind decompresses; in \
+         the 60 M☉ run this absorbs about 10⁻⁴ of the luminosity in the outer 1% of the mass. Halving every step limit \
+         changes the final 60 M☉ mass by 5 × 10⁻⁵ of itself.",
+    );
     sub(ui, "Evolutionary phases");
     term(ui, "Zero-age main sequence:", "age 0, homogeneous composition.");
     term(ui, "Main sequence:", "core hydrogen burning, central X ≥ 10⁻³.");
@@ -1179,10 +1236,27 @@ fn evolution(ui: &mut Ui, dark: bool) {
     );
     p(
         ui,
+        "With a wind, the gas removed carries off its thermal and gravitational energy, E_wind (negative: the star \
+         loses bound gas). It is reported as a third part:",
+    );
+    math(ui, "evo_energy_wind", "");
+    p(
+        ui,
+        "For 60 M☉ to the end of the main sequence E_wind / ∫L dt = −5.0 × 10⁻⁴, and the residual is −3.16 × 10⁻³, \
+         nearly all of it the composition term, as without a wind (−3.24 × 10⁻³); the numerical part is −2.3 × 10⁻⁵.",
+    );
+    p(
+        ui,
         "Fuel accounting. The hydrogen burnt, each step with the effective energy per gram of the model it burnt in, \
          against the energy radiated:",
     );
     math(ui, "evo_budget", "");
+    p(
+        ui,
+        "With a wind, the hydrogen carried off, X_s |ΔM| with the surface value X_s, is not counted as burnt \
+         (60 M☉ with a wind: 1.0012; 1.0003 without):",
+    );
+    math(ui, "evo_budget_wind", "");
     p(
         ui,
         "It is close to 1 only on the main sequence, where hydrogen burning supplies nearly all the luminosity. For the \
@@ -1210,7 +1284,8 @@ fn evolution(ui: &mut Ui, dark: bool) {
     sub(ui, "In the app");
     bullet(
         ui,
-        "Evolution section (left panel): choose the stop condition and press Evolve. Stop interrupts a run; Continue \
+        "Evolution section (left panel): choose the stop condition and press Evolve; tick mass loss (wind) for a run \
+         with a wind, with its efficiency and Reimers η. Stop interrupts a run; Continue \
          resumes it from its latest model, for example with a later stop condition. Reset to ZAMS discards the run. \
          Sun's age evolves to 4.57 Gyr.",
     );
@@ -1228,11 +1303,13 @@ fn evolution(ui: &mut Ui, dark: bool) {
     bullet(
         ui,
         "Pin current model pins the selected age. Track CSV exports the global properties of every timeline model; \
-         the Time evolution tab exports every step (history CSV).",
+         the Time evolution tab exports every step (history CSV). Both have the current mass and Ṁ as columns \
+         (M_msun, Mdot_msun_yr).",
     );
     bullet(
         ui,
-        "Time evolution tab: twelve linked time-series panels covering the whole run. The x axis is age, or model number, \
+        "Time evolution tab: twelve linked time-series panels covering the whole run (fourteen with a wind: mass and \
+         mass-loss rate; the timeline then shows M and Ṁ). The x axis is age, or model number, \
          which spreads out the fast phases after the main sequence. Vertical lines mark phase changes, a vertical \
          marker shows the selected age, shaded intervals in the period panel mark the instability strip, and a click \
          on any panel selects that age. \"fit all on screen\" shrinks the panels to show all of them at once.",
@@ -1450,6 +1527,27 @@ fn views(ui: &mut Ui, dark: bool) {
     );
     bullet(
         ui,
+        "Rotation, display only (slider ω = Ω/Ω_crit, 0–0.95, default 0): the star is drawn with the Roche shape of \
+         a uniformly rotating star about the vertical (y) axis, and the surface is coloured by the gravity-darkened \
+         local T_eff. θ is measured from the rotation axis:",
+    );
+    math(ui, "rot_roche", "");
+    math(ui, "rot_gd", "");
+    bullet(
+        ui,
+        "The polar radius is the model's radius, and M and L are the model's; the whole mass acts as a point mass \
+         (Roche model). β = 0.25 for a radiative envelope (von Zeipel 1924) and 0.08 for a convective one (Lucy 1967); \
+         auto uses 0.08 when the model has a convective envelope reaching below 0.99 R. At ω = 1 the equatorial radius \
+         would be 1.5 times the polar radius. Shading uses the surface normal along −g_eff. Hover the surface for the \
+         local latitude, radius, T_eff and g_eff; the legend gives v_eq and the polar and equatorial T_eff.",
+    );
+    bullet(
+        ui,
+        "Shape only, interior not recomputed: the structure stays non-rotating, and interior points are stretched \
+         with the surface for the picture.",
+    );
+    bullet(
+        ui,
         "Rendering: orthographic projection on the CPU. About 40,000 shaded triangles are depth-sorted every frame \
          (painter's algorithm, about 2 ms) and drawn as one mesh with 4× multisampling. Overlays use an exact ray test \
          against the cut-away geometry, so they are hidden correctly behind the sphere and the core.",
@@ -1544,8 +1642,16 @@ fn limitations(ui: &mut Ui, dark: bool) {
     bullet(
         ui,
         "Core overshoot is a step in the mixing only (α_ov, off by default); its value is a calibration, not a \
-         prediction. Not included: diffusive (exponential) overshoot, envelope overshoot, semiconvection, mass loss, \
-         rotational mixing, neutrino losses.",
+         prediction. Not included: diffusive (exponential) overshoot, envelope overshoot, semiconvection, rotational \
+         mixing, neutrino losses.",
+    );
+    bullet(
+        ui,
+        "Mass loss (off by default) uses two fitted rates: de Jager et al. (1988) in its linear form, times a \
+         metallicity factor taken from Vink et al. (2001), above 8000 K, and Reimers below. The combination, the step \
+         at 8000 K and the efficiency factor are choices, not predictions; real hot-star winds depend on more than L, \
+         T_eff and Z. Reimers' η is calibrated on low-mass red giants, which this model does not reach. No Wolf–Rayet, \
+         luminous-blue-variable or dust-driven winds.",
     );
     bullet(
         ui,
@@ -1561,7 +1667,8 @@ fn limitations(ui: &mut Ui, dark: bool) {
     );
     bullet(
         ui,
-        "Neutrino losses; rotation; magnetic fields; mass loss; element diffusion; non-radial oscillation modes.",
+        "Neutrino losses; rotation in the structure (the 3D view can draw a rotating star, but the interior is not \
+         recomputed); magnetic fields; element diffusion; non-radial oscillation modes.",
     );
     bullet(
         ui,
@@ -1638,6 +1745,12 @@ fn cli(ui: &mut Ui, dark: bool) {
         ("--evolve", "evolve the star from the ZAMS and print the track"),
         ("--until <tams|age|max>", "stop condition: end of main sequence (default), age, or as far as possible"),
         ("--max-age <Gyr>", "target age with --until age; otherwise a safety limit"),
+        (
+            "--wind",
+            "mass loss during --evolve: de Jager et al. (1988) for T_eff ≥ 8000 K, Reimers below (off by default)",
+        ),
+        ("--wind-efficiency <f>", "factor applied to both wind rates (default 1)"),
+        ("--reimers-eta <η>", "Reimers η (default 0.477, McDonald & Zijlstra 2015)"),
         ("--track <file>", "write the evolutionary track (one row per model) as CSV"),
         ("-v, --verbose", "print every Newton iteration (every model with --evolve)"),
         ("-h, --help / -V, --version", "print help / version"),
@@ -1655,6 +1768,7 @@ fn cli(ui: &mut Ui, dark: bool) {
     eq(ui, "stellar-cli --mass 3 --z 0.008 -v");
     eq(ui, "stellar-cli --mass 1 --evolve --until age --max-age 4.57");
     eq(ui, "stellar-cli --mass 5 --evolve --until max --track track.csv -o final_profile.csv");
+    eq(ui, "stellar-cli --mass 60 --evolve --wind --track m60.csv");
     muted(
         ui,
         dark,
@@ -1690,6 +1804,27 @@ fn references(ui: &mut Ui, dark: bool) {
         "Principles of Stellar Evolution and Nucleosynthesis, McGraw-Hill: thermonuclear rates and weak screening.",
     );
     term(ui, "Asplund, Grevesse, Sauval & Scott (2009),", "ARA&A 47, 481: the AGSS09 solar composition preset.");
+    term(
+        ui,
+        "de Jager, Nieuwenhuijzen & van der Hucht (1988),",
+        "A&AS 72, 259: the hot-star mass-loss rate (linear form, §4 remark 3).",
+    );
+    term(
+        ui,
+        "Vink, de Koter & Lamers (2001),",
+        "A&A 369, 574: the metallicity factor (Z/0.019)^0.69 of the hot-star wind.",
+    );
+    term(
+        ui,
+        "Reimers (1975), Reimers (1977), McDonald & Zijlstra (2015),",
+        "Mém. Soc. R. Sci. Liège, 6e sér., 8, 369; A&A 61, 217; MNRAS 448, 502: the cool-star mass-loss rate and its \
+         default η = 0.477.",
+    );
+    term(
+        ui,
+        "von Zeipel (1924), Lucy (1967),",
+        "MNRAS 84, 665; Z. Astrophys. 65, 89: gravity darkening of a rotating star (display only).",
+    );
     term(
         ui,
         "Acharya et al. (2025),",

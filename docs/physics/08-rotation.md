@@ -2,29 +2,22 @@
 
 ## Implemented
 
-None. All models are non-rotating.
+The structure is non-rotating. Rotation is shown for display only (stage 1, below).
 
-## Why it matters
+### Stage 1: shape and gravity darkening, display only (E3, plan 5.1)
 
-The ratio of centrifugal to gravitational acceleration at the equator is
+Source: `crates/stellar-core/src/rotation.rs`, used by `crates/stellar-app/src/views/model3d.rs`.
 
-```math
-\epsilon_{\mathrm{rot}} = \frac{\Omega^2 R^3}{G M}
-```
+Post-processing of a non-rotating model for the 3D view; the structure is not changed. The view
+labels it "shape only, interior not recomputed". Choices made here:
 
-* Sun (period 25.4 d): $`2\times10^{-5}`$, negligible.
-* Stars above about 1.3 M☉ are not braked by a magnetised wind. They typically rotate at
-  150–300 km/s, which is 30–60% of the break-up speed (about 500 km/s for the 5 M☉ model).
-
-For those stars rotation supports part of the weight, flattens the star, makes the poles hotter than
-the equator, and mixes fresh hydrogen into the core (main sequence 20–30% longer in fast rotators,
-literature value).
-
-## Planned
-
-### Stage 1: shape and gravity darkening (E3, plan 5.1)
-
-Display only; the structure stays non-rotating.
+* the polar radius is the radius of the non-rotating model, $`R_{\mathrm{pole}} = R`$, and $`M`$, $`L`$
+  are the model's; the whole mass acts as a point mass (Roche model);
+* $`\omega = \Omega/\Omega_{\mathrm{crit}}`$ is a display input from 0 to 0.95 (default 0);
+* $`\beta_{\mathrm{gd}}`$ is 0.08 if the model has a convective envelope whose base lies below
+  $`0.99\,R`$, else 0.25; the view can force either value;
+* the drawing stretches every point radially by $`x(\theta)`$ about the rotation axis, interior
+  included, for the picture only.
 
 *Roche surface.* With $`\omega = \Omega/\Omega_{\mathrm{crit}}`$,
 $`x(\theta) = R(\theta)/R_{\mathrm{pole}}`$ and $`\theta`$ measured from the rotation axis:
@@ -59,6 +52,40 @@ T_{\mathrm{eff}}(\theta) \propto g_{\mathrm{eff}}^{\beta_{\mathrm{gd}}}, \qquad 
 
 *Changed:* the convective value was attributed to von Zeipel and the formula showed only the
 exponent 1/4; it is now written with $`\beta_{\mathrm{gd}}`$ and the 0.08 attributed to Lucy (1967).
+
+*Numerics.* $`x(\theta)`$ uses the closed form, polished by two Newton steps on the Roche equation
+for $`a = \omega\sin\theta < 0.5`$ (the cosine is near zero there and loses digits; near break-up
+the root is double, so no polishing), and the series $`1 + 4a^2/27`$ for $`a < 10^{-6}`$. The normalisation integral uses the midpoint rule in
+$`\theta`$ with 2000 intervals per hemisphere and the area element
+$`dA = 2\pi R\sin\theta\,\sqrt{R^2 + (dR/d\theta)^2}\,d\theta`$, where
+$`dx/d\theta = -x\,g_\theta/g_r`$ (the surface is an equipotential). The surface normal of the
+drawing is along $`-\mathbf{g}_{\mathrm{eff}}`$.
+
+**[measured]** (unit tests in `rotation.rs`) $`\omega = 0`$ gives a sphere, $`x = 1`$ to
+$`10^{-15}`$, uniform $`T_{\mathrm{eff}}`$, area $`4\pi R^2`$ to $`10^{-6}`$;
+$`\omega = 1`$ gives $`R_{\mathrm{eq}}/R_{\mathrm{pole}} = 1.5`$ to $`10^{-12}`$ with
+$`g_{\mathrm{eff}} = 0`$ at the equator; the closed form satisfies the Roche equation to
+$`10^{-12}`$; $`\oint\sigma T_{\mathrm{eff}}^4\,dA = L`$ to $`2\times10^{-4}`$ when checked with
+an independent quadrature (Simpson's rule in $`\cos\theta`$) for $`\omega`$ up to 0.95 and both
+exponents.
+
+## Why it matters
+
+The ratio of centrifugal to gravitational acceleration at the equator is
+
+```math
+\epsilon_{\mathrm{rot}} = \frac{\Omega^2 R^3}{G M}
+```
+
+* Sun (period 25.4 d): $`2\times10^{-5}`$, negligible.
+* Stars above about 1.3 M☉ are not braked by a magnetised wind. They typically rotate at
+  150–300 km/s, which is 30–60% of the break-up speed (about 500 km/s for the 5 M☉ model).
+
+For those stars rotation supports part of the weight, flattens the star, makes the poles hotter than
+the equator, and mixes fresh hydrogen into the core (main sequence 20–30% longer in fast rotators,
+literature value).
+
+## Planned
 
 ### Stage 2: structure (E3, plan 5.2)
 

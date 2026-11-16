@@ -215,6 +215,21 @@ changes of default results are in `physics/04`, `07`, `11` and in the commit mes
 * Label: "shape only, interior not recomputed".
 * Tests: ω = 0 gives a sphere; ω = 1 gives R_eq/R_pole = 1.5; ∮σT_eff⁴ dA = L.
 
+*Status (2026-11-16, branch `agent/mass-loss`).* Done: 4.1–4.3, 5.1, wind off by default, no
+change of default results (regression tests unchanged). Measured numbers are in `physics/07` and
+`08`. Departures from the plan, also noted on the tickets:
+
+* 5 M☉ loses 0.102% on the main sequence, not < 0.1%: the plan's figure used the ZAMS rate; the
+  test bound is 0.15%.
+* The current mass is `Globals::mass` (it already existed and was serialised); `params.mass` is the
+  initial mass. `solve_structure` takes the current mass as an argument.
+* The 8000 K switch is a step; the efficiency factor multiplies both rates; `Wind::Constant` was
+  added for the convergence test.
+* 5.1: $`R_{\mathrm{pole}}`$ is the model radius; $`\beta`$ "auto" means 0.08 for a convective
+  envelope reaching below 0.99 R.
+* The app (`stellar-app`) changes were not compiled when this was written (no egui in the build
+  environment); `stellar-core` and `stellar-cli` were built and tested.
+
 ## Stage 4: cool-star block
 
 ### 3.1 Integrated grey atmosphere, D13 (M), p. 6

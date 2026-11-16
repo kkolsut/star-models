@@ -18,12 +18,14 @@ pub mod constants;
 pub mod output;
 pub mod physics;
 pub mod pulsation;
+pub mod rotation;
 pub mod seismic;
 pub mod solver;
 pub mod structure;
 
 pub use composition::Composition;
 pub use physics::Physics;
+pub use physics::mass_loss::Wind;
 pub use structure::evolve::{Evolution, EvolutionOptions, EvolutionStep, StopCondition, fmt_age};
 pub use structure::model::{ConvectiveZone, Globals, Phase, Profile, Residuals, StarModel, StarParams};
 pub use structure::solve::{NoControl, SolveControl, SolveError, SolveEvent, solve_model};

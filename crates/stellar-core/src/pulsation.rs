@@ -195,7 +195,7 @@ fn acoustic_guesses(pr: &crate::structure::model::Profile, nodes: usize, mass: f
 pub fn radial_mode(model: &StarModel, nodes: usize, previous: Option<&RadialMode>) -> Result<RadialMode, String> {
     let pr = &model.profile;
     let n = pr.len();
-    let mass = model.params.mass * M_SUN;
+    let mass = model.mass_g();
     let mut guesses: Vec<(Vec<f64>, Vec<f64>, f64)> = Vec::new();
     if let Some(prev) = previous.filter(|m| m.xi.len() == n && m.dp.len() == n && m.nodes == nodes) {
         guesses.push((prev.xi.clone(), prev.dp.clone(), prev.omega2));

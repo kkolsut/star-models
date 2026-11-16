@@ -491,6 +491,41 @@ pub static EQUATIONS: &[Equation] = &[
         height: 44.83,
     },
     Equation {
+        id: "evo_wind_hot",
+        tex: "\\log\\left(-\\dot M\\right) = -8.158 + 1.769\\,\\log\\frac{L}{L_\\odot} - 1.676\\,\\log T_{\\mathrm{eff}} + 0.69\\,\\log\\frac{Z}{0.019} \\qquad (T_{\\mathrm{eff}} \\ge 8000\\ \\mathrm{K};\\ M_\\odot\\,\\mathrm{yr}^{-1})",
+        svg: include_bytes!("../assets/equations/evo_wind_hot.svg"),
+        width: 731.29,
+        height: 38.24,
+    },
+    Equation {
+        id: "evo_wind_cool",
+        tex: "-\\dot M = 4\\times10^{-13}\\,\\eta\\,\\frac{L\\,R}{M} \\qquad (T_{\\mathrm{eff}} < 8000\\ \\mathrm{K};\\ L, R, M \\text{ in solar units};\\ M_\\odot\\,\\mathrm{yr}^{-1})",
+        svg: include_bytes!("../assets/equations/evo_wind_cool.svg"),
+        width: 559.45,
+        height: 34.70,
+    },
+    Equation {
+        id: "evo_wind_mesh",
+        tex: "M \\leftarrow M + \\dot M\\,\\Delta t, \\qquad m_k = q_k\\,M, \\qquad f^{\\mathrm{prev}}_k = f^{\\mathrm{old}}\\!\\left(q_k\\,\\frac{M + \\dot M\\,\\Delta t}{M}\\right), \\qquad \\frac{|\\Delta M|}{M} \\le 10^{-3}",
+        svg: include_bytes!("../assets/equations/evo_wind_mesh.svg"),
+        width: 651.32,
+        height: 50.89,
+    },
+    Equation {
+        id: "evo_energy_wind",
+        tex: "E_{\\mathrm{wind}} = \\sum_{\\mathrm{steps}} \\int_{M_{\\mathrm{new}}}^{M_{\\mathrm{old}}} \\left(u - \\frac{G m}{r}\\right) dm, \\qquad \\mathcal{R} = \\frac{\\int L\\,dt - \\int\\!\\!\\int\\varepsilon_{\\mathrm{nuc}}\\,dm\\,dt + \\Delta(E_{\\mathrm{int}} + E_{\\mathrm{grav}}) + E_{\\mathrm{wind}}}{\\int L\\,dt}",
+        svg: include_bytes!("../assets/equations/evo_energy_wind.svg"),
+        width: 687.73,
+        height: 48.53,
+    },
+    Equation {
+        id: "evo_budget_wind",
+        tex: "\\Delta X_{\\mathrm{burnt}} = -\\Delta\\!\\left[\\int X\\,dm\\right] - X_s\\,|\\Delta M|",
+        svg: include_bytes!("../assets/equations/evo_budget_wind.svg"),
+        width: 272.77,
+        height: 40.71,
+    },
+    Equation {
         id: "puls_overtones",
         tex: "\\Omega_k^2 = \\Gamma_1\\,(k + 1)(2k + 3) - 4 \\qquad \\text{(uniform-density sphere, } k \\text{ nodes)}",
         svg: include_bytes!("../assets/equations/puls_overtones.svg"),
@@ -517,6 +552,20 @@ pub static EQUATIONS: &[Equation] = &[
         svg: include_bytes!("../assets/equations/par_helium.svg"),
         width: 500.46,
         height: 35.26,
+    },
+    Equation {
+        id: "rot_roche",
+        tex: "\\Omega_{\\mathrm{crit}}^{2} = \\frac{8\\,G M}{27\\,R_{\\mathrm{pole}}^{3}}, \\qquad \\frac{1}{x} + \\frac{4}{27}\\,\\omega^{2}\\,x^{2}\\sin^{2}\\theta = 1, \\qquad x(\\theta) = \\frac{R(\\theta)}{R_{\\mathrm{pole}}} = \\frac{3}{\\omega\\sin\\theta}\\,\\cos\\!\\left[\\frac{\\pi + \\arccos(\\omega\\sin\\theta)}{3}\\right]",
+        svg: include_bytes!("../assets/equations/rot_roche.svg"),
+        width: 732.82,
+        height: 46.05,
+    },
+    Equation {
+        id: "rot_gd",
+        tex: "g_{\\mathrm{eff}} = \\sqrt{\\left(-\\frac{G M}{R^{2}} + \\Omega^{2} R \\sin^{2}\\theta\\right)^{2} + \\left(\\Omega^{2} R \\sin\\theta\\cos\\theta\\right)^{2}}, \\qquad T_{\\mathrm{eff}}(\\theta) \\propto g_{\\mathrm{eff}}^{\\beta}, \\qquad \\oint \\sigma\\, T_{\\mathrm{eff}}^{4}\\, dA = L",
+        svg: include_bytes!("../assets/equations/rot_gd.svg"),
+        width: 676.13,
+        height: 51.92,
     },
 ];
 

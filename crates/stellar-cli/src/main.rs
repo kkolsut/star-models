@@ -3,6 +3,7 @@
 //! ```text
 //! stellar-cli --mass 1 --x 0.70 --z 0.02 -o sun.csv --json sun.json
 //! stellar-cli --sweep 0.5,1,2,5,10
+//! stellar-cli --mass 60 --evolve --wind --track m60.csv
 //! ```
 
 use std::time::Instant;
@@ -57,6 +58,15 @@ struct Args {
     /// Age to stop at [Gyr] (with --until age), or safety limit otherwise
     #[arg(long)]
     max_age: Option<f64>,
+    /// Mass loss for --evolve: de Jager et al. (1988) above 8000 K, Reimers below (off by default)
+    #[arg(long)]
+    wind: bool,
+    /// Factor applied to the wind rates (with --wind)
+    #[arg(long, default_value_t = 1.0)]
+    wind_efficiency: f64,
+    /// Reimers η for the cool-star wind (with --wind); default from McDonald & Zijlstra (2015)
+    #[arg(long, default_value_t = stellar_core::physics::mass_loss::REIMERS_ETA_DEFAULT)]
+    reimers_eta: f64,
     /// Write the evolutionary track to this CSV file (with --evolve)
     #[arg(long)]
     track: Option<String>,
@@ -166,6 +176,17 @@ fn print_summary(m: &StarModel) {
         );
         if let Some(run) = &g.run {
             println!("  run: largest screening exponent {:.3}", run.max_screening);
+            if run.wind_mass > 0.0 {
+                println!(
+                    "  wind: initial mass {:.4} M☉, lost {:.4e} M☉ (hydrogen {:.4e} M☉), now Ṁ = {:.3e} M☉/yr; \
+                     energy of the lost gas {:.2e} of ∫L dt",
+                    m.params.mass,
+                    run.wind_mass / stellar_core::constants::M_SUN,
+                    run.wind_hydrogen / stellar_core::constants::M_SUN,
+                    g.mdot_msun_yr,
+                    c.wind
+                );
+            }
         }
     }
     let r = &g.residuals;
@@ -262,17 +283,38 @@ fn evolve(args: &Args, base: &StarParams, physics: &Physics, ctl: &mut Printer) 
         "max" => StopCondition::AsFarAsPossible,
         other => bail!("unknown --until {other} (use tams, age or max)"),
     };
-    let mut opts = EvolutionOptions { stop, ..Default::default() };
+    let wind = if args.wind {
+        stellar_core::Wind::Standard { efficiency: args.wind_efficiency, reimers_eta: args.reimers_eta }
+    } else {
+        stellar_core::Wind::Off
+    };
+    wind.validate().map_err(anyhow::Error::msg)?;
+    let mut opts = EvolutionOptions { stop, wind, ..Default::default() };
     if let (Some(a), false) = (args.max_age, matches!(stop, StopCondition::Age(_))) {
         opts.max_age_yr = a * 1e9;
     }
     let t0 = Instant::now();
     let zams = solve_model(base, physics, None, ctl)?;
-    let mut evo = Evolution::new(zams.clone(), opts);
-    let mut track = vec![zams];
+    let mut evo = Evolution::new(zams, opts);
+    // The run's first model carries the wind rate set by `Evolution::new`.
+    let mut track = vec![evo.model.clone()];
     println!(
-        "{:>5} {:>11} {:>10} {:>10} {:>7} {:>8} {:>10} {:>8} {:>7} {:>9} {:>11} {:>8} {:>9}  phase",
-        "step", "age", "dt [yr]", "L/L☉", "Teff", "R/R☉", "Tc", "Xc", "q_He", "P_fund", "pulsator", "energy", "E-resid"
+        "{:>5} {:>11} {:>10} {:>9} {:>10} {:>10} {:>7} {:>8} {:>10} {:>8} {:>7} {:>9} {:>11} {:>8} {:>9}  phase",
+        "step",
+        "age",
+        "dt [yr]",
+        "M/M☉",
+        "Ṁ [M☉/yr]",
+        "L/L☉",
+        "Teff",
+        "R/R☉",
+        "Tc",
+        "Xc",
+        "q_He",
+        "P_fund",
+        "pulsator",
+        "energy",
+        "E-resid"
     );
     let print = |step: usize, m: &StarModel, dt: f64| {
         let g = &m.globals;
@@ -284,10 +326,12 @@ fn evolve(args: &Args, base: &StarParams, physics: &Physics, ctl: &mut Printer) 
             })
             .unwrap_or("");
         println!(
-            "{:5} {:>11} {:10.3e} {:10.4e} {:7.0} {:8.4} {:10.4e} {:8.5} {:7.4} {:>9} {:>11} {:8.5} {:>9}  {}",
+            "{:5} {:>11} {:10.3e} {:9.5} {:10.3e} {:10.4e} {:7.0} {:8.4} {:10.4e} {:8.5} {:7.4} {:>9} {:>11} {:8.5} {:>9}  {}",
             step,
             fmt_age(g.age_yr),
             dt,
+            g.mass,
+            g.mdot_msun_yr,
             g.luminosity,
             g.teff,
             g.radius,
