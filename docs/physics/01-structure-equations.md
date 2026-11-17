@@ -47,11 +47,19 @@ The unknowns are $`\ln r`$, $`\ln P`$, $`\ln T`$ and $`L`$:
 
 * Spherical symmetry; no rotation and no magnetic field.
 * Hydrostatic equilibrium at all times (no acceleration term).
-* Constant total mass.
+* Constant total mass, unless an evolution run has a wind. Then $`M`$ changes between time steps
+  and is constant within each structure solve (see "Variable mass" below).
 * A ZAMS model is chemically homogeneous and in thermal equilibrium
   ($`\varepsilon_{\mathrm{grav}} = 0`$). An evolved model has a composition per mesh point.
 * No energy loss by neutrinos other than what is already subtracted in the reaction energies.
 * Newtonian gravity.
+
+### Variable mass (E1, plans 4.1–4.2)
+
+With mass loss, $`M`$ depends on time and the mesh points $`m_k = q_k M(t)`$ no longer follow the
+same gas. Each structure solve uses the current mass; the composition and the previous model's
+$`\ln P`$, $`\ln T`$ are interpolated to the new $`m_k`$ at fixed $`m`$ before the step. See
+[Evolution in time](07-evolution.md#mass-loss-e1-plans-41-43).
 
 ## Planned
 
@@ -99,11 +107,6 @@ A spherically averaged centrifugal force adds one factor to hydrostatic equilibr
 ```math
 \frac{dP}{dm} = -\frac{G m}{4\pi r^4}\, f_P, \qquad f_P = 1 - \frac{2\,\Omega^2 r^3}{3\,G m}
 ```
-
-### Variable mass (E1, plan phase 4)
-
-With mass loss, $`M`$ depends on time and the mesh points $`m_k = q_k M(t)`$ no longer follow the
-same gas; see [Evolution in time](07-evolution.md).
 
 ### Not planned: general relativity (E2)
 

@@ -51,8 +51,14 @@ equations are solved accurately. They say nothing about how realistic the physic
   * More mesh points resolve the shell's profile better.
 * **Core overshoot** is a step in the mixing only ($`\alpha_{\mathrm{ov}}`$, off by default); its value is
   a calibration, not a prediction.
-* **Not included:** diffusive (exponential) overshoot, envelope overshoot, semiconvection, mass loss,
-  rotational mixing, neutrino losses.
+* **Mass loss** (off by default) uses two fitted rates: de Jager et al. (1988) in its linear form,
+  times a metallicity factor taken from Vink et al. (2001), above 8000 K, and Reimers below. The
+  combination, the step at 8000 K and the efficiency factor are choices, not predictions; real
+  hot-star winds depend on more than $`L`$, $`T_{\mathrm{eff}}`$ and $`Z`$. Reimers' $`\eta`$ is
+  calibrated on low-mass red giants, which this model does not reach. No Wolf–Rayet,
+  luminous-blue-variable or dust-driven winds.
+* **Not included:** diffusive (exponential) overshoot, envelope overshoot, semiconvection, rotational
+  mixing, neutrino losses.
 * **Pulsation:** the period is computed, but driving is not. The instability strip is an empirical band,
   so stars are flagged by position, not by a stability analysis.
 
@@ -62,8 +68,9 @@ equations are solved accurately. They say nothing about how realistic the physic
 * Electron degeneracy and Coulomb interactions, which matter below about 0.4 M☉.
 * Tabulated opacities (OPAL/OP, low-temperature molecular tables) and detailed model atmospheres; a grey
   Eddington atmosphere is used instead.
-* Neutrino losses, rotation, magnetic fields, mass loss, element diffusion and non-radial oscillation
-  modes.
+* Neutrino losses, rotation in the structure, magnetic fields, element diffusion and non-radial
+  oscillation modes. The 3D view can draw a rotating star (Roche shape, gravity darkening), but the
+  interior is not recomputed.
 * Very massive stars (above about 50 M☉) approach the Eddington limit, where this simple treatment
   becomes crude.
 * General relativity. The structure equations are Newtonian; the relativistic corrections are

@@ -71,8 +71,8 @@ The degeneracy coefficient is where $`P_{\mathrm{nd}} = P_{\mathrm{nr}}`$ in the
 | Ionisation in the EOS (D15a) | $`\nabla_{\mathrm{ad}}`$ 0.4 → about 0.1 in the ionisation zones; deepens the envelope, by how much depends on opacity and atmosphere | planned, phase 6 |
 | Electron degeneracy (D15b) | enables < 0.4 M☉ and red giants | planned, phase 6 |
 | Core overshoot (D16) | main sequence 10–25% longer above 1.2 M☉; measured +26% (3 M☉) and +23% (5 M☉) at $`\alpha_{\mathrm{ov}} = 0.2`$ | step overshoot done (phase 2, off by default); diffusive form phase 8 |
-| Mass loss (E1) | 1% of $`M`$ at 20 M☉, 10–20% at 60 M☉ on the main sequence | planned, phase 4 |
-| Rotation (E3) | a few % in structure, 20–30% in lifetime for fast rotators | planned, phases 5 and 8 |
+| Mass loss (E1) | 1% of $`M`$ at 20 M☉, 10–20% at 60 M☉ on the main sequence; measured with the standard rates: 60 M☉ loses 14.3% on the main sequence, 20 M☉ 2.4%, 5 M☉ 0.10% | done, phase 4 (off by default) |
+| Rotation (E3) | a few % in structure, 20–30% in lifetime for fast rotators | shape and gravity darkening for display done (5.1); structure planned, phases 5 and 8 |
 | Integrated, non-grey atmosphere (D13, F3) | about 100 K in $`T_{\mathrm{eff}}`$ of cool stars | planned, phase 3 |
 | pp branching and newer rates (D11) | pp rate 5–7% low, CNO rate about 2× high, plus up to 50% from $`\psi`$; measured with the per-channel $`Q`$ and the other stage-1 changes: ZAMS Sun $`L`$ −1.0%, 1 M☉ main sequence 14.03 → 15.12 Gyr, 3 M☉ 285.9 → 268.6 Myr | done, phase 1: $`\psi`$, pp and ¹⁴N(p,γ) rates from Solar Fusion III |
 | Separate $`Q`$ for CNO (D12) | CNO-burning lifetimes 4% too long; measured −4.3% (3 M☉), −4.4% (5 M☉) | done, phase 1 |

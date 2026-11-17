@@ -435,6 +435,8 @@ impl StarApp {
             }
         }
         let mut run = EvolutionRun::new(zams.clone());
+        // The ZAMS point of the track shows the wind rate the run starts with.
+        run.track[0].mdot = stellar_core::structure::evolve::wind_mdot(&opts.wind, &zams);
         run.job = Some(self.worker.submit_evolution(zams, None, opts));
         self.evolution = Some(run);
     }
@@ -757,13 +759,28 @@ impl StarApp {
             )
             .on_hover_text(format!(
                 "Total-energy check of the run up to this model:\n\
-                 (∫L dt − ∫∫ε_nuc dm dt + Δ(E_int + E_grav)) / ∫L dt = {:.2e}\n\
+                 (∫L dt − ∫∫ε_nuc dm dt + Δ(E_int + E_grav) + E_wind) / ∫L dt = {:.2e}\n\
                  of which the composition term omitted from ε_grav: {:.2e} (does not shrink with the time step)\n\
-                 and the numerical remainder: {:.2e} (shrinks with the time step)\n\n\
-                 Fuel accounting: hydrogen burnt × Q_H / ∫L dt = {:.5}. Close to 1 only while hydrogen burning \
-                 supplies the luminosity (main sequence).",
-                c.residual, c.composition, c.numerical, c.fuel_ratio
+                 and the numerical remainder: {:.2e} (shrinks with the time step)\n\
+                 E_wind / ∫L dt = {:.2e}: thermal plus gravitational energy of the gas removed by the wind \
+                 (0 without a wind)\n\n\
+                 Fuel accounting: hydrogen burnt × Q_H / ∫L dt = {:.5}, the hydrogen carried off by the wind \
+                 excluded. Close to 1 only while hydrogen burning supplies the luminosity (main sequence).",
+                c.residual, c.composition, c.numerical, c.wind, c.fuel_ratio
             ));
+            if let Some(run) = g.run.filter(|r| r.wind_mass > 0.0) {
+                ui.label(
+                    RichText::new(format!(
+                        "Wind: M = {:.4} M☉ (initial {:.4}), lost {:.3e} M☉, Ṁ = {:.2e} M☉/yr",
+                        g.mass,
+                        model.params.mass,
+                        run.wind_mass / stellar_core::constants::M_SUN,
+                        g.mdot_msun_yr
+                    ))
+                    .small()
+                    .color(theme::muted(dark)),
+                );
+            }
         }
 
         ui.add_space(6.0);

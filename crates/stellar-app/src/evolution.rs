@@ -9,8 +9,9 @@
 use std::sync::Arc;
 
 use egui::RichText;
+use stellar_core::physics::mass_loss::REIMERS_ETA_DEFAULT;
 use stellar_core::pulsation::{self, PulsatorType};
-use stellar_core::{EvolutionOptions, Globals, Phase, StarModel, StopCondition, fmt_age};
+use stellar_core::{EvolutionOptions, Globals, Phase, StarModel, StopCondition, Wind, fmt_age};
 
 use crate::theme;
 
@@ -18,6 +19,10 @@ use crate::theme;
 #[derive(Clone, Copy, Debug)]
 pub struct TrackPoint {
     pub age_yr: f64,
+    /// Current mass [M☉].
+    pub mass: f64,
+    /// Mass-loss rate Ṁ ≤ 0 [M☉ yr⁻¹] (0 without a wind).
+    pub mdot: f64,
     pub teff: f64,
     pub lum: f64,
     pub radius: f64,
@@ -59,6 +64,8 @@ impl TrackPoint {
         let nuc = 1.0 - g.frac_grav;
         Self {
             age_yr: g.age_yr,
+            mass: g.mass,
+            mdot: g.mdot_msun_yr,
             teff: g.teff,
             lum: g.luminosity,
             radius: g.radius,
@@ -93,16 +100,18 @@ impl TrackPoint {
 pub fn history_csv(track: &[TrackPoint]) -> String {
     use std::fmt::Write as _;
     let mut s = String::from(
-        "step,age_yr,phase,L_lsun,R_rsun,Teff_K,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,mixed_core_q,\
+        "step,age_yr,phase,M_msun,Mdot_msun_yr,L_lsun,R_rsun,Teff_K,log_g,Tc_K,rhoc_g_cm3,Xc,Yc,he_core_q,conv_core_q,mixed_core_q,\
          conv_env_base_r,L_pp_frac,L_cno_frac,L_3a_frac,L_grav_frac,P_fund_days,pulsator,nu_max_uHz,delta_nu_uHz,\
          delta_nu_asym_uHz,delta_Pi1_s,screening_max,energy_residual,fuel_ratio\n",
     );
     for (i, t) in track.iter().enumerate() {
         let _ = writeln!(
             s,
-            "{i},{:.6e},{:?},{:.6e},{:.6e},{:.2},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{},{},{:.4},{:.4},{:.4},{},{:.4},{},{}",
+            "{i},{:.6e},{:?},{:.8},{:.6e},{:.6e},{:.6e},{:.2},{:.4},{:.6e},{:.6e},{:.6},{:.6},{:.6},{:.6},{:.6},{},{:.5},{:.5},{:.5},{:.5},{},{},{:.4},{:.4},{:.4},{},{:.4},{},{}",
             t.age_yr,
             t.phase,
+            t.mass,
+            t.mdot,
             t.lum,
             t.radius,
             t.teff,
@@ -346,11 +355,23 @@ pub enum StopChoice {
 pub struct EvolutionSettings {
     pub stop: StopChoice,
     pub target_age_gyr: f64,
+    /// Mass loss by a stellar wind (off by default).
+    pub wind: bool,
+    /// Factor applied to the wind rates.
+    pub wind_efficiency: f64,
+    /// Reimers η (cool-star wind).
+    pub reimers_eta: f64,
 }
 
 impl Default for EvolutionSettings {
     fn default() -> Self {
-        Self { stop: StopChoice::EndOfMainSequence, target_age_gyr: 4.57 }
+        Self {
+            stop: StopChoice::EndOfMainSequence,
+            target_age_gyr: 4.57,
+            wind: false,
+            wind_efficiency: 1.0,
+            reimers_eta: REIMERS_ETA_DEFAULT,
+        }
     }
 }
 
@@ -361,7 +382,12 @@ impl EvolutionSettings {
             StopChoice::Age => StopCondition::Age(self.target_age_gyr * 1e9),
             StopChoice::AsFarAsPossible => StopCondition::AsFarAsPossible,
         };
-        EvolutionOptions { stop, ..Default::default() }
+        let wind = if self.wind {
+            Wind::Standard { efficiency: self.wind_efficiency, reimers_eta: self.reimers_eta }
+        } else {
+            Wind::Off
+        };
+        EvolutionOptions { stop, wind, ..Default::default() }
     }
 }
 
@@ -430,6 +456,27 @@ pub fn controls(
                 .suffix(" Gyr"),
         );
     });
+    ui.horizontal_wrapped(|ui| {
+        ui.checkbox(&mut settings.wind, "mass loss (wind)").on_hover_text(
+            "the star loses mass during evolution: de Jager et al. (1988) for T_eff ≥ 8000 K, times \
+             (Z/0.019)^0.69 (Vink et al. 2001); Reimers (1975) below 8000 K. Matters above about 15 M☉ on the \
+             main sequence. Off by default. Applies to the next run or Continue.",
+        );
+    });
+    if settings.wind {
+        ui.horizontal_wrapped(|ui| {
+            ui.label("efficiency");
+            ui.add(egui::DragValue::new(&mut settings.wind_efficiency).range(0.0..=10.0).speed(0.01).max_decimals(2))
+                .on_hover_text("factor applied to both wind rates (1 = the published rates)");
+            ui.label("Reimers η");
+            ui.add(egui::DragValue::new(&mut settings.reimers_eta).range(0.0..=5.0).speed(0.005).max_decimals(3))
+                .on_hover_text(
+                    "η of the cool-star (Reimers) wind, −Ṁ = 4×10⁻¹³ η L R / M (solar units). Default 0.477: \
+                     McDonald & Zijlstra (2015), calibrated on low-mass red giants in globular clusters; for \
+                     other stars it is an extrapolation.",
+                );
+        });
+    }
     ui.horizontal_wrapped(|ui| {
         let running = run.is_some_and(EvolutionRun::running);
         let can_continue = run.is_some_and(|r| r.resume.is_some() && !r.running());
@@ -534,6 +581,9 @@ pub fn timeline(ui: &mut egui::Ui, run: &mut EvolutionRun, scale: &mut ScaleMode
         let m = run.selected_model();
         let g = &m.globals;
         let mut text = format!("{} · {} · X_c = {:.3}", fmt_age(g.age_yr), g.phase.label(), g.x_c);
+        if g.mdot_msun_yr < 0.0 || (g.mass - m.params.mass).abs() > 1e-9 * m.params.mass {
+            text.push_str(&format!(" · M = {:.4} M☉, Ṁ = {:.2e} M☉/yr", g.mass, g.mdot_msun_yr));
+        }
         if let Some(kind) = pulsation::classify(g.teff, g.luminosity) {
             let period =
                 m.pulsation.as_ref().map(|p| format!(", P = {}", fmt_period(p.period_days()))).unwrap_or_default();

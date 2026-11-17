@@ -18,8 +18,9 @@ stellar structure from the centre to the photosphere, with energy carried outwar
 convection. It shows how pressure, temperature, density and many other quantities vary through the
 star.
 
-Models are spherically symmetric, non-rotating and non-magnetic, without mass loss. The defaults are
-those of the Sun:
+Models are spherically symmetric, non-rotating and non-magnetic. Evolution runs can include mass loss
+by a stellar wind (off by default), and the 3D view can show the shape of a rotating star (display
+only). The defaults are those of the Sun:
 
 * 1 M☉
 * $`X = 0.70`$

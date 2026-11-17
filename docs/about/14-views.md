@@ -62,6 +62,30 @@ surface and central values.
   * $`A = 6\%`$, and one cycle takes 1.6 s.
   * The surface brightens near maximum compression.
   * The legend gives the real period.
+* **Rotation, display only** (slider $`\omega = \Omega/\Omega_{\mathrm{crit}}`$, 0–0.95, default 0): the
+  star is drawn with the Roche shape of a uniformly rotating star about the vertical ($`y`$) axis, and
+  the surface is coloured by the gravity-darkened local $`T_{\mathrm{eff}}`$. $`\theta`$ is measured from
+  the rotation axis:
+
+```math
+\Omega_{\mathrm{crit}}^{2} = \frac{8\,G M}{27\,R_{\mathrm{pole}}^{3}}, \qquad \frac{1}{x} + \frac{4}{27}\,\omega^{2}\,x^{2}\sin^{2}\theta = 1, \qquad x(\theta) = \frac{R(\theta)}{R_{\mathrm{pole}}} = \frac{3}{\omega\sin\theta}\,\cos\!\left[\frac{\pi + \arccos(\omega\sin\theta)}{3}\right]
+```
+
+```math
+g_{\mathrm{eff}} = \sqrt{\left(-\frac{G M}{R^{2}} + \Omega^{2} R \sin^{2}\theta\right)^{2} + \left(\Omega^{2} R \sin\theta\cos\theta\right)^{2}}, \qquad T_{\mathrm{eff}}(\theta) \propto g_{\mathrm{eff}}^{\beta}, \qquad \oint \sigma\, T_{\mathrm{eff}}^{4}\, dA = L
+```
+
+* Rotation details:
+  * The polar radius is the model's radius, and $`M`$ and $`L`$ are the model's; the whole mass acts
+    as a point mass (Roche model).
+  * $`\beta = 0.25`$ for a radiative envelope (von Zeipel 1924) and 0.08 for a convective one (Lucy
+    1967). **auto** uses 0.08 when the model has a convective envelope reaching below $`0.99\,R`$.
+  * At $`\omega = 1`$ the equatorial radius would be 1.5 times the polar radius.
+  * The surface normal used for shading is along $`-\mathbf{g}_{\mathrm{eff}}`$. Hover the surface for
+    the local latitude, radius, $`T_{\mathrm{eff}}`$ and $`g_{\mathrm{eff}}`$; the legend gives
+    $`v_{\mathrm{eq}}`$ and the polar and equatorial $`T_{\mathrm{eff}}`$.
+  * **Shape only, interior not recomputed:** the structure stays non-rotating, and interior points
+    are stretched with the surface for the picture.
 * **Rendering:** orthographic projection on the CPU.
   * About 40,000 shaded triangles are depth-sorted every frame (painter's algorithm, about 2 ms).
   * They are drawn as one mesh with 4× multisampling.

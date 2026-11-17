@@ -14,20 +14,31 @@
 //!    against the previous model on the same mass mesh (Henyey method,
 //!    warm-started from the previous model).
 //! 3. Time-step control: Δt is limited by the hydrogen and helium consumption
-//!    (ΔX, ΔY ≤ dx_max per shell, and ≤ 30% of the local X, Y) and by the
-//!    structural change per step (target `dlog_target` in ln r, ln P, ln T and
-//!    ln L). A rejected or failed step is retried with a smaller Δt.
+//!    (ΔX, ΔY ≤ dx_max per shell, and ≤ 30% of the local X, Y), by the mass
+//!    lost to a wind (|ΔM|/M ≤ `dm_max`) and by the structural change per step
+//!    (target `dlog_target` in ln r, ln P, ln T and ln L). A rejected or failed
+//!    step is retried with a smaller Δt.
+//!
+//! With a wind ([`Wind`], off by default) the mass changes explicitly,
+//! M ← M + Ṁ Δt with Ṁ of the previous model. The mesh stays fixed in q = m/M,
+//! so a mesh point no longer follows the same gas: after the composition step,
+//! the composition and the previous model's ln P, ln T are interpolated to the
+//! new m_k = q_k M at fixed m ([`remap_fixed_mass`]), so that ε_grav compares
+//! the same gas.
 //!
 //! Along the run the totals of the total-energy check are accumulated
-//! ([`RunTotals`]): ∫L dt, ∫∫ε_nuc dm dt and the composition term omitted from
-//! ε_grav; with Δ(E_int + E_grav) they close to the discretisation error.
+//! ([`RunTotals`]): ∫L dt, ∫∫ε_nuc dm dt, the composition term omitted from
+//! ε_grav and the energy of the gas removed by the wind; with
+//! Δ(E_int + E_grav) they close to the discretisation error.
 
 use super::equations::{I_L, I_LNP, I_LNR, I_LNT, NVAR, PrevStep};
-use super::model::{ConvectiveZone, Phase, Profile, RunTotals, StarModel};
+use super::mesh::{outer_integral, remap_fixed_mass};
+use super::model::{ConvectiveZone, Phase, Profile, RunTotals, StarModel, StarParams};
 use super::solve::{SolveControl, SolveError, solve_structure};
 use crate::composition::Composition;
-use crate::constants::{L_SUN, YEAR};
+use crate::constants::{G, L_SUN, YEAR};
 use crate::physics::Physics;
+use crate::physics::mass_loss::Wind;
 pub use crate::physics::nuclear::{Q_CNO, Q_HE, Q_PP_I, q_pp_eff};
 use crate::pulsation;
 use crate::solver::NewtonOptions;
@@ -58,6 +69,10 @@ pub struct EvolutionOptions {
     pub max_age_yr: f64,
     /// Compute the fundamental radial pulsation mode of every model.
     pub pulsation: bool,
+    /// Mass loss (off by default).
+    pub wind: Wind,
+    /// Largest relative mass change |ΔM|/M per step with a wind.
+    pub dm_max: f64,
 }
 
 impl Default for EvolutionOptions {
@@ -70,6 +85,8 @@ impl Default for EvolutionOptions {
             max_steps: 3000,
             max_age_yr: 3.0e10,
             pulsation: true,
+            wind: Wind::Off,
+            dm_max: 1e-3,
         }
     }
 }
@@ -87,6 +104,19 @@ pub enum EvolutionStep {
 pub const X_EXHAUSTED: f64 = 1e-3;
 /// Smallest time step tried before giving up [yr].
 const MIN_DT_YR: f64 = 1.0;
+
+/// Mass-loss rate Ṁ ≤ 0 [M☉ yr⁻¹] of `wind` for a model (surface Z for the
+/// metallicity factor).
+pub fn wind_mdot(wind: &Wind, model: &StarModel) -> f64 {
+    let g = &model.globals;
+    let z = model.profile.z.last().copied().unwrap_or(model.params.z);
+    wind.mdot(g.luminosity, g.radius, g.mass, g.teff, z)
+}
+
+/// Largest time step [yr] keeping |ΔM|/M ≤ `dm_max` at the rate `mdot` [M☉ yr⁻¹].
+fn wind_limit_yr(mass_msun: f64, mdot: f64, dm_max: f64) -> f64 {
+    if mdot < 0.0 { dm_max * mass_msun / -mdot } else { f64::INFINITY }
+}
 
 pub struct Evolution {
     /// Latest converged model.
@@ -106,6 +136,7 @@ impl Evolution {
         zams.globals.phase = Phase::Zams;
         let r_zams = zams.globals.radius;
         zams.globals.run = Some(RunTotals::start(&zams.globals));
+        zams.globals.mdot_msun_yr = wind_mdot(&opts.wind, &zams);
         let dt = (0.1 * burn_limit_s(&zams, opts.dx_max) / YEAR).clamp(MIN_DT_YR, 1e6);
         Self { model: zams, dt_yr: dt, steps: 0, opts, r_zams, finished: None }
     }
@@ -115,6 +146,7 @@ impl Evolution {
         if model.globals.run.is_none() {
             model.globals.run = Some(RunTotals::start(&model.globals));
         }
+        model.globals.mdot_msun_yr = wind_mdot(&opts.wind, &model);
         Self { model, dt_yr: dt_yr.max(MIN_DT_YR), steps: 0, opts, r_zams, finished: None }
     }
 
@@ -129,6 +161,10 @@ impl Evolution {
         }
         if g.age_yr >= self.opts.max_age_yr * (1.0 - 1e-9) {
             return Some(format!("reached the age limit of {:.1} Gyr", self.opts.max_age_yr / 1e9));
+        }
+        let m_min = StarParams::MASS_RANGE.0;
+        if g.mass < m_min * (1.0 + 1e-9) && g.mdot_msun_yr < 0.0 {
+            return Some(format!("the wind reduced the mass to {m_min} M☉, the lower limit of the model"));
         }
         match self.opts.stop {
             StopCondition::EndOfMainSequence if g.x_c < X_EXHAUSTED => {
@@ -156,7 +192,13 @@ impl Evolution {
         }
         let old = &self.model;
         let age = old.globals.age_yr;
-        let mut dt = self.dt_yr.min(burn_limit_s(old, self.opts.dx_max) / YEAR).max(MIN_DT_YR);
+        let mass_old = old.globals.mass;
+        let mdot = wind_mdot(&self.opts.wind, old);
+        let mut dt = self
+            .dt_yr
+            .min(burn_limit_s(old, self.opts.dx_max) / YEAR)
+            .min(wind_limit_yr(mass_old, mdot, self.opts.dm_max))
+            .max(MIN_DT_YR);
         let target_age = match self.opts.stop {
             StopCondition::Age(a) => a.min(self.opts.max_age_yr),
             _ => self.opts.max_age_yr,
@@ -175,12 +217,19 @@ impl Evolution {
         let mut attempts = 0;
         loop {
             attempts += 1;
-            let comps = advance_composition(old, dt * YEAR);
-            let comps_used = comps.clone();
-            let prev = PrevStep { ln_p: ln_p.clone(), ln_t: ln_t.clone(), dt: dt * YEAR };
+            // The wind: explicit, with the rate of the previous model; never
+            // below the lower mass limit of the model.
+            let mass_new = (mass_old + mdot * dt).max(StarParams::MASS_RANGE.0.min(mass_old));
+            let comps_burnt = advance_composition(old, dt * YEAR);
+            let (comps, prev) = if mass_new != mass_old {
+                at_fixed_mass(&old.profile.q, &comps_burnt, &ln_p, &ln_t, mass_old, mass_new, dt * YEAR)
+            } else {
+                (comps_burnt.clone(), PrevStep { ln_p: ln_p.clone(), ln_t: ln_t.clone(), dt: dt * YEAR })
+            };
             let opts = NewtonOptions { max_iter: 40, tol: 1e-8 };
             match solve_structure(
                 &old.params,
+                mass_new,
                 physics,
                 &old.profile.q,
                 comps,
@@ -198,7 +247,8 @@ impl Evolution {
                     }
                     m.globals.age_yr = age + dt;
                     m.globals.phase = classify(&m, self.r_zams);
-                    m.globals.run = Some(accumulate_run(old, &m, &comps_used, physics, dt * YEAR));
+                    m.globals.run = Some(accumulate_run(old, &m, &comps_burnt, physics, dt * YEAR));
+                    m.globals.mdot_msun_yr = wind_mdot(&self.opts.wind, &m);
                     if self.opts.pulsation {
                         m.pulsation = pulsation::fundamental_mode(&m, old.pulsation.as_ref()).ok();
                     }
@@ -220,6 +270,39 @@ impl Evolution {
             }
         }
     }
+}
+
+/// Composition (after the composition step, on the old star's mesh) and the
+/// previous model's ln P, ln T, interpolated to the points m_k = q_k M_new of
+/// a star whose mass changed from `mass_old` to `mass_new`, at fixed m.
+fn at_fixed_mass(
+    q: &[f64],
+    comps: &[Composition],
+    ln_p: &[f64],
+    ln_t: &[f64],
+    mass_old: f64,
+    mass_new: f64,
+    dt_s: f64,
+) -> (Vec<Composition>, PrevStep) {
+    let xyz: Vec<f64> = comps.iter().flat_map(|c| [c.x, c.y, c.z]).collect();
+    let xyz = remap_fixed_mass(q, &xyz, 3, mass_old, mass_new);
+    let comps = comps
+        .iter()
+        .enumerate()
+        .map(|(k, c)| {
+            let (x, y, z) = (xyz[3 * k].max(0.0), xyz[3 * k + 1].max(0.0), xyz[3 * k + 2].max(0.0));
+            let s = x + y + z;
+            Composition { x: x / s, y: y / s, z: z / s, x_cno: c.x_cno }
+        })
+        .collect();
+    let pt: Vec<f64> = ln_p.iter().zip(ln_t).flat_map(|(p, t)| [*p, *t]).collect();
+    let pt = remap_fixed_mass(q, &pt, 2, mass_old, mass_new);
+    let prev = PrevStep {
+        ln_p: pt.iter().step_by(2).copied().collect(),
+        ln_t: pt.iter().skip(1).step_by(2).copied().collect(),
+        dt: dt_s,
+    };
+    (comps, prev)
 }
 
 /// Human-readable age.
@@ -303,15 +386,33 @@ pub fn q_h_eff(model: &StarModel) -> f64 {
 }
 
 /// Totals of the run after the step from `old` to `new` (time step `dt_s`,
-/// composition `comps` given to the structure solver).
+/// composition `comps` after the composition step, on the old model's mesh).
 fn accumulate_run(old: &StarModel, new: &StarModel, comps: &[Composition], physics: &Physics, dt_s: f64) -> RunTotals {
     let mut run = old.globals.run.unwrap_or_else(|| RunTotals::start(&old.globals));
     run.l_dt += new.globals.luminosity * L_SUN * dt_s;
     run.nuc_dt += new.globals.e_nuc * dt_s;
-    run.fuel += (hydrogen_mass(old) - hydrogen_mass(new)) * q_h_eff(old);
+    // Mass removed by the wind: the old layers between M_new and M_old.
+    let lost = (old.mass_g() - new.mass_g()).max(0.0);
+    let p = &old.profile;
+    let n = p.len();
+    let mut wind_hydrogen = 0.0;
+    if lost > 0.0 {
+        let x_s = p.x[n - 1];
+        wind_hydrogen = x_s * lost;
+        let e: Vec<f64> = (0..n)
+            .map(|k| {
+                let c = Composition { x: p.x[k], y: p.y[k], z: p.z[k], x_cno: comps[k].x_cno };
+                physics.eos.eval(p.p[k], p.t[k], &c).u - G * p.m[k] / p.r[k]
+            })
+            .collect();
+        run.wind_mass += lost;
+        run.wind_hydrogen += wind_hydrogen;
+        run.wind_energy += outer_integral(&p.m, &e, new.mass_g());
+    }
+    // Hydrogen burnt: the loss of ∫X dm less what the wind carried off.
+    run.fuel += (hydrogen_mass(old) - hydrogen_mass(new) - wind_hydrogen) * q_h_eff(old);
     // Composition term of ε_grav, −(∂h/∂X_i)_{P,T} dX_i/dt, evaluated at the
     // previous (P, T): Σ Δm [h(P, T, X_new) − h(P, T, X_old)], h = u + P/ρ.
-    let p = &old.profile;
     let dm = point_masses(&p.m);
     let h = |k: usize, c: &Composition| {
         let s = physics.eos.eval(p.p[k], p.t[k], c);

@@ -76,9 +76,68 @@ pub fn remap(q_old: &[f64], y_old: &[f64], nv: usize, q_new: &[f64]) -> Vec<f64>
     out
 }
 
+/// Interpolate a solution vector (`nv` variables per point) given on the mesh
+/// `q` of a star of mass `mass_old` to the same mesh `q` of a star of mass
+/// `mass_new`, at fixed mass coordinate m: point k of the new star, at
+/// m = q_k · mass_new, takes the old values at q = q_k · mass_new / mass_old.
+///
+/// This follows the same gas when the total mass changes (a wind removes the
+/// outermost layers). The interpolation is linear in the stretched coordinate,
+/// as in [`remap`]; points outside the old mesh take its end values.
+pub fn remap_fixed_mass(q: &[f64], y: &[f64], nv: usize, mass_old: f64, mass_new: f64) -> Vec<f64> {
+    let ratio = mass_new / mass_old;
+    let targets: Vec<f64> = q.iter().map(|&qk| (qk * ratio).clamp(q[0], 1.0)).collect();
+    remap(q, y, nv, &targets)
+}
+
+/// ∫_{m_cut}^{m_n} f dm with the trapezoid rule on the points `m` (increasing),
+/// `f` interpolated linearly at `m_cut`. Zero if `m_cut ≥ m_n`.
+pub fn outer_integral(m: &[f64], f: &[f64], m_cut: f64) -> f64 {
+    let n = m.len();
+    if !(m_cut < m[n - 1]) {
+        return 0.0;
+    }
+    let i = m.partition_point(|&v| v <= m_cut).clamp(1, n - 1);
+    let w = ((m_cut - m[i - 1]) / (m[i] - m[i - 1])).clamp(0.0, 1.0);
+    let f_cut = f[i - 1] + w * (f[i] - f[i - 1]);
+    let m_lo = m_cut.max(m[i - 1]);
+    let mut sum = 0.5 * (f_cut + f[i]) * (m[i] - m_lo);
+    for k in i + 1..n {
+        sum += 0.5 * (f[k] + f[k - 1]) * (m[k] - m[k - 1]);
+    }
+    sum
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn remap_fixed_mass_follows_the_gas() {
+        let q = make_mesh(400);
+        // A profile that is a function of m alone, with M_old = 1.
+        let f = |m: f64| (1.0 - m + 1e-14).ln() + 3.0 * m;
+        let y: Vec<f64> = q.iter().map(|&qk| f(qk)).collect();
+        let m_new = 0.999;
+        let out = remap_fixed_mass(&q, &y, 1, 1.0, m_new);
+        for (k, &qk) in q.iter().enumerate().take(q.len() - 1) {
+            let want = f(qk * m_new);
+            assert!((out[k] - want).abs() < 2e-3 * want.abs().max(1.0), "k = {k}: {} vs {want}", out[k]);
+        }
+        // Unchanged mass: identity.
+        let same = remap_fixed_mass(&q, &y, 1, 1.0, 1.0);
+        assert!(same.iter().zip(&y).all(|(a, b)| (a - b).abs() < 1e-12));
+    }
+
+    #[test]
+    fn outer_integral_of_a_linear_function() {
+        let m: Vec<f64> = (0..=10).map(|i| i as f64).collect();
+        let f: Vec<f64> = m.iter().map(|&v| 2.0 * v).collect();
+        // ∫_{7.5}^{10} 2m dm = 100 − 56.25
+        assert!((outer_integral(&m, &f, 7.5) - 43.75).abs() < 1e-12);
+        assert!((outer_integral(&m, &f, 7.0) - 51.0).abs() < 1e-12);
+        assert_eq!(outer_integral(&m, &f, 10.0), 0.0);
+    }
 
     #[test]
     fn mesh_is_monotonic_and_resolves_surface() {

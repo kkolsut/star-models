@@ -1,9 +1,10 @@
 //! Time evolution of the star's global parameters over an evolution run:
 //! linked time-series plots (luminosity, radius, temperatures, central
 //! conditions, composition, core masses, energy sources, pulsation period,
-//! asteroseismic frequencies). Every step of the run is plotted. Phase changes
-//! are marked, the age shown in the other views is a vertical marker, and a
-//! click on any plot selects that age.
+//! asteroseismic frequencies, and with a wind the mass and mass-loss rate).
+//! Every step of the run is plotted. Phase changes are marked, the age shown
+//! in the other views is a vertical marker, and a click on any plot selects
+//! that age.
 
 use egui::{Align2, Id, RichText};
 use egui_plot::{GridInput, GridMark, HoverPosition, Line, Plot, PlotPoint, PlotPoints, PlotUi, Span, Text, VLine};
@@ -345,8 +346,14 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut HistoryState) -> Opt
     };
     let none = |_: &mut PlotUi<'_>| {};
 
-    // Three rows per screen (scroll for more), or all six rows at once.
-    let rows = if state.fit_all { 6.0 } else { 3.0 };
+    // A run with a wind gets a seventh row: mass and mass-loss rate.
+    let wind = track.iter().any(|t| t.mdot < 0.0) || track.windows(2).any(|w| w[1].mass != w[0].mass);
+    // Three rows per screen (scroll for more), or all rows at once.
+    let rows = match (state.fit_all, wind) {
+        (true, true) => 7.0,
+        (true, false) => 6.0,
+        (false, _) => 3.0,
+    };
     let h = ((ui.available_height() - rows * (ui.text_style_height(&egui::TextStyle::Body) + 10.0) - 30.0) / rows)
         .max(if state.fit_all { 90.0 } else { 150.0 });
     let mut clicked: Option<f64> = None;
@@ -521,15 +528,42 @@ pub fn show(ui: &mut egui::Ui, v: &ViewCtx<'_>, state: &mut HistoryState) -> Opt
                 &none,
                 None,
             ));
+            if wind {
+                take(panel(
+                    &mut cols[0],
+                    &f,
+                    "Mass",
+                    "M [M☉]",
+                    false,
+                    &[Curve { name: "M", slot: 0, get: |t| Some(t.mass) }],
+                    h,
+                    false,
+                    &none,
+                    None,
+                ));
+                take(panel(
+                    &mut cols[1],
+                    &f,
+                    "Mass-loss rate",
+                    "−Ṁ [M☉ yr⁻¹]",
+                    true,
+                    &[Curve { name: "−Ṁ", slot: 0, get: |t| Some(-t.mdot) }],
+                    h,
+                    false,
+                    &none,
+                    None,
+                ));
+            }
         });
         // Current values under the plots.
         let t = &track[f.nearest(f.selected_x)];
         ui.add_space(6.0);
         ui.label(
             RichText::new(format!(
-                "Shown model: {} · {} · L = {} L☉ · R = {} R☉ · T_eff = {:.0} K · X_c = {:.4}{}",
+                "Shown model: {} · {}{} · L = {} L☉ · R = {} R☉ · T_eff = {:.0} K · X_c = {:.4}{}",
                 fmt_age(t.age_yr),
                 t.phase.label(),
+                if wind { format!(" · M = {:.4} M☉, Ṁ = {:.2e} M☉/yr", t.mass, t.mdot) } else { String::new() },
                 fmt_value(t.lum),
                 fmt_value(t.radius),
                 t.teff,

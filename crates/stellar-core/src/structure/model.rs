@@ -11,7 +11,8 @@ use crate::solver::ResidualSummary;
 /// User-facing model parameters.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct StarParams {
-    /// Total mass [M☉].
+    /// Total mass [M☉]. For an evolution run with a wind this is the initial
+    /// mass; the current mass is [`Globals::mass`].
     pub mass: f64,
     /// Hydrogen mass fraction X.
     pub x: f64,
@@ -239,6 +240,16 @@ pub struct RunTotals {
     pub fuel: f64,
     /// Largest screening exponent of any model of the run (see [`ScreeningDiagnostic`]).
     pub max_screening: f64,
+    /// Mass lost to the wind [g].
+    #[serde(default)]
+    pub wind_mass: f64,
+    /// Hydrogen lost to the wind, Σ X_s |ΔM| [g].
+    #[serde(default)]
+    pub wind_hydrogen: f64,
+    /// Thermal plus gravitational energy of the layers removed by the wind,
+    /// Σ ∫_{M'}^{M} (u − G m / r) dm over the steps [erg] (negative: bound gas).
+    #[serde(default)]
+    pub wind_energy: f64,
 }
 
 impl RunTotals {
@@ -251,7 +262,8 @@ impl RunTotals {
 /// Total-energy check of an evolution run up to a model.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct EnergyCheck {
-    /// (∫L dt − ∫∫ε_nuc dm dt + Δ(E_int + E_grav)) / ∫L dt.
+    /// (∫L dt − ∫∫ε_nuc dm dt + Δ(E_int + E_grav) + E_wind) / ∫L dt, E_wind being
+    /// the energy of the layers removed by the wind (0 without a wind).
     pub residual: f64,
     /// Part of the residual from the composition term omitted from ε_grav (D17).
     /// It does not shrink with the time step.
@@ -259,7 +271,12 @@ pub struct EnergyCheck {
     /// The rest: time and mesh discretisation, shrinks with the time step.
     pub numerical: f64,
     /// Fuel accounting: hydrogen burnt × Q_H^eff / ∫L dt (≈ 1 on the main sequence only).
+    /// With a wind the hydrogen burnt is the loss of ∫X dm less the hydrogen
+    /// carried off by the wind, X_s |ΔM|.
     pub fuel_ratio: f64,
+    /// Part of the residual from the energy of the gas removed by the wind,
+    /// E_wind / ∫L dt (0 without a wind).
+    pub wind: f64,
 }
 
 /// A convective region. Radii are in units of the stellar radius.
@@ -353,7 +370,12 @@ pub struct Globals {
     /// Totals of the evolution run up to this model (`None` for a static model).
     #[serde(default)]
     pub run: Option<RunTotals>,
-    /// [M☉]
+    /// Mass-loss rate Ṁ ≤ 0 of the run's wind at this model [M☉ yr⁻¹]; 0 for a
+    /// static model or without a wind.
+    #[serde(default)]
+    pub mdot_msun_yr: f64,
+    /// Current mass [M☉]. Equal to `params.mass` except in an evolution run
+    /// with a wind, where `params.mass` is the initial mass.
     pub mass: f64,
     /// [R☉]
     pub radius: f64,
@@ -424,9 +446,15 @@ impl Globals {
             return None;
         }
         let delta_e = self.e_int + self.e_grav - run.e_start;
-        let residual = (run.l_dt - run.nuc_dt + delta_e) / run.l_dt;
+        let residual = (run.l_dt - run.nuc_dt + delta_e + run.wind_energy) / run.l_dt;
         let composition = run.comp_term / run.l_dt;
-        Some(EnergyCheck { residual, composition, numerical: residual - composition, fuel_ratio: run.fuel / run.l_dt })
+        Some(EnergyCheck {
+            residual,
+            composition,
+            numerical: residual - composition,
+            fuel_ratio: run.fuel / run.l_dt,
+            wind: run.wind_energy / run.l_dt,
+        })
     }
 }
 
@@ -469,6 +497,13 @@ pub struct StarModel {
     /// Fundamental radial pulsation mode, if computed.
     #[serde(default)]
     pub pulsation: Option<crate::pulsation::RadialMode>,
+}
+
+impl StarModel {
+    /// Current mass [g] (see [`Globals::mass`]).
+    pub fn mass_g(&self) -> f64 {
+        self.globals.mass * M_SUN
+    }
 }
 
 /// Evaluate the profiles and global quantities from a converged solution.
@@ -531,7 +566,7 @@ pub(crate) fn build_model(
 
     let radius = pr.r[n - 1];
     let lum = pr.l[n - 1];
-    let mass = params.mass * M_SUN;
+    let mass = problem.mass;
 
     let zones = find_zones(&pr, radius);
     let (conv_core_q, conv_core_r) =
@@ -594,7 +629,8 @@ pub(crate) fn build_model(
         grav_redshift_m_s: grav_redshift_m_s(mass, radius),
         screening,
         run: None,
-        mass: params.mass,
+        mdot_msun_yr: 0.0,
+        mass: mass / M_SUN,
         radius: radius / R_SUN,
         luminosity: lum / L_SUN,
         teff: pr.t[n - 1],

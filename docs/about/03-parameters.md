@@ -115,6 +115,17 @@ less than 0.5% for the Sun.
 * a given age in Gyr (default 4.57);
 * as far as possible.
 
+**Mass loss (wind)** is off by default. When on, the star loses mass at the de Jager et al. (1988)
+rate times $`(Z/0.019)^{0.69}`$ for $`T_{\mathrm{eff}} \ge 8000`$ K and the Reimers (1975) rate below
+(see [Evolution in time](12-evolution.md#mass-loss)):
+
+| Setting | Default | Range | Meaning |
+|---|---|---|---|
+| **efficiency** | 1 | 0–10 | factor applied to both rates |
+| **Reimers η** | 0.477 | 0–5 | McDonald & Zijlstra (2015), calibrated on low-mass red giants; an extrapolation for other stars |
+
+They apply to the next **Evolve** or **Continue**.
+
 The time-step controls are fixed (see [Evolution in time](12-evolution.md)). The mesh-points setting
 also applies to evolution: more points resolve the thin hydrogen-burning shell after the main sequence
 better.
@@ -126,6 +137,7 @@ better.
 | **x axis** | $`r/R`$ (fractional radius), $`m/M`$ (fractional mass, the solver's own coordinate) or $`\log P`$ (pressure, centre on the left) |
 | **Overlay quantity** (Compare) | which profile is overlaid for all models |
 | **3D:** cut faces, core as sphere, animate, speed, auto-rotate, zoom | see [How the views are made](14-views.md) |
+| **3D:** rotation $`\omega = \Omega/\Omega_{\mathrm{crit}}`$ (0–0.95, default 0) and $`\beta`$ (auto, 0.25, 0.08) | Roche shape and gravity darkening of the surface, display only: the interior is not recomputed |
 | **Cross-section:** animate convection cells | turns the cell animation on or off |
 
 ---

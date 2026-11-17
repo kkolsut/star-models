@@ -21,6 +21,15 @@
   length.
 * **Choi et al. (2016)**, ApJ 823, 102 (MIST), §3.1: $`Y_p`$ and $`\Delta Y/\Delta Z`$ of the "helium follows
   metallicity" mode.
+* **de Jager, Nieuwenhuijzen & van der Hucht (1988)**, A&AS 72, 259: the hot-star mass-loss rate
+  (linear form, §4 remark 3).
+* **Vink, de Koter & Lamers (2001)**, A&A 369, 574: the metallicity factor $`(Z/0.019)^{0.69}`$ of the
+  hot-star wind.
+* **Reimers (1975)**, Mém. Soc. R. Sci. Liège, 6e sér., 8, 369, as quoted by **Reimers (1977)**, A&A
+  61, 217, and **McDonald & Zijlstra (2015)**, MNRAS 448, 502: the cool-star mass-loss rate and its
+  default $`\eta = 0.477`$.
+* **von Zeipel (1924)**, MNRAS 84, 665, and **Lucy (1967)**, Z. Astrophys. 65, 89: gravity darkening
+  of a rotating star (display only).
 * **IAU 2015 Resolution B3:** nominal solar radius, luminosity and effective temperature.
 * **Cox (1980)**, *Theory of Stellar Pulsation*, Princeton University Press: the linear adiabatic wave
   equation and its boundary conditions.

@@ -4,7 +4,8 @@
 
 Source: `crates/stellar-core/src/structure/evolve.rs`, `structure/equations.rs`.
 
-Evolution is a sequence of structure models on a fixed mesh in $`q = m/M`$. Each time step
+Evolution is a sequence of structure models on a fixed mesh in $`q = m/M`$. The total mass is
+constant unless a wind is switched on ([Mass loss](#mass-loss-e1-plans-41-43)). Each time step
 $`\Delta t`$ has two parts.
 
 ### Step 1: composition
@@ -66,6 +67,7 @@ $`\ln T`$ (anywhere) and $`\ln L`$ (surface) is about 0.02:
 * If Newton fails (limit 40 iterations), the step is divided by 3, up to 12 attempts; the smallest
   step is 1 year.
 * The first step is 10% of the burning limit, at most $`10^6`$ years.
+* With a wind, $`|\Delta M|/M \le 10^{-3}`$ per step (see [Mass loss](#mass-loss-e1-plans-41-43)).
 
 ### Phases and stop conditions
 
@@ -105,7 +107,8 @@ removes exactly the hydrogen implied by the per-channel rates, to $`10^{-9}`$ pe
 
 ### Total energy conservation (plan 1.10)
 
-For constant mass and hydrostatic equilibrium:
+For constant mass and hydrostatic equilibrium (for the term added by a wind see
+[Mass loss](#mass-loss-e1-plans-41-43)):
 
 ```math
 \int_0^t L\,dt' = \int_0^t\!\!\int_0^M \left(\varepsilon_{\mathrm{nuc}} - \varepsilon_\nu\right) dm\,dt' \;-\; \Delta\!\left(E_{\mathrm{int}} + E_{\mathrm{grav}}\right), \qquad E_{\mathrm{int}} = \int_0^M u\,dm, \quad E_{\mathrm{grav}} = -\int_0^M \frac{G m}{r}\,dm
@@ -157,15 +160,19 @@ The numerical part halves with the time step (first order); the composition part
 the main sequence the check closes to the composition term of $`\varepsilon_{\mathrm{grav}}`$, a few
 $`10^{-4}`$ of the radiated energy, and the numerics are three orders of magnitude below it.
 
-### Limits
+### Mass loss (E1, plans 4.1–4.3)
 
-* Results after the main sequence are qualitative. Without degeneracy and with the analytic opacity,
-  low-mass stars do not climb the red giant branch.
-* The mesh is fixed in $`q`$; a thin burning shell is resolved only by raising the number of points.
+Source: `crates/stellar-core/src/physics/mass_loss.rs`, `structure/evolve.rs`,
+`structure/mesh.rs` (`remap_fixed_mass`, `outer_integral`). Off by default
+(`EvolutionOptions::wind = Wind::Off`); with the wind off every result is unchanged (the regression
+tests pass unmodified, and a wind of zero efficiency reproduces a wind-off run bit for bit).
 
-## Planned
+**Current mass.** `StarParams::mass` is the initial mass; `Globals::mass` is the current mass, and
+`Globals::mdot_msun_yr` the rate $`\dot M \le 0`$ of the run's wind at that model.
+`solve_structure` takes the current mass, and the pulsation solver, the seismic scalings, the
+redshift and the exports use it.
 
-### Mass loss (E1, plan phase 4)
+#### Rates
 
 *Hot stars* (de Jager, Nieuwenhuijzen & van der Hucht 1988), in M☉ yr⁻¹, with a metallicity factor
 (Vink, de Koter & Lamers 2001):
@@ -216,10 +223,25 @@ the cool-star branch. The calibration is for low-mass red giants; for other star
 extrapolation, stated in the UI tooltip. The original Reimers (1975) paper was not read; its form
 is confirmed by Reimers (1977) and by McDonald & Zijlstra.
 
-Estimated loss on the main sequence from the ZAMS models: 0.003 M☉ (5 M☉), about 0.2 M☉ (20 M☉),
-5–10 M☉ (60 M☉).
+*Switch.* The hot-star rate applies for $`T_{\mathrm{eff}} \ge 8000`$ K and Reimers below, as a step
+(no blending). The plan says "near 8000 K"; a step is the simplest reading, and on the main sequence
+the stars that matter (above about 15 M☉) are far hotter. $`Z`$ in the metallicity factor is the
+surface value of the model. A user efficiency factor (default 1, range 0–10) multiplies both rates;
+$`\eta`$ has range 0–5. `Wind::Constant` imposes a fixed rate, for tests.
 
-*Moving mesh.* With $`m_k = q_k\,M(t)`$, a quantity $`f`$ followed at fixed mass obeys
+**[measured]** ZAMS rates with the hot-star formula, against the estimates of
+`physics-review.md` §5 (E1), which used the de Jager fit without the metallicity factor
+(`tests/mass_loss.rs`): see the table below. With $`Z = 0.02`$ the factor is $`1.036`$.
+
+| Mass | $`L`$ [L☉] | $`T_{\mathrm{eff}}`$ [K] | de Jager $`-\dot M`$ [M☉/yr] | Review estimate |
+|---|---:|---:|---:|---:|
+| 5 M☉ | 566.2 | 18 039 | $`3.79\times10^{-11}`$ | $`4\times10^{-11}`$ |
+| 20 M☉ | $`4.453\times10^{4}`$ | 35 583 | $`2.74\times10^{-8}`$ | $`3\times10^{-8}`$ |
+| 60 M☉ | $`5.175\times10^{5}`$ | 48 544 | $`1.25\times10^{-6}`$ | $`1.3\times10^{-6}`$ |
+
+#### Moving mesh
+
+With $`m_k = q_k\,M(t)`$, a quantity $`f`$ followed at fixed mass obeys
 
 ```math
 \left(\frac{\partial f}{\partial t}\right)_{m} = \left(\frac{\partial f}{\partial t}\right)_{q} - q\,\frac{\dot M}{M}\,\left(\frac{\partial f}{\partial q}\right)_{t}
@@ -228,31 +250,105 @@ Estimated loss on the main sequence from the ZAMS models: 0.003 M☉ (5 M☉), a
 This applies to the composition **and** to the thermal variables. Comparing $`T`$ and $`P`$ at
 fixed $`q`$ in $`\varepsilon_{\mathrm{grav}}`$ would drop a term
 $`q\,(\dot M/M)\,T\,\partial s/\partial q`$. That term is a rate: a shorter time step does not make
-it smaller, so it cannot be controlled by a step limit. With the transformation:
+it smaller, so it cannot be controlled by a step limit. It is equivalent to
 
 ```math
 \varepsilon_{\mathrm{grav}} = -\frac{c_P T}{\Delta t}\left[\left(\Delta_q \ln T - \nabla_{\mathrm{ad}}\,\Delta_q \ln P\right) - q\,\frac{\Delta M}{M}\left(\frac{\partial\ln T}{\partial q} - \nabla_{\mathrm{ad}}\,\frac{\partial\ln P}{\partial q}\right)\right]
 ```
 
-$`\Delta_q`$ is the change at fixed $`q`$; the $`q`$-derivatives are taken on the new model. In
-practice the previous model's $`\ln T`$, $`\ln P`$ and composition are interpolated to the new
-$`m_k`$ before the step, which is the same thing. A limit on the mass lost per step is still used,
-for the accuracy of that interpolation near the surface:
+*Implementation.* Each step:
+
+1. $`\dot M`$ is evaluated on the previous model (explicit), and $`M_{\mathrm{new}} = M + \dot M\,\Delta t`$
+   (never below the lower mass limit of 0.1 M☉, where the run stops);
+2. the composition step (mixing, burning) runs on the previous model's mesh, as without a wind;
+3. the composition and the previous model's $`\ln P`$, $`\ln T`$ are interpolated to the new
+   $`m_k = q_k M_{\mathrm{new}}`$ at fixed $`m`$, i.e. from the old mesh at
+   $`q = q_k M_{\mathrm{new}}/M`$, linearly in the mesh's stretched coordinate (`remap_fixed_mass`);
+4. the structure is solved for $`M_{\mathrm{new}}`$ with that composition and $`\varepsilon_{\mathrm{grav}}`$
+   against the interpolated $`\ln P`$, $`\ln T`$; the Newton starting guess is the previous solution
+   at fixed $`q`$.
+
+The mesh in $`q`$ is unchanged, so the outermost new points, at $`1 - q`$ down to $`10^{-13}`$, all
+take old values from near $`q = M_{\mathrm{new}}/M`$: the gas now at the surface was a layer of
+depth $`|\Delta M|`$ before the step. Its decompression appears as $`\varepsilon_{\mathrm{grav}} < 0`$
+in the outer layers.
+
+A new time-step limit keeps the interpolation accurate near the surface:
 
 ```math
-\frac{|\Delta M|}{M} \le 10^{-3} \quad \text{per step}
+\frac{|\Delta M|}{M} \le 10^{-3} \quad \text{per step} \qquad (\texttt{EvolutionOptions::dm\_max})
 ```
 
-In the outermost layers, which adjust thermally much faster than they are removed, the advection
-term nearly cancels the time derivative; this cancellation is the main numerical difficulty of the
-task.
+**[measured]** (`examples/mass_loss_study.rs`, `tests/mass_loss.rs`, 800 points, $`Z = 0.02`$,
+standard rates)
 
-*Fuel accounting with a wind*, $`X_s`$ being the surface hydrogen fraction (the total-energy
-equation gains the thermal and gravitational energy carried off by the lost mass):
+| Run | Steps | Main sequence [Myr] | Final $`M`$ [M☉] | Lost | Fuel accounting | $`E_{\mathrm{wind}}/\int L\,dt`$ | $`\mathcal{R}`$ |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 5 M☉, no wind | 149 | 72.00 | 5 | – | 0.99654 | – | $`-1.091\times10^{-3}`$ |
+| 5 M☉, wind | 149 | 72.07 | 4.9949 | 0.102% | 0.99657 | $`-5.0\times10^{-6}`$ | $`-1.091\times10^{-3}`$ |
+| 5 M☉, wind, halved steps | 300 | 71.84 | 4.9949 | 0.102% | 0.99929 | $`-4.9\times10^{-6}`$ | $`-1.096\times10^{-3}`$ |
+| 20 M☉, no wind | 199 | 7.848 | 20 | – | 0.99729 | – | $`-1.828\times10^{-3}`$ |
+| 20 M☉, wind | 199 | 7.863 | 19.517 | 2.42% | 0.99765 | $`-8.3\times10^{-5}`$ | $`-1.829\times10^{-3}`$ |
+| 60 M☉, no wind | 253 | 3.515 | 60 | – | 1.00026 | – | $`-3.239\times10^{-3}`$ |
+| 60 M☉, wind | 269 | 3.544 | 51.390 | 14.35% | 1.00124 | $`-5.0\times10^{-4}`$ | $`-3.155\times10^{-3}`$ |
+| 60 M☉, wind, halved steps | 540 | 3.541 | 51.392 | 14.35% | 1.00253 | $`-5.0\times10^{-4}`$ | $`-3.155\times10^{-3}`$ |
+
+Halved steps means `dx_max`, `dlog_target` and `dm_max` all halved. The residual $`\mathcal{R}`$ is
+nearly all the composition term (D17), as without a wind; its numerical part is
+$`-2.3\times10^{-5}`$ for 60 M☉ ($`-1.7\times10^{-5}`$ with halved steps). The fuel accounting of
+60 M☉ is above 1 because the star expands on the main sequence
+($`\int\varepsilon_{\mathrm{grav}}\,dm \approx -4\times10^{-3}\,L`$), which the fuel check does not
+count; halving the steps halves the first-order error of the explicit burning step, which pulled it
+down, so it moves away from 1, towards $`1 - L_{\mathrm{grav}}/L`$.
+
+The plan expected 5 M☉ to lose less than 0.1%; it loses 0.102% (0.0051 M☉). The review's 0.003 M☉
+used the ZAMS rate, but the rate grows 3.7× over the main sequence as $`L`$ rises and
+$`T_{\mathrm{eff}}`$ falls, and the metallicity factor adds 3.6%. 20 M☉ loses 0.48 M☉ (review
+estimate: about 0.2 M☉), 60 M☉ 8.6 M☉ (5–10 M☉ estimated; the plan's acceptance range 5–15% holds).
+With the lower mass, the 60 M☉ main sequence ends 16% fainter, at almost the same age.
+
+A run at a constant rate ($`10^{-8}`$ M☉/yr, 5 M☉ to 30 Myr) ends at the exact mass
+$`M_0 - \dot M t`$ and converges on halving all step limits: the differences of $`L`$, $`R`$,
+$`T_c`$ and $`X_c`$ between successive halvings shrink by a factor 0.57–0.67. Along a 60 M☉ run the
+mass equals $`M_0 + \sum \dot M\,\Delta t`$ to $`10^{-12}`$ relative.
+
+The expected trouble in the outermost layers did not appear: no step failed or was rejected
+for the wind. In the 60 M☉ run the outer 1% of the mass gives
+$`\int\varepsilon_{\mathrm{grav}}\,dm \approx -(0.4\text{–}1)\times10^{-4}\,L`$, the same with halved
+steps, so it is a converged physical term (the decompression of the gas uncovered by the wind), not
+a $`1/\Delta t`$ artefact. The interpolation is not exactly conservative: over the 60 M☉ main
+sequence it creates $`1.1\times10^{-4}`$ of the hydrogen burnt ($`1.4\times10^{-4}`$ with halved
+steps; measured with a temporary diagnostic, not a test).
+
+#### Fuel accounting and total energy with a wind
+
+$`X_s`$ being the surface hydrogen fraction of the previous model, the hydrogen burnt in a step is
+the loss of $`\int X\,dm`$ less what the wind removed:
 
 ```math
 \left[\int X\,dm\right]_{t}^{0} = \int_0^t\!\!\int_0^{M(t')} \left(\frac{\varepsilon_{pp}}{Q_{pp}^{\mathrm{eff}}} + \frac{\varepsilon_{\mathrm{CNO}}}{Q_{\mathrm{CNO}}}\right) dm\,dt' + \int_0^t X_s\,|\dot M|\,dt'
 ```
+
+The total-energy check gains the thermal and gravitational energy of the gas removed: in each step
+the layers between $`M_{\mathrm{new}}`$ and $`M`$ of the previous model, with the trapezoid rule in
+$`m`$ as for $`E_{\mathrm{int}}`$ and $`E_{\mathrm{grav}}`$ (`RunTotals::wind_energy`):
+
+```math
+E_{\mathrm{wind}} = \sum_{\mathrm{steps}} \int_{M_{\mathrm{new}}}^{M} \left(u - \frac{G m}{r}\right) dm, \qquad \mathcal{R} = \frac{\int L\,dt - \int\!\!\int\varepsilon_{\mathrm{nuc}}\,dm\,dt + \Delta(E_{\mathrm{int}} + E_{\mathrm{grav}}) + E_{\mathrm{wind}}}{\int L\,dt}
+```
+
+$`E_{\mathrm{wind}} < 0`$: the star loses bound gas, so its own $`E_{\mathrm{int}} + E_{\mathrm{grav}}`$
+rises. The work of the surface pressure on the outflow, $`P/\rho`$ per gram at the photosphere, is
+omitted; it is of order $`u_s`$, three orders of magnitude below $`G M/R`$. The check reports
+$`E_{\mathrm{wind}}/\int L\,dt`$ separately.
+
+### Limits
+
+* Results after the main sequence are qualitative. Without degeneracy and with the analytic opacity,
+  low-mass stars do not climb the red giant branch.
+* The mesh is fixed in $`q`$; a thin burning shell is resolved only by raising the number of points.
+
+## Planned
 
 ### Pre-main-sequence contraction (F8, plan 9.4)
 

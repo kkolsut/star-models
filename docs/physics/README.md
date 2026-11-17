@@ -12,14 +12,14 @@ the upgrades agreed in the review of 2026-11-10. Each page covers one topic and 
 
 | # | Page | Implemented | Planned |
 |---|---|---|---|
-| 1 | [Structure equations](01-structure-equations.md) | four equations in mass coordinate | neutrino term, rotation factor, variable mass |
+| 1 | [Structure equations](01-structure-equations.md) | four equations in mass coordinate, variable mass | neutrino term, rotation factor |
 | 2 | [Equation of state](02-equation-of-state.md) | ideal gas + radiation, fully ionised | degeneracy, ionisation, H₂ |
 | 3 | [Opacity](03-opacity.md) | analytic Kramers + H⁻ + scattering | tables, conduction |
 | 4 | [Nuclear burning](04-nuclear-burning.md) | pp, CNO, triple-α, weak screening | pp branching, newer fits, C/O, neutrinos |
 | 5 | [Convection and mixing](05-convection-and-mixing.md) | Schwarzschild, mixing-length theory, instant mixing, step core overshoot | bounded $`H_P`$, Ledoux, diffusion, settling |
 | 6 | [Boundary conditions](06-boundary-conditions.md) | centre expansion, grey Eddington photosphere | integrated atmosphere, non-grey $`T(\tau)`$ |
-| 7 | [Evolution in time](07-evolution.md) | burning, $`\varepsilon_{\mathrm{grav}}`$, time steps, phases | burning fixes, mass loss, pre-main sequence |
-| 8 | [Rotation](08-rotation.md) | none | shape, gravity darkening, structure, mixing |
+| 7 | [Evolution in time](07-evolution.md) | burning, $`\varepsilon_{\mathrm{grav}}`$, time steps, phases, mass loss | pre-main sequence |
+| 8 | [Rotation](08-rotation.md) | shape and gravity darkening (display only) | structure, mixing |
 | 9 | [Pulsations](09-pulsations.md) | radial fundamental mode, strip, scaling relations, $`N^2`$, $`S_l`$, asymptotic spacings | geometric means, non-radial modes |
 | 10 | [Numerical method and checks](10-numerics-and-checks.md) | mesh, Henyey solver, starting model, self-checks | redshift output |
 | 11 | [Validity, limits and order of work](11-validity-and-roadmap.md) | measured accuracy | what is deliberately left out |

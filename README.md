@@ -67,7 +67,8 @@ usually takes 20–100 ms.
 
 * hydrogen burns to helium (and helium to carbon);
 * convective zones mix;
-* the structure is re-solved each step with the gravitational energy term ε_grav = −T ds/dt, using adaptive time steps.
+* the structure is re-solved each step with the gravitational energy term ε_grav = −T ds/dt, using adaptive time steps;
+* optionally (off by default), the star loses mass by a stellar wind: de Jager et al. (1988) above 8000 K, Reimers below.
 
 Stop at the end of the main sequence, at a given age, or "as far as possible". A **timeline** above the views lets you scrub, step or play through the computed ages; every tab shows the selected model. **Continue** resumes a stopped or finished run.
 
@@ -77,6 +78,8 @@ The **Scale** switch (Evolution section of the left panel, also repeated in the 
 * **adapt to model**: each view fits the model on screen, and the HR diagram zooms in on the track.
 
 **True size** (Cross-section and 3D model) draws the star to scale relative to its largest radius in the run, with a faint outline of that maximum.
+
+The **3D model** can also show the star rotating (slider ω = Ω/Ω_crit): the Roche shape with gravity darkening of the surface. This is display only; the interior is not recomputed.
 
 For every model the **fundamental radial pulsation mode** is computed from the linear adiabatic wave equation (period, mode shape). When the star lies in the instability strip it is flagged as a **δ Scuti-type** (near the main sequence) or **Cepheid-type** pulsator, and the 3D model pulsates with the computed mode shape. Solar-like oscillation frequencies (ν_max, Δν) come from the asteroseismic scaling relations; Δν is also computed from the interior (sound travel time), and the asymptotic g-mode period spacing ΔΠ₁ for every candidate cavity (connected N² > 0 region). Evolution runs can include step overshoot of a convective core (α_ov, off by default).
 
