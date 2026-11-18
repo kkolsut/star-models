@@ -514,7 +514,35 @@ fn parameters(ui: &mut Ui, dark: bool, pr: &StarParams) {
         "Mesh points  N  (Advanced)",
         &format!("default 800 · range 200 – 3000 (logarithmic) · current {}", pr.n_points),
         "Number of points of the mass grid (see \"Numerical method\"). More points give a more accurate but slower \
-         solution. Doubling from 800 to 1600 changes L, R and T_c by less than 0.5% for the Sun.",
+         solution. Doubling from 800 to 1600 changes L and R of the Sun by 4 × 10⁻⁵ and its central values by \
+         5 × 10⁻⁵ (second-order convergence, measured in track V.2; see \"Numerical method\").",
+    );
+    param(
+        ui,
+        dark,
+        "Equation of state  (Physics)",
+        "default ideal · ideal / degenerate / ionisation / full / Paczyński",
+        "ideal: fully ionised ideal gas + radiation. degenerate: Fermi–Dirac electrons, fully ionised. ionisation: + H and He ionisation equilibrium (no pressure ionisation: comparison only). full: + pressure ionisation (Pols et al. 1995) and H₂, the version for cool and low-mass stars. Paczyński: interpolation formula, comparison only. The Fermi–Dirac EOSs are much slower (see Microphysics). CLI --eos.",
+    );
+    param(
+        ui,
+        dark,
+        "Opacity  (Physics)",
+        "default analytic · analytic / tables",
+        "analytic: Kramers + H⁻ + electron scattering. tables: OPAL and Ferguson et al. (2005) tables for the Grevesse & Noels (1993) mixture, with electron conduction. With the tables set the CNO fraction of Z to 0.709 (the mixture's). CLI --opacity.",
+    );
+    param(
+        ui,
+        dark,
+        "Atmosphere  (Physics)",
+        "default grey · grey / integrated / Krishna Swamy",
+        "grey: Eddington photosphere with one κ (τ = 2/3). integrated: grey T(τ), integrated with the local κ and convection. Krishna Swamy: the solar T(τ) relation, fit at τ = 3.1 (blends into grey above about 8000 K). CLI --atmosphere.",
+    );
+    p(
+        ui,
+        "Physics presets: \"Analytic (default)\", \"All upgrades\" (full EOS, tables, Krishna Swamy atmosphere) and \
+         \"Calibrated Sun\" (all upgrades with X = 0.6994, Z = 0.01714, α_MLT = 2.020, CNO fraction 0.709: L☉ and R☉ \
+         at 4.57 Gyr). Changing the physics discards the current model and evolution run.",
     );
     sub(ui, "Presets");
     term(ui, "Sun (X 0.70, Z 0.02):", "1 M☉, the classic textbook solar composition, α_MLT = 1.8, f_CNO = 0.7.");
@@ -803,6 +831,20 @@ fn microphysics(ui: &mut Ui, dark: bool) {
          at least 10⁻³, which keeps unphysical trial states finite; converged models are rejected if they reach this floor.",
     );
 
+    sub(ui, "Equation of state, optional: Fermi–Dirac electrons with ionisation (plans 6.1–6.5)");
+    p(
+        ui,
+        "Physics › Equation of state offers, besides the ideal gas: Fermi–Dirac electrons with ideal ions and radiation (\"degenerate\": partial degeneracy and relativity, full ionisation); the same with the ionisation equilibrium of H and He (\"ionisation\", ground-state weights, NIST ionisation energies 13.598, 24.587 and 54.418 eV); and the full version, which adds the pressure-ionisation free-energy term of Pols et al. (1995) and molecular hydrogen (rigid rotor and harmonic oscillator, D₀ = 4.478 eV). Paczyński's (1983) interpolation is offered for comparison only.",
+    );
+    p(
+        ui,
+        "Every quantity is computed at given degeneracy parameter η and T: the generalised Fermi–Dirac integrals (segmented Gauss quadrature, relative accuracy 10⁻¹² against high-precision values) give the electron density, pressure and energy; the equilibrium conditions give the ionisation fractions at that η; charge neutrality gives ρ. For given P and T the EOS solves for η, and c_P, ∇_ad, Γ₁ follow from differences at fixed composition. The metals (Grevesse & Noels 1993 mixture, ⟨A⟩ = 17.0) keep their electrons in one pool that ionises like hydrogen; there are no metal ionisation stages. Every EOS passes a thermodynamic-consistency scan (ρ(∂h/∂P)_T = 1 − δ, c_V > 0).",
+    );
+    p(
+        ui,
+        "Not included: Coulomb corrections, electron–positron pairs, excited atomic states. The Fermi–Dirac EOSs are about 10⁴ times slower than the ideal gas: a model takes seconds to minutes instead of a fraction of a second. Without pressure ionisation, ideal ionisation equilibrium recombines hydrogen in dense interiors (a quarter of it at the centre of the Sun), so \"ionisation\" is for comparison; \"full\" is the version for models. With a Fermi–Dirac EOS, \"as far as possible\" runs stop once the core becomes degenerate (η_c > 1).",
+    );
+
     sub(ui, "Opacity: analytic Rosseland mean (CGS)");
     math(ui, "kap_es", "electron scattering");
     math(ui, "kap_ff", "Kramers free–free");
@@ -826,6 +868,25 @@ fn microphysics(ui: &mut Ui, dark: bool) {
          • Too low below the convection zone: about 9 at the present Sun's convection-zone base (2.2 × 10⁶ K, \
          0.19 g cm⁻³) against roughly 20, so the convective envelope ends too shallow.\n\
          • No line opacity or ionisation bumps (such as the Z bump near log T ≈ 5.3): Kramers laws are smooth power laws.",
+    );
+
+    sub(ui, "Opacity, optional: OPAL and Ferguson tables with electron conduction (plans 7.1–7.5)");
+    p(
+        ui,
+        "Physics › Opacity offers tabulated Rosseland means: OPAL (Iglesias & Rogers 1996; 3.75 ≤ log T ≤ 8.70) for the interior and Ferguson et al. (2005; 2.70 ≤ log T ≤ 4.50, with molecules and grains) for cool layers, both for the Grevesse & Noels (1993) heavy-element mixture (CNO fraction of Z 0.709). log κ is interpolated in log T and log R = log ρ − 3 log T₆ with continuous first derivatives (bicubic Hermite), and between the (X, Z) compositions in X and ln Z. The two sets are blended over 3.75 ≤ log T ≤ 4.0; outside the tables (including the missing high-density corner of OPAL) they are blended over 0.5 dex into the analytic formulas above.",
+    );
+    p(
+        ui,
+        "Electron conduction adds as a conductance, 1/κ = 1/κ_rad + 1/κ_cond, with κ_cond = 16σT³/(3ρK) and the thermal conductivity K from the table of A. Y. Potekhin (Cassisi et al. 2007, updated 2021) for an effective ion charge ⟨Z²⟩^½. At the centre of the ZAMS Sun the tables give κ = 1.56, 0.57 of the analytic value at the same state; between 0.55 and 0.96 R they give 2–3 times more.",
+    );
+    p(
+        ui,
+        "Compositions outside the tables are clamped to the nearest one. After helium burning the metals are mostly carbon and oxygen, which the scaled-solar tables do not describe (C/O-enhanced tables are not used): such results are qualitative, and the app says so.",
+    );
+    muted(
+        ui,
+        dark,
+        "The tables are embedded unchanged with attribution (see References); they are not covered by the code's licence.",
     );
 
     sub(ui, "Nuclear energy generation [erg g⁻¹ s⁻¹]");
@@ -944,6 +1005,29 @@ fn boundaries(ui: &mut Ui, dark: bool) {
         "The pressure condition comes from integrating hydrostatic equilibrium in optical depth, dP/dτ = g/κ, from τ = 0, \
          where only the radiation pressure a T_eff⁴ / 6 remains. Here κ is evaluated self-consistently at the photospheric \
          (P, T).",
+    );
+    sub(ui, "Surface, optional: integrated atmosphere");
+    p(
+        ui,
+        "Physics › Atmosphere offers an integrated atmosphere instead (plans 3.1–3.3). Hydrostatic equilibrium \
+         dP/dτ = g/κ is integrated with the local opacity κ(ρ(P, T), T) from τ₀ = 10⁻⁶ to a fitting point τ_fit by \
+         100 fixed RK4 steps in ln τ, with T⁴ = ¾ T_eff⁴ [τ + q(τ)]. The start is P(τ₀) = a T⁴(0)/3 + g τ₀/κ₀ (grey, \
+         LTE radiation pressure: adequate for cool stars). With convection, P and T are integrated together and \
+         ∇ comes from the mixing-length cubic with the Hopf factor A = 1 + q′(τ) and radiative losses of optically \
+         thin elements (Henyey, Vardya & Bodenheimer 1965).",
+    );
+    bullet(ui, "grey: q = 2/3, fit at τ = 2/3 (the photosphere).");
+    bullet(
+        ui,
+        "Krishna Swamy (1966): q = 1.39 − 0.815 e^(−2.54τ) − 0.025 e^(−30τ) on the Rosseland depth, a fit to the observed \
+         Sun; fit at τ = 3.1 where |q′| < 10⁻³ (the interior keeps the uncorrected gradient: approximate). Above \
+         T_eff ≈ 8000 K it blends into the grey relation.",
+    );
+    p(
+        ui,
+        "The last mesh point is then the fitting point, a height Δr = ∫ dτ/(κρ) below the photosphere; the model radius \
+         is R = r_N + Δr and T_eff follows from L = 4πR²σT_eff⁴. The atmosphere is plane parallel (g = GM/R²; its mass \
+         is neglected).",
     );
     muted(
         ui,
@@ -1605,9 +1689,11 @@ fn limitations(ui: &mut Ui, dark: bool) {
         ui,
         "It is not quantitatively solar. With X = 0.70 and Z = 0.02 the 1 M☉ model has L ≈ 0.42 L☉, R ≈ 1.12 R☉, \
          T_eff ≈ 4380 K and a thin convective envelope (base at 0.97 R). A detailed ZAMS Sun has L ≈ 0.7 L☉, \
-         R ≈ 0.89 R☉ and its envelope base near 0.71 R. The leading suspects, whose shares have not been isolated: the \
-         textbook Kramers opacity is too high in the core (the leading suspect for the low luminosity) and far too low \
-         at 10⁵–10⁶ K, and the EOS has no ionisation zones.",
+         R ≈ 0.89 R☉ and its envelope base near 0.73 R.",
+    );
+    p(
+        ui,
+        "The causes were measured by swapping one ingredient at a time (plan 7.7): the opacity tables alone raise L to 0.68 L☉ (the analytic central κ is 1.8 times the OPAL value), the EOS with ionisation alone moves the envelope base to 0.76 R, and the integrated atmosphere changes R by at most 1%. Only all of them together come close: with Physics › All upgrades the same 1 M☉ model has L = 0.648 L☉, R = 0.905 R☉, T_eff = 5444 K and its envelope base at 0.727 R, uncalibrated. That set is about 130 times slower and is not the default (see docs/physics/11). Provisional solar calibration (Physics › Calibrated Sun): with all upgrades, Y₀ = 0.2834, Z₀ = 0.01714 (Z/X = 0.0245, Grevesse & Noels 1993) and α_MLT = 2.020 give L☉ and R☉ at 4.57 Gyr, T_eff = 5772 K and the envelope base at 0.733 R (helioseismic 0.713 R; no element settling yet, which deepens it).",
     );
     p(
         ui,
@@ -1752,6 +1838,9 @@ fn cli(ui: &mut Ui, dark: bool) {
         ("--wind-efficiency <f>", "factor applied to both wind rates (default 1)"),
         ("--reimers-eta <η>", "Reimers η (default 0.477, McDonald & Zijlstra 2015)"),
         ("--track <file>", "write the evolutionary track (one row per model) as CSV"),
+        ("--eos <ideal|degenerate|ionisation|full|paczynski>", "equation of state (default ideal)"),
+        ("--opacity <analytic|tables>", "opacity (default analytic)"),
+        ("--atmosphere <grey|integrated|krishna-swamy>", "outer boundary condition (default grey)"),
         ("-v, --verbose", "print every Newton iteration (every model with --evolve)"),
         ("-h, --help / -V, --version", "print help / version"),
     ];
@@ -1769,6 +1858,7 @@ fn cli(ui: &mut Ui, dark: bool) {
     eq(ui, "stellar-cli --mass 1 --evolve --until age --max-age 4.57");
     eq(ui, "stellar-cli --mass 5 --evolve --until max --track track.csv -o final_profile.csv");
     eq(ui, "stellar-cli --mass 60 --evolve --wind --track m60.csv");
+    eq(ui, "stellar-cli --mass 1 --eos full --opacity tables --atmosphere krishna-swamy --f-cno 0.709");
     muted(
         ui,
         dark,
@@ -1861,6 +1951,68 @@ fn references(ui: &mut Ui, dark: bool) {
         ui,
         "Brown, Gilliland, Noyes & Ramsey (1991),",
         "ApJ 368, 599, and Kjeldsen & Bedding (1995), A&A 293, 87: the ν_max and Δν scaling relations.",
+    );
+    sub(ui, "Cool-star physics: data and methods (optional physics)");
+    term(ui, "Iglesias & Rogers (1996),", "ApJ 464, 943: the OPAL opacity tables (file GN93hz, embedded unchanged).");
+    term(
+        ui,
+        "Ferguson, Alexander, Allard, Barman, Bodnarik, Hauschildt, Heffner-Wong & Tamanai (2005),",
+        "ApJ 623, 585: the low-temperature opacity tables with molecules and grains (set f05.g93, embedded unchanged).",
+    );
+    term(
+        ui,
+        "Grevesse & Noels (1993),",
+        "in Origin and Evolution of the Elements, eds. Prantzos, Vangioni-Flam & Cassé, Cambridge University Press, p. 15: the heavy-element mixture of both opacity tables.",
+    );
+    term(
+        ui,
+        "Potekhin, Pons & Page (2015),",
+        "Space Sci. Rev. 191, 239; Cassisi, Potekhin, Pietrinferni, Catelan & Salaris (2007), ApJ 661, 1094; Cassisi, Potekhin, Salaris & Pietrinferni (2021), A&A 654, A149: the electron thermal conductivity table of A. Y. Potekhin (condtab21wd.dat, Ioffe Institute, embedded unchanged).",
+    );
+    term(ui, "Krishna Swamy (1966),", "ApJ 145, 174: the solar T(τ) relation (eq. 33).");
+    term(ui, "Henyey, Vardya & Bodenheimer (1965),", "ApJ 142, 841: convection with optically thin elements.");
+    term(
+        ui,
+        "Trampedach, Stein, Christensen-Dalsgaard, Nordlund & Asplund (2014),",
+        "MNRAS 442, 805: the Hopf-corrected radiative gradient in the atmosphere and the range of the Krishna Swamy relation.",
+    );
+    term(
+        ui,
+        "Pols, Tout, Eggleton & Han (1995),",
+        "MNRAS 274, 964: ionisation and the pressure-ionisation free-energy term.",
+    );
+    term(ui, "Kovetz, Yaron & Prialnik (2009),", "MNRAS 395, 1857: a reproduction of the pressure-ionisation term.");
+    term(
+        ui,
+        "Paczyński (1983),",
+        "ApJ 267, 315: the interpolation formula for the degenerate electron pressure (comparison EOS).",
+    );
+    term(ui, "Timmes & Arnett (1999),", "ApJS 125, 277: the Fermi–Dirac electron gas of stellar EOSs.");
+    term(
+        ui,
+        "Kramida, Ralchenko, Reader & NIST ASD Team,",
+        "NIST Atomic Spectra Database: ionisation energies of H and He (retrieved 2026-11-11).",
+    );
+    term(
+        ui,
+        "Huber & Herzberg (1979),",
+        "Molecular Spectra and Molecular Structure IV: Constants of Diatomic Molecules, Van Nostrand Reinhold: the H₂ constants.",
+    );
+    term(ui, "Golub & Welsch (1969),", "Math. Comp. 23, 221: Gauss quadrature nodes and weights.");
+    term(
+        ui,
+        "Vinyoles, Serenelli, Villante, Basu, Bergström, Gonzalez-Garcia, Maltoni, Peña-Garay & Song (2017),",
+        "ApJ 835, 202: the B16 standard solar models, used for comparison with the provisional solar calibration.",
+    );
+    term(
+        ui,
+        "Tout, Pols, Eggleton & Han (1996),",
+        "MNRAS 281, 257: ZAMS luminosity and radius fits of the Eggleton-code models, used for validation (plan 7.9).",
+    );
+    term(
+        ui,
+        "Hurley, Pols & Tout (2000),",
+        "MNRAS 315, 543: main-sequence lifetime fits of the same models (coefficients as in the SSE/BSE source distributed with COSMIC).",
     );
     sub(ui, "Software");
     term(

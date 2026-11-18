@@ -104,7 +104,7 @@ pub fn solve_model(
 fn cold_start(params: &StarParams, physics: &Physics, ctl: &mut dyn SolveControl) -> Result<StarModel, SolveError> {
     let comp = params.composition().map_err(|e| SolveError::InvalidParams(e.to_string()))?;
     let q = make_mesh(params.n_points);
-    let guess = polytrope_guess(physics, params.mass, &comp, &q);
+    let guess = polytrope_guess(physics, params.mass, &comp, &q, params.alpha_mlt);
     newton(params, physics, &q, guess.y, guess.l_scale, COLD_START, ctl)
 }
 

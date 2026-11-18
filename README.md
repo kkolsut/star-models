@@ -116,14 +116,20 @@ Code layout: `crates/stellar-core` holds the physics and solver (no GUI dependen
 * **Energy transport:** ∇ = ∇_rad in radiative layers. Where the Schwarzschild criterion
   ∇_rad > ∇_ad holds, ∇ comes from **mixing-length theory** (Kippenhahn, Weigert & Weiss cubic,
   l = α_MLT min(H_P, √(P/Gρ²))). It is ≈ ∇_ad deep inside and superadiabatic near the surface.
-* **EOS:** fully ionized ideal gas plus radiation pressure (β, ∇_ad, c_P, δ).
-* **Opacity:** analytic. Electron scattering + Kramers free–free and bound–free (with guillotine
-  factor) + H⁻ + a molecular floor.
+* **EOS:** fully ionized ideal gas plus radiation pressure (β, ∇_ad, c_P, δ) by default.
+  Selectable: Fermi–Dirac electrons (partial degeneracy and relativity), with H/He ionisation,
+  the Pols et al. (1995) pressure-ionisation term and H₂; Paczyński's interpolation for comparison.
+* **Opacity:** analytic by default. Electron scattering + Kramers free–free and bound–free (with
+  guillotine factor) + H⁻ + a molecular floor. Selectable: OPAL (Iglesias & Rogers 1996) and
+  Ferguson et al. (2005) tables for the Grevesse & Noels (1993) mixture with Potekhin's electron
+  conduction, embedded in the binary with attribution
+  ([`crates/stellar-core/data/README.md`](crates/stellar-core/data/README.md)).
 * **Nuclear:** pp chain (with the pp II branching factor ψ) and CNO cycle from the Solar Fusion III
   reaction rates (S(0), S′, S″ integrated over the Gamow peak), analytic triple-α; weak screening;
   separate energies per gram of hydrogen for pp and CNO.
 * **Boundary conditions:** central expansions at m₀ = 10⁻⁶ M, and a grey Eddington photosphere at
-  τ = ⅔ at the surface.
+  τ = ⅔ at the surface. Selectable: an integrated atmosphere (grey or the Krishna Swamy 1966 solar
+  T(τ)) with convection and optically thin elements.
 * **Solver:** Henyey relaxation, i.e. Newton–Raphson on the full discretized system.
   * The Jacobian is built from local finite differences and solved with a hand-written banded LU.
   * Corrections are damped.
@@ -157,9 +163,10 @@ Also, a ZAMS model is the *young* Sun; the present Sun has evolved for 4.6 Gyr.
 
 ## Roadmap
 
-* **Tabulated microphysics:** OPAL/OP opacity tables plus Ferguson low-temperature tables,
-  an EOS with Saha H/He ionization, and better reaction rates. These plug into the existing
-  `Eos` / `Opacity` / `Nuclear` traits. The solver needs no analytic derivatives.
+* **Cool-star physics** (stage 4 of [docs/execution-plan.md](docs/execution-plan.md)): tables,
+  Fermi–Dirac EOS with ionisation and the integrated atmosphere are in, selectable in the app
+  (*Physics*) and the CLI (`--eos`, `--opacity`, `--atmosphere`); the measured effect of each is in
+  [docs/physics/11](docs/physics/11-validity-and-roadmap.md). Next: red-giant physics (stage 5).
 * **Evolution:** per-shell composition X(t), ε_grav, Ledoux criterion and an age parameter
   (e.g. the Sun at 4.57 Gyr). The Henyey solver and the per-shell composition storage are already
   in place for this.

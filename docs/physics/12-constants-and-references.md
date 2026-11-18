@@ -91,6 +91,28 @@ Implemented physics and methods:
 * **Asplund et al. (2009)**, ARA&A 47, 481; **IAU 2015 Resolution B3**: solar composition preset and
   nominal solar values.
 
+Implemented in stage 4 (selectable physics, 2026-11-17; listed again below with their pages):
+
+* **Iglesias & Rogers (1996)** (OPAL `GN93hz`), **Ferguson et al. (2005)** (`f05.g93`), **Grevesse &
+  Noels (1993)** (their mixture), **Potekhin's conductivity table** (Cassisi et al. 2007, 2021;
+  Potekhin, Pons & Page 2015): embedded data, see `crates/stellar-core/data/README.md`.
+* **Krishna Swamy (1966)**, **Henyey, Vardya & Bodenheimer (1965)**, **Trampedach et al. (2014)**:
+  the integrated atmosphere.
+* **Pols et al. (1995)**, **Kovetz, Yaron & Prialnik (2009)**, **Paczyński (1983)**, **Timmes &
+  Arnett (1999)**, **NIST ASD**: the EOS.
+* **Huber & Herzberg (1979)**, *Molecular Spectra and Molecular Structure IV: Constants of Diatomic
+  Molecules*, Van Nostrand Reinhold: H₂ constants. Compared 2026-11-17 with the NIST Chemistry
+  WebBook entry for H₂ (which reproduces them): $`\omega_e = 4401.213`$ cm⁻¹ ($`\Theta_v = 6332`$ K),
+  $`B_e = 60.853`$, $`\alpha_e = 3.062`$ cm⁻¹ ($`B_0 = 59.32`$ cm⁻¹, $`\Theta_r = 85.35`$ K),
+  $`D_0 = 36118`$ cm⁻¹ = 4.4781 eV.
+* **Golub & Welsch (1969)**, Math. Comp. 23, 221–230: Gauss quadrature nodes and weights.
+* **Tout, Pols, Eggleton & Han (1996)**, MNRAS 281, 257–262; **Hurley, Pols & Tout (2000)**, MNRAS 315,
+  543–569: ZAMS and main-sequence lifetime fits used as the published grid of plan 7.9 (coefficients
+  read from the SSE/BSE source as distributed with COSMIC, `zdata.h`, `SSE_zcnsts.f`,
+  `SSE_zfuncs.f`; spot check: the fits give 0.698 L☉, 0.888 R☉ for 1 M☉ at Z = 0.02).
+* **Vinyoles et al. (2017)**, ApJ 835, 202, Table 4: B16 standard solar models (comparison of the
+  provisional calibration).
+
 Planned upgrades (each to be checked when used):
 
 * **Paczyński (1983)**, ApJ 267, 315–321: degenerate electron pressure interpolation (eq. 4,

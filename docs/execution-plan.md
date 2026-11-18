@@ -232,6 +232,31 @@ change of default results (regression tests unchanged). Measured numbers are in 
 
 ## Stage 4: cool-star block
 
+*Status (2026-11-17, branch `agent/cool-start`).* V.2 was finished first (`physics/10`). Then
+3.1–3.3, 6.1–6.5 and 7.1–7.4 are coded and selectable (`PhysicsOptions`: `--eos`, `--opacity`,
+`--atmosphere`, app *Physics*), 7.5 (conduction) was brought forward with the tables, and the joint
+assessment 7.7 is measured (`physics/11`). New defaults (7.7): the analytic physics stays the
+default for cost; the full set is the preset "All upgrades". Departures from the plan, also noted
+on the tickets:
+
+* **7.1 decided:** tables embedded unchanged with attribution (`crates/stellar-core/data/README.md`);
+  authors' permission is an open item. OPAL from the CITA mirror, Ferguson from the Internet
+  Archive copy (LLNL and Wichita not reachable from the build environment); checksums match the
+  mirror's lists.
+* **3.1:** $`\tau_0 = 10^{-6}`$ and 100 steps, not $`10^{-4}`$ and 60 (the $`\tau_0`$ dependence at
+  $`10^{-4}`$ was 2×10⁻⁴). **3.2:** the accepted first version (uncorrected interior, $`\tau_{\mathrm{fit}} = 3.1`$),
+  with $`U_e`$ on both sides of the fitting point. **3.3:** the Krishna Swamy $`q(\tau)`$ is blended
+  into the grey one over $`3.9 \le \log T_{\mathrm{eff}} \le 4.0`$ (hot stars stay grey without a
+  switch); $`\Delta r`$ is computed, not set to 0.
+* **6.2–6.5:** derivatives by differences of the explicit $`(\eta, T)`$ map, not of $`(P, T)`$ (one
+  root search per call). Metal electrons: one pool ionising like hydrogen (stated). H₂ in the
+  "full" EOS with rotational and vibrational partition functions (the plan's "same structure as
+  ionisation" with ground-state weights only would be wrong by a factor ≈ 20 at 3000 K). The
+  Fermi–Dirac EOS is ~10⁴ times slower than the ideal gas; not tabulated (open).
+* **N²** uses the general term $`B`$ for every EOS (identical to $`\varphi\nabla_\mu`$ for the ideal gas).
+* **Tests** that need many Fermi–Dirac models (0.1 M☉ sequence, degenerate helium core, full
+  convection at low mass) are in `tests/cool_star.rs`, `#[ignore]`d for their cost.
+
 ### 3.1 Integrated grey atmosphere, D13 (M), p. 6
 
 * `physics/atmosphere.rs`: integrate dP/dτ = g/κ(ρ(P,T), T) in ln τ with a fixed number of RK4
@@ -518,10 +543,11 @@ Independent of the physics upgrades; from the scientific review of 2026-11-05.
 
 | Decision | Needed before | Options |
 |---|---|---|
-| Opacity data source and licence | 7.2 | embed in the repository; or load at run time (no web build for that mode) |
-| One physics set or a selector | 6.2 | keep "analytic" as a teaching mode and add the new set; or replace |
+| ~~Opacity data source and licence~~ | 7.2 | **decided 2026-11-17:** embedded unchanged with attribution (`crates/stellar-core/data/README.md`); no licence is stated by any source, permission not yet asked (open item below) |
+| ~~One physics set or a selector~~ | 6.2 | **decided 2026-11-17:** a selector (`PhysicsOptions`), analytic stays the default (see 7.7) |
+| Permission of the table authors (OPAL/LLNL, Ferguson, Potekhin) | before a public release of the binary | ask; if refused, the run-time "load tables" path (no web build) |
 | Where new controls go | 2.1 | main panel; or the Advanced group |
-| Conduction fit | 7.5 | to be chosen with the tables |
+| ~~Conduction fit~~ | 7.5 | **decided:** Potekhin's table (coded with the tables, stage 4) |
 | Rotational-mixing coefficients | 8.4 | to be chosen when 8.1 exists |
 | Lifting the helium-ignition gate | after 9.7 | by decision, on the test results |
 

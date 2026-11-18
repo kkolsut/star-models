@@ -30,6 +30,14 @@ Given $`P`$ and $`T`$, the density follows directly from the first equation. Dur
 $`\beta`$ is limited to at least $`10^{-3}`$, which keeps unphysical trial states finite. Converged
 models that reach this floor are rejected.
 
+## Equation of state, optional: Fermi–Dirac electrons with ionisation (plans 6.1–6.5)
+
+Physics › Equation of state offers, besides the ideal gas: Fermi–Dirac electrons with ideal ions and radiation ("degenerate": partial degeneracy and relativity, full ionisation); the same with the ionisation equilibrium of H and He ("ionisation", ground-state weights, NIST ionisation energies 13.598, 24.587 and 54.418 eV); and the full version, which adds the pressure-ionisation free-energy term of Pols et al. (1995) and molecular hydrogen (rigid rotor and harmonic oscillator, D₀ = 4.478 eV). Paczyński's (1983) interpolation is offered for comparison only.
+
+Every quantity is computed at given degeneracy parameter η and T: the generalised Fermi–Dirac integrals (segmented Gauss quadrature, relative accuracy 10⁻¹² against high-precision values) give the electron density, pressure and energy; the equilibrium conditions give the ionisation fractions at that η; charge neutrality gives ρ. For given P and T the EOS solves for η, and c_P, ∇_ad, Γ₁ follow from differences at fixed composition. The metals (Grevesse & Noels 1993 mixture, ⟨A⟩ = 17.0) keep their electrons in one pool that ionises like hydrogen; there are no metal ionisation stages. Every EOS passes a thermodynamic-consistency scan (ρ(∂h/∂P)_T = 1 − δ, c_V > 0).
+
+Not included: Coulomb corrections, electron–positron pairs, excited atomic states. The Fermi–Dirac EOSs are about 10⁴ times slower than the ideal gas: a model takes seconds to minutes instead of a fraction of a second. Without pressure ionisation, ideal ionisation equilibrium recombines hydrogen in dense interiors (a quarter of it at the centre of the Sun), so "ionisation" is for comparison; "full" is the version for models. With a Fermi–Dirac EOS, "as far as possible" runs stop once the core becomes degenerate (η_c > 1).
+
 ## Opacity: analytic Rosseland mean (CGS)
 
 *Electron scattering*
@@ -103,6 +111,16 @@ plot and the reference values with:
 ```sh
 cargo run --release -p stellar-core --example opacity_map -- docs/about/images/opacity.svg
 ```
+
+## Opacity, optional: OPAL and Ferguson tables with electron conduction (plans 7.1–7.5)
+
+Physics › Opacity offers tabulated Rosseland means: OPAL (Iglesias & Rogers 1996; 3.75 ≤ log T ≤ 8.70) for the interior and Ferguson et al. (2005; 2.70 ≤ log T ≤ 4.50, with molecules and grains) for cool layers, both for the Grevesse & Noels (1993) heavy-element mixture (CNO fraction of Z 0.709). log κ is interpolated in log T and log R = log ρ − 3 log T₆ with continuous first derivatives (bicubic Hermite), and between the (X, Z) compositions in X and ln Z. The two sets are blended over 3.75 ≤ log T ≤ 4.0; outside the tables (including the missing high-density corner of OPAL) they are blended over 0.5 dex into the analytic formulas above.
+
+Electron conduction adds as a conductance, 1/κ = 1/κ_rad + 1/κ_cond, with κ_cond = 16σT³/(3ρK) and the thermal conductivity K from the table of A. Y. Potekhin (Cassisi et al. 2007, updated 2021) for an effective ion charge ⟨Z²⟩^½. At the centre of the ZAMS Sun the tables give κ = 1.56, 0.57 of the analytic value at the same state; between 0.55 and 0.96 R they give 2–3 times more.
+
+Compositions outside the tables are clamped to the nearest one. After helium burning the metals are mostly carbon and oxygen, which the scaled-solar tables do not describe (C/O-enhanced tables are not used): such results are qualitative, and the app says so.
+
+> The tables are embedded unchanged with attribution (see References); they are not covered by the code's licence.
 
 ## Nuclear energy generation [erg g⁻¹ s⁻¹]
 

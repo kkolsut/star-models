@@ -14,6 +14,9 @@ shows each current value.
 | CNO fraction of $`Z`$ (Advanced) | $`f_{\mathrm{CNO}}`$ | 0.7 | 0 – 1 |
 | Core overshoot (Advanced) | $`\alpha_{\mathrm{ov}}`$ | 0 (off) | 0 – 0.5 |
 | Mesh points (Advanced) | $`N`$ | 800 | 200 – 3000 (logarithmic) |
+| Equation of state (Physics) | – | ideal | ideal, degenerate, ionisation, full, Paczyński |
+| Opacity (Physics) | – | analytic | analytic, tables |
+| Atmosphere (Physics) | – | grey | grey, integrated, Krishna Swamy |
 
 ## Mass $`M`$
 
@@ -97,8 +100,20 @@ the whole region is mixed (see [Evolution in time](12-evolution.md#composition))
 ## Mesh points $`N`$ (Advanced)
 
 The number of points of the mass grid (see [Numerical method](10-numerical-method.md)). More points
-give a more accurate but slower solution. Doubling from 800 to 1600 changes $`L`$, $`R`$ and $`T_c`$ by
-less than 0.5% for the Sun.
+give a more accurate but slower solution. Doubling from 800 to 1600 changes $`L`$ and $`R`$ of the
+Sun by 4×10⁻⁵ and its central values by 5×10⁻⁵ (second-order convergence, measured in track V.2;
+see [Numerical method](10-numerical-method.md)).
+
+## Physics (equation of state, opacity, atmosphere)
+
+* **Equation of state** (default ideal · ideal / degenerate / ionisation / full / Paczyński). ideal: fully ionised ideal gas + radiation. degenerate: Fermi–Dirac electrons, fully ionised. ionisation: + H and He ionisation equilibrium (no pressure ionisation: comparison only). full: + pressure ionisation (Pols et al. 1995) and H₂, the version for cool and low-mass stars. Paczyński: interpolation formula, comparison only. The Fermi–Dirac EOSs are much slower (see Microphysics). CLI --eos.
+* **Opacity** (default analytic · analytic / tables). analytic: Kramers + H⁻ + electron scattering. tables: OPAL and Ferguson et al. (2005) tables for the Grevesse & Noels (1993) mixture, with electron conduction. With the tables set the CNO fraction of Z to 0.709 (the mixture's). CLI --opacity.
+* **Atmosphere** (default grey · grey / integrated / Krishna Swamy). grey: Eddington photosphere with one κ (τ = 2/3). integrated: grey T(τ), integrated with the local κ and convection. Krishna Swamy: the solar T(τ) relation, fit at τ = 3.1 (blends into grey above about 8000 K). CLI --atmosphere.
+
+Physics presets: **Analytic (default)**, **All upgrades** (full EOS, tables, Krishna Swamy
+atmosphere) and **Calibrated Sun** (all upgrades with $`X = 0.6994`$, $`Z = 0.01714`$,
+$`\alpha_{\mathrm{MLT}} = 2.020`$, CNO fraction 0.709: $`L_\odot`$ and $`R_\odot`$ at 4.57 Gyr). Changing the
+physics discards the current model and evolution run.
 
 ## Presets
 

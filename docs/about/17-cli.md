@@ -26,6 +26,9 @@ cargo run --release -p stellar-cli -- [options]
 | `--wind-efficiency <f>` | factor applied to both wind rates (default 1) |
 | `--reimers-eta <η>` | Reimers $`\eta`$ (default 0.477, McDonald & Zijlstra 2015) |
 | `--track <file>` | write the evolutionary track (one row per model) as CSV |
+| `--eos <ideal\|degenerate\|ionisation\|full\|paczynski>` | equation of state (default ideal) |
+| `--opacity <analytic\|tables>` | opacity (default analytic) |
+| `--atmosphere <grey\|integrated\|krishna-swamy>` | outer boundary condition (default grey) |
 | `-v, --verbose` | print every Newton iteration (every model with `--evolve`) |
 | `-h, --help` / `-V, --version` | print help / version |
 
@@ -40,7 +43,13 @@ stellar-cli --mass 5 --evolve --until max --track track.csv -o final_profile.csv
 stellar-cli --mass 3 --evolve --alpha-ov 0.2
 stellar-cli --mass 60 --evolve --wind --track m60.csv
 stellar-cli --mass 1 --z 0.0142 --helium-from-z
+stellar-cli --mass 1 --eos full --opacity tables --atmosphere krishna-swamy --f-cno 0.709
 ```
+
+The summary also prints the central degeneracy parameter $`\eta_c`$ and, with an integrated
+atmosphere, the fitting depth, the photosphere's depth and height above the last mesh point, and the
+photospheric pressure. The profile CSV has the columns `B_comp`, `eta_degeneracy`, `Gamma_C`,
+`x_H`, `x_He1`, `x_He2`, `x_H2` (local diagnostics of the EOS).
 
 Besides the global quantities, the summary prints the gravitational redshift, the largest screening
 exponent, the fundamental radial mode with $`\omega/\omega_{\mathrm{ac}}`$, and any warnings. With

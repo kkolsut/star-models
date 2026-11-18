@@ -7,9 +7,14 @@
 pub mod atmosphere;
 pub mod convection;
 pub mod eos;
+pub mod eos_fd;
+pub mod fermi_dirac;
+pub mod interp;
 pub mod mass_loss;
 pub mod nuclear;
 pub mod opacity;
+pub mod opacity_table;
+pub mod options;
 
 use crate::composition::Composition;
 
@@ -36,13 +41,103 @@ pub struct EosState {
     pub gamma1: f64,
     /// Specific internal (thermal) energy u [erg g^-1]: no rest mass, no
     /// nuclear binding energy (used by the total-energy check of evolution runs).
+    /// With ionisation it includes the ionisation energy (zero: neutral atoms).
     pub u: f64,
+    /// Electron degeneracy parameter η = μ_e^chem/kT (kinetic chemical
+    /// potential). NaN from EOSs without Fermi–Dirac electrons; the profile
+    /// output then uses the classical value ln(n_e λ_e³/2).
+    pub eta: f64,
+    /// Ionisation fractions: H⁺/H, He⁺/He, He²⁺/He (1, 0, 1 when fully ionised).
+    pub x_h: f64,
+    pub x_he1: f64,
+    pub x_he2: f64,
+    /// Fraction of the hydrogen nuclei bound in H₂.
+    pub x_h2: f64,
+}
+
+impl EosState {
+    /// Thermodynamic state from ρ, h and the first derivatives at fixed
+    /// composition (`docs/physics/02`, plan 6.1):
+    /// α = (∂ln ρ/∂ln P)_T, δ = −(∂ln ρ/∂ln T)_P, c_P = (∂h/∂T)_P.
+    /// The remaining fields (η, ionisation) are set to the fully ionised values.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_derivatives(
+        p: f64,
+        t: f64,
+        rho: f64,
+        h: f64,
+        alpha: f64,
+        delta: f64,
+        cp: f64,
+        p_rad: f64,
+        mu: f64,
+    ) -> Self {
+        let nabla_ad = p * delta / (t * rho * cp);
+        let gamma1 = 1.0 / (alpha - delta * nabla_ad);
+        let beta = 1.0 - p_rad / p;
+        EosState {
+            rho,
+            p_gas: p - p_rad,
+            p_rad,
+            beta,
+            mu,
+            nabla_ad,
+            cp,
+            delta,
+            gamma1,
+            u: h - p / rho,
+            eta: f64::NAN,
+            x_h: 1.0,
+            x_he1: 0.0,
+            x_he2: 1.0,
+            x_h2: 0.0,
+        }
+    }
+
+    /// A state of NaNs: what an EOS returns outside its domain (the solver then
+    /// rejects the trial state; nothing is clamped).
+    pub fn invalid() -> Self {
+        let n = f64::NAN;
+        EosState {
+            rho: n,
+            p_gas: n,
+            p_rad: n,
+            beta: n,
+            mu: n,
+            nabla_ad: n,
+            cp: n,
+            delta: n,
+            gamma1: n,
+            u: n,
+            eta: n,
+            x_h: n,
+            x_he1: n,
+            x_he2: n,
+            x_h2: n,
+        }
+    }
+
+    /// Specific enthalpy h = u + P/ρ.
+    pub fn h(&self) -> f64 {
+        self.u + (self.p_gas + self.p_rad) / self.rho
+    }
 }
 
 /// Equation of state: density and thermodynamic derivatives as functions of (P, T).
 pub trait Eos: Send + Sync {
     fn name(&self) -> &'static str;
+    /// State at (P, T); outside the EOS's domain every field is NaN
+    /// ([`EosState::invalid`]).
     fn eval(&self, p: f64, t: f64, comp: &Composition) -> EosState;
+    /// Whether the EOS treats electron degeneracy (Fermi–Dirac electrons).
+    fn degenerate_electrons(&self) -> bool {
+        false
+    }
+    /// Like [`Eos::eval`], with the reason when (P, T) lies outside the domain.
+    fn try_eval(&self, p: f64, t: f64, comp: &Composition) -> Result<EosState, String> {
+        let s = self.eval(p, t, comp);
+        if s.rho.is_finite() { Ok(s) } else { Err(format!("EOS undefined at P = {p:e}, T = {t:e}")) }
+    }
 }
 
 /// Rosseland mean opacity κ(ρ, T) [cm^2 g^-1].
@@ -104,26 +199,41 @@ pub struct Physics {
     pub eos: Box<dyn Eos>,
     pub opacity: Box<dyn Opacity>,
     pub nuclear: Box<dyn Nuclear>,
+    /// Outer boundary condition.
+    pub atmosphere: atmosphere::Atmosphere,
 }
 
 impl Physics {
     /// Self-contained analytic physics: ideal gas + radiation EOS, Kramers +
-    /// H⁻ + electron-scattering opacity, analytic pp / CNO / 3α rates.
+    /// H⁻ + electron-scattering opacity, analytic pp / CNO / 3α rates, grey
+    /// Eddington photosphere.
     pub fn analytic() -> Self {
         Self {
             eos: Box::new(eos::IdealGasRadiation),
             opacity: Box::new(opacity::AnalyticOpacity),
             nuclear: Box::new(nuclear::AnalyticNuclear),
+            atmosphere: atmosphere::Atmosphere::GreyClosedForm,
+        }
+    }
+
+    /// Physics assembled from the selectable options.
+    pub fn from_options(o: &options::PhysicsOptions) -> Self {
+        Self {
+            eos: o.eos.build(),
+            opacity: o.opacity.build(),
+            nuclear: Box::new(nuclear::AnalyticNuclear),
+            atmosphere: o.atmosphere.build(),
         }
     }
 
     /// Short human-readable description of the physics in use.
     pub fn describe(&self) -> String {
         format!(
-            "EOS: {}; opacity: {}; nuclear: {}; atmosphere: grey Eddington (T = T_eff at τ = 2/3)",
+            "EOS: {}; opacity: {}; nuclear: {}; atmosphere: {}",
             self.eos.name(),
             self.opacity.name(),
-            self.nuclear.name()
+            self.nuclear.name(),
+            self.atmosphere.describe()
         )
     }
 }

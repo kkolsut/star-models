@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use super::equations::{I_L, I_LNP, I_LNR, I_LNT, NVAR, StructureProblem};
 use crate::composition::{Composition, CompositionError};
 use crate::constants::{C, FOUR_PI, G, L_SUN, M_SUN, R_SUN, TEFF_SUN};
+use crate::physics::atmosphere::effective_temperature;
+use crate::physics::eos::classical_eta;
 use crate::seismic::{self, GCavity};
 use crate::solver::ResidualSummary;
 
@@ -45,6 +47,14 @@ impl StarParams {
     /// The Sun with the classic composition X = 0.70, Y = 0.28, Z = 0.02.
     pub fn sun() -> Self {
         Self { mass: 1.0, x: 0.70, z: 0.02, alpha_mlt: 1.8, f_cno: 0.7, n_points: 800, alpha_ov: 0.0 }
+    }
+
+    /// The provisional solar calibration of the full physics set
+    /// (`PhysicsOptions::all_upgrades()`, plan 7.8): Y₀ = 0.2834, (Z/X) = 0.0245
+    /// (Grevesse & Noels 1993), α_MLT = 2.020, CNO fraction of the GN93 mixture.
+    /// Calibrated at 400 points without diffusion: L☉ and R☉ at 4.57 Gyr.
+    pub fn sun_calibrated() -> Self {
+        Self { x: 0.6994, z: 0.01714, alpha_mlt: 2.020, f_cno: crate::mixture::GN93.f_cno, ..Self::sun() }
     }
 
     /// The Sun with AGSS09 protosolar composition (Asplund et al. 2009).
@@ -147,6 +157,26 @@ pub struct Profile {
     /// (g²ρ/P)[δ(∇_ad − ∇) + φ∇_μ]. Negative where the layer is Ledoux-unstable.
     #[serde(default)]
     pub n2: Vec<f64>,
+    /// Composition term B of N² and the Ledoux criterion (= ∇_μ for the ideal EOS).
+    #[serde(default)]
+    pub b_comp: Vec<f64>,
+    /// Electron degeneracy parameter η (classical value for EOSs without
+    /// Fermi–Dirac electrons).
+    #[serde(default)]
+    pub eta: Vec<f64>,
+    /// Coulomb coupling Γ_C = ⟨Z²⟩e²/(a_i kT) of the ions (full ionisation charges).
+    #[serde(default)]
+    pub gamma_c: Vec<f64>,
+    /// Ionisation fractions H⁺/H, He⁺/He, He²⁺/He and the fraction of H in H₂
+    /// (1, 0, 1, 0 for a fully ionised EOS).
+    #[serde(default)]
+    pub x_h: Vec<f64>,
+    #[serde(default)]
+    pub x_he1: Vec<f64>,
+    #[serde(default)]
+    pub x_he2: Vec<f64>,
+    #[serde(default)]
+    pub x_h2: Vec<f64>,
 }
 
 impl Profile {
@@ -423,6 +453,31 @@ pub struct Globals {
     /// Largest residuals of the discretised equations of the converged model.
     #[serde(default)]
     pub residuals: Residuals,
+    /// The atmosphere above the last mesh point.
+    #[serde(default)]
+    pub surface: SurfaceInfo,
+    /// Central electron degeneracy parameter η_c.
+    #[serde(default)]
+    pub eta_c: f64,
+}
+
+/// Outer boundary of a model: where the last mesh point sits relative to the
+/// photosphere.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct SurfaceInfo {
+    /// Optical depth of the last mesh point (the fitting point).
+    pub tau_fit: f64,
+    /// Optical depth of the photosphere (T = T_eff).
+    pub tau_ph: f64,
+    /// Height of the photosphere above the last mesh point [cm]; the model
+    /// radius is r_N + Δr.
+    pub dr: f64,
+    /// Pressure at the photosphere [dyn cm⁻²].
+    pub p_phot: f64,
+    /// Whether the integrated atmosphere has a convective layer.
+    pub convective: bool,
+    /// Integrated atmosphere (false: grey closed form).
+    pub integrated: bool,
 }
 
 /// Largest absolute residual of each discretised structure equation over the
@@ -456,6 +511,20 @@ impl Globals {
             wind: run.wind_energy / run.l_dt,
         })
     }
+}
+
+/// Coulomb coupling parameter of the ions, Γ_C = ⟨Z²⟩ e² / (a_i k T) with
+/// a_i = (3 / 4π n_i)^{1/3} (`docs/physics/11`), for full ionisation charges.
+pub fn coulomb_coupling(rho: f64, t: f64, c: &Composition) -> f64 {
+    use crate::constants::{E_CHARGE, K_B, M_U};
+    use crate::mixture::GN93;
+    let ni = c.x + c.y / 4.0 + c.z / GN93.mean_a;
+    if !(ni > 0.0) {
+        return 0.0;
+    }
+    let z2 = (c.x + c.y + c.z / GN93.mean_a * GN93.mean_z2) / ni;
+    let a_i = (3.0 / (FOUR_PI * ni * rho / M_U)).cbrt();
+    z2 * E_CHARGE * E_CHARGE / (a_i * K_B * t)
 }
 
 /// Gravitational redshift velocity v_z = G M / (R c) [m s⁻¹] for M, R in CGS.
@@ -552,6 +621,12 @@ pub(crate) fn build_model(
         pr.pp_phi.push(s.nuc.pp_phi);
         u.push(s.eos.u);
         pr.cs.push(seismic::sound_speed(s.eos.gamma1, s.p, s.rho()));
+        pr.eta.push(if s.eos.eta.is_finite() { s.eos.eta } else { classical_eta(s.rho(), s.t, c.mu_e()) });
+        pr.gamma_c.push(coulomb_coupling(s.rho(), s.t, c));
+        pr.x_h.push(s.eos.x_h);
+        pr.x_he1.push(s.eos.x_he1);
+        pr.x_he2.push(s.eos.x_he2);
+        pr.x_h2.push(s.eos.x_h2);
         delta.push(s.eos.delta);
     }
     // The outermost point sits on the photosphere; there the local ∇ is
@@ -561,12 +636,50 @@ pub(crate) fn build_model(
         pr.convective[n - 1] = pr.convective[n - 2];
     }
     let gravity = pr.gravity();
-    pr.n2 = seismic::buoyancy_n2(&gravity, &pr.rho, &pr.p, &delta, &pr.nabla_ad, &pr.nabla, &pr.mu);
+    // Buoyancy with the general composition term B (plan 6.2); for the ideal
+    // EOS B = φ∇_μ.
+    let comps = &problem.comp;
+    let eos = problem.physics.eos.as_ref();
+    let b_term = seismic::composition_term(&pr.p, &|a, b| comps[a] == comps[b], &|k, j| {
+        eos.eval(pr.p[k], pr.t[k], &comps[j]).rho.ln()
+    });
+    pr.n2 = seismic::buoyancy_n2_general(&gravity, &pr.rho, &pr.p, &delta, &pr.nabla_ad, &pr.nabla, &b_term);
+    pr.b_comp = b_term;
     let g_cavities = seismic::g_cavities(&pr, &gravity);
 
-    let radius = pr.r[n - 1];
     let lum = pr.l[n - 1];
     let mass = problem.mass;
+    // Photospheric radius and T_eff. With the grey closed form the last point
+    // is the photosphere; with an integrated atmosphere it is the fitting
+    // point, Δr below the photosphere, and T_eff follows from L and R.
+    let atm = problem.atmosphere_at(&y[(n - 1) * NVAR..]);
+    let surface = match &atm {
+        None => SurfaceInfo {
+            tau_fit: 2.0 / 3.0,
+            tau_ph: 2.0 / 3.0,
+            dr: 0.0,
+            p_phot: pr.p[n - 1],
+            convective: false,
+            integrated: false,
+        },
+        Some(a) => SurfaceInfo {
+            tau_fit: *a.tau.last().unwrap(),
+            tau_ph: a.tau_ph,
+            dr: a.dr,
+            p_phot: {
+                // ln P interpolated linearly in ln τ (diagnostic only).
+                let s = a.tau_ph.ln();
+                let i = a.tau.partition_point(|t| t.ln() < s).clamp(1, a.tau.len() - 1);
+                let (s0, s1) = (a.tau[i - 1].ln(), a.tau[i].ln());
+                let w = (s - s0) / (s1 - s0);
+                (a.p[i - 1].ln() + w * (a.p[i].ln() - a.p[i - 1].ln())).exp()
+            },
+            convective: a.convective,
+            integrated: true,
+        },
+    };
+    let radius = pr.r[n - 1] + surface.dr;
+    let teff = if atm.is_some() { effective_temperature(lum, radius) } else { pr.t[n - 1] };
 
     let zones = find_zones(&pr, radius);
     let (conv_core_q, conv_core_r) =
@@ -618,7 +731,7 @@ pub(crate) fn build_model(
         y_c: pr.y[0],
         he_core_q,
         mean_density,
-        nu_max_uhz: 3090.0 * (g_surf / g_sun) * (pr.t[n - 1] / TEFF_SUN).powf(-0.5),
+        nu_max_uhz: 3090.0 * (g_surf / g_sun) * (teff / TEFF_SUN).powf(-0.5),
         delta_nu_uhz: 135.1 * (mean_density / rho_sun).sqrt(),
         delta_nu_asym_uhz: seismic::delta_nu_asymptotic_uhz(&pr.r, &pr.cs),
         g_cavities,
@@ -633,7 +746,9 @@ pub(crate) fn build_model(
         mass: mass / M_SUN,
         radius: radius / R_SUN,
         luminosity: lum / L_SUN,
-        teff: pr.t[n - 1],
+        teff,
+        surface,
+        eta_c: pr.eta[0],
         log_g: (G * mass / (radius * radius)).log10(),
         tc: pr.t[0],
         rhoc: pr.rho[0],

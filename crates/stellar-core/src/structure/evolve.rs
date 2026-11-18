@@ -102,6 +102,9 @@ pub enum EvolutionStep {
 
 /// Central hydrogen fraction below which hydrogen counts as exhausted.
 pub const X_EXHAUSTED: f64 = 1e-3;
+/// Central degeneracy parameter at which "as far as possible" runs with a
+/// Fermi–Dirac EOS stop (until the red-giant physics of stage 5 exists).
+pub const DEGENERATE_CORE_ETA: f64 = 1.0;
 /// Smallest time step tried before giving up [yr].
 const MIN_DT_YR: f64 = 1.0;
 
@@ -187,6 +190,21 @@ impl Evolution {
             return Ok(EvolutionStep::Finished(r.clone()));
         }
         if let Some(r) = self.stop_reason() {
+            self.finished = Some(r.clone());
+            return Ok(EvolutionStep::Finished(r));
+        }
+        // With Fermi–Dirac electrons a run can reach a degenerate core, whose
+        // physics (conduction, neutrino losses, screening, the helium flash) is
+        // stage 5: stop there until it exists.
+        if self.opts.stop == StopCondition::AsFarAsPossible
+            && physics.eos.degenerate_electrons()
+            && self.model.globals.eta_c > DEGENERATE_CORE_ETA
+        {
+            let r = format!(
+                "the core became degenerate (η_c = {:.1} > {DEGENERATE_CORE_ETA}): red-giant core physics is not \
+                 modelled yet",
+                self.model.globals.eta_c
+            );
             self.finished = Some(r.clone());
             return Ok(EvolutionStep::Finished(r));
         }

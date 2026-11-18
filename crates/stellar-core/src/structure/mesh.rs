@@ -27,19 +27,27 @@ pub fn coordinate(q: f64) -> f64 {
 
 /// Build a mesh of `n` points from q = Q_INNER to q = 1 (inclusive).
 pub fn make_mesh(n: usize) -> Vec<f64> {
+    make_mesh_from(n, Q_INNER)
+}
+
+/// Build a mesh of `n` points from q = `q_inner` to q = 1 (inclusive), uniform
+/// in the stretched coordinate. Used with `q_inner` ≠ [`Q_INNER`] only by the
+/// convergence studies of the central cut-off (track V.2).
+pub fn make_mesh_from(n: usize, q_inner: f64) -> Vec<f64> {
     assert!(n >= 10, "mesh needs at least 10 points");
-    let s0 = coordinate(Q_INNER);
+    assert!(q_inner > 0.0 && q_inner < 0.1, "q_inner must be in (0, 0.1)");
+    let s0 = coordinate(q_inner);
     let s1 = coordinate(1.0);
     (0..n)
         .map(|i| {
             if i == 0 {
-                return Q_INNER;
+                return q_inner;
             }
             if i == n - 1 {
                 return 1.0;
             }
             let s = s0 + (s1 - s0) * i as f64 / (n - 1) as f64;
-            let (mut lo, mut hi) = (Q_INNER, 1.0_f64);
+            let (mut lo, mut hi) = (q_inner, 1.0_f64);
             for _ in 0..200 {
                 let mid = 0.5 * (lo + hi);
                 if mid <= lo || mid >= hi {

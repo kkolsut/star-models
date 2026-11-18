@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
+use stellar_core::physics::options::PhysicsOptions;
 use stellar_core::{
     Evolution, EvolutionOptions, EvolutionStep, Physics, SolveControl, SolveError, SolveEvent, StarModel, StarParams,
     solve_model,
@@ -18,18 +19,19 @@ pub const ZAMS_MASSES: &[f64] = &[
     30.0, 40.0,
 ];
 
-/// Composition and convection parameters a ZAMS line depends on.
+/// Composition, convection parameters and physics a ZAMS line depends on.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ZamsKey {
     pub x: f64,
     pub z: f64,
     pub alpha: f64,
     pub f_cno: f64,
+    pub physics: PhysicsOptions,
 }
 
 impl ZamsKey {
-    pub fn of(p: &StarParams) -> Self {
-        Self { x: p.x, z: p.z, alpha: p.alpha_mlt, f_cno: p.f_cno }
+    pub fn of(p: &StarParams, physics: PhysicsOptions) -> Self {
+        Self { x: p.x, z: p.z, alpha: p.alpha_mlt, f_cno: p.f_cno, physics }
     }
 }
 
@@ -99,6 +101,7 @@ impl SolveControl for Ctl {
 
 pub struct Worker {
     physics: Arc<Physics>,
+    options: PhysicsOptions,
     ctx: egui::Context,
     tx: Sender<Msg>,
     rx: Receiver<Msg>,
@@ -108,13 +111,26 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new(ctx: egui::Context, physics: Arc<Physics>) -> Self {
+    pub fn new(ctx: egui::Context, options: PhysicsOptions) -> Self {
         let (tx, rx) = channel();
-        Self { physics, ctx, tx, rx, next_job: 1, current: None, zams_cancel: None }
+        let physics = Arc::new(Physics::from_options(&options));
+        Self { physics, options, ctx, tx, rx, next_job: 1, current: None, zams_cancel: None }
     }
 
     pub fn physics(&self) -> &Arc<Physics> {
         &self.physics
+    }
+
+    pub fn options(&self) -> PhysicsOptions {
+        self.options
+    }
+
+    /// Switch the physics for the jobs submitted from now on (running jobs keep theirs).
+    pub fn set_options(&mut self, options: PhysicsOptions) {
+        if options != self.options {
+            self.options = options;
+            self.physics = Arc::new(Physics::from_options(&options));
+        }
     }
 
     /// Start solving `params`. This cancels any job still running.
@@ -168,7 +184,7 @@ impl Worker {
         let cancel = Arc::new(AtomicBool::new(false));
         self.zams_cancel = Some(cancel.clone());
         let (tx, ctx, physics) = (self.tx.clone(), self.ctx.clone(), self.physics.clone());
-        let key = ZamsKey::of(&base);
+        let key = ZamsKey::of(&base, self.options);
         std::thread::spawn(move || {
             let mut ctl = Ctl {
                 job: 0,

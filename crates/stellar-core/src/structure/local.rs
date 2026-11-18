@@ -66,6 +66,8 @@ pub fn evaluate(
         delta: eos.delta,
         g,
         alpha: alpha_mlt,
+        hopf_a: 1.0,
+        thin_elements: phys.atmosphere.thin_elements(),
     });
     LocalState { m, r, p, t, l, eos, kappa, nuc, g, hp, nabla_rad, mlt }
 }

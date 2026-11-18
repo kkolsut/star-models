@@ -38,6 +38,13 @@ pub const CSV_COLUMNS: &[&str] = &[
     "Z",
     "c_s_cm_s",
     "N2_s-2",
+    "B_comp",
+    "eta_degeneracy",
+    "Gamma_C",
+    "x_H",
+    "x_He1",
+    "x_He2",
+    "x_H2",
 ];
 
 /// Profile as CSV (one row per mesh point, centre to surface).
@@ -77,6 +84,13 @@ pub fn profile_csv(model: &StarModel) -> String {
             p.z[k],
             p.cs.get(k).copied().unwrap_or(f64::NAN),
             p.n2.get(k).copied().unwrap_or(f64::NAN),
+            p.b_comp.get(k).copied().unwrap_or(f64::NAN),
+            p.eta.get(k).copied().unwrap_or(f64::NAN),
+            p.gamma_c.get(k).copied().unwrap_or(f64::NAN),
+            p.x_h.get(k).copied().unwrap_or(f64::NAN),
+            p.x_he1.get(k).copied().unwrap_or(f64::NAN),
+            p.x_he2.get(k).copied().unwrap_or(f64::NAN),
+            p.x_h2.get(k).copied().unwrap_or(f64::NAN),
         ];
         for (i, v) in row.iter().enumerate() {
             if i > 0 {

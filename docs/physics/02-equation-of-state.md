@@ -50,7 +50,81 @@ rejected.
 * Electron degeneracy, which matters below about 0.4 M☉ and in helium cores.
 * Molecular hydrogen, Coulomb forces and pressure ionisation.
 
-## Planned
+## Implemented, selectable: Fermi–Dirac EOS with ionisation (plans 6.1–6.5)
+
+Source: `crates/stellar-core/src/physics/eos.rs` (derivative layer `derive_state`,
+`EosState::from_derivatives`, scan `consistency_scan`), `physics/fermi_dirac.rs` (integrals),
+`physics/eos_fd.rs` (`FermiDiracEos`, `Paczynski`), `mixture.rs` (GN93 metals). Selector:
+`--eos ideal|degenerate|ionisation|full|paczynski` (CLI), *Physics › Equation of state* (app). The
+ideal gas stays the default (page 11 for the reasons).
+
+*Status (2026-11-17, branch `agent/cool-start`).* Everything below is coded; the choices made and
+the measurements:
+
+* **6.1** `EosState` gains $`\eta`$, the ionisation fractions and the H₂ fraction;
+  `EosState::from_derivatives` turns $`\rho`$, $`h`$, $`\alpha`$, $`\delta`$, $`c_P`$ into the state
+  ($`\beta = 1 - P_{\mathrm{rad}}/P`$). `derive_state` differentiates any $`(\ln\rho, h)(\ln P, \ln T)`$
+  by central differences (step 10⁻⁵); applied to the ideal EOS it reproduces $`\rho`$, $`c_P`$,
+  $`\nabla_{\mathrm{ad}}`$, $`\Gamma_1`$, $`\delta`$, $`u`$ to 10⁻⁶ (test). `consistency_scan` reports the
+  largest $`|\mathcal{R}|/(\epsilon_{\mathrm{abs}} + \epsilon_{\mathrm{rel}}|1-\delta|)`$, the smallest
+  $`c_V`$ and $`\alpha`$; the ideal EOS passes with $`\epsilon_{\mathrm{abs}} = 10^{-9}`$,
+  $`\epsilon_{\mathrm{rel}} = 10^{-6}`$.
+* **Fermi–Dirac integrals.** Segmented Gauss quadrature as specified, with break points that move
+  smoothly with $`\eta`$: $`x_b = \ln(1+e^\eta)`$, $`b_1 = \min(\ln(1 + e^{x_b - 25}), x_b)`$,
+  $`b_2 = \ln(1 + e^{x_b - 5})`$ limited to $`[b_1, x_b]`$, and $`x_b + 12`$. The four finite segments
+  are integrated in $`v = \sqrt{x}`$ (Gauss–Legendre, 32/32/32/40 nodes), which removes the
+  $`x^{1/2}`$ behaviour wherever a segment starts; the tail with 32-node Gauss–Laguerre (nodes by
+  Golub–Welsch, polished by Newton). *Domain:* $`-100 \le \eta \le 10^4`$,
+  $`10^{-8} \le \vartheta \le 1`$, $`\vartheta x_b \le 10`$ (Fermi energy up to 5 $`m_e c^2`$); below
+  $`\eta = -100`$ the classical limit $`F_k \propto e^\eta`$; outside: an error. *Accuracy:* largest
+  relative error 2.7×10⁻¹⁴ against 140 values computed with mpmath at 40 digits, each confirmed by
+  two independent sets of break points (`tools/reference/fermi_dirac_reference.py`).
+  *Found by that test:* a first version mapped segments by $`x = a + (b-a)u^2`$, which is singular
+  just above $`x = 0`$ and lost 5×10⁻⁹ near $`\eta = -10`$. $`\partial F_k/\partial\eta`$ and
+  $`\partial F_k/\partial\vartheta`$ come from the same pass.
+* **6.2** *Solving for the state:* every quantity is an explicit function of $`(\eta, T)`$;
+  $`P(\eta, T) = P`$ is solved for $`\eta`$ (safeguarded Newton/secant to $`|\Delta\eta| < 10^{-13}`$,
+  warm-started from the last call); the derivatives follow by central differences of the explicit
+  map in $`(\eta, \ln T)`$ and the chain rule. $`P \le P_{\mathrm{rad}}`$ returns an error (NaN state for
+  the solver), not a clamp. *Composition:* ions $`X + Y/4 + Z/\langle A\rangle`$, electrons
+  $`X + Y/2 + Z\langle Z/A\rangle`$ per $`m_u`$, with $`\langle A\rangle = 17.02`$,
+  $`\langle Z/A\rangle = 0.4961`$ of the GN93 mixture (the ideal EOS uses $`Z/2`$ and no metal ions:
+  a difference of 0.07% in $`\mu`$). *Tests:* ideal gas recovered to 10⁻⁶ where $`e^\eta`$ and
+  $`\vartheta`$ are below 10⁻⁶ (and to their size elsewhere); cold electrons against the exact
+  Chandrasekhar pressure to 2×10⁻³ from $`\rho/\mu_e = 10`$ to 5×10⁸ g cm⁻³; its limits give
+  $`K_1 = 1.0036\times10^{13}`$, $`K_2 = 1.2435\times10^{15}`$; consistency scan passed. *At the
+  centre of the ZAMS Sun* ($`P = 2.3\times10^{17}`$, $`T = 1.55\times10^7`$ K, $`X = 0.35`$):
+  $`\eta = -1.53`$, $`\rho`$ 2.0% below the ideal gas **[measured]**. *Profile diagnostics* (page 11):
+  $`\eta`$, $`\Gamma_{\mathrm{C}}`$, ionisation fractions, $`1-\beta`$ in `Profile` and in the CSV export.
+  *Buoyancy:* $`N^2`$ uses the general term $`B`$ of page 5 for every EOS, computed as the change of
+  $`\ln\rho`$ at the point's $`(P, T)`$ between the compositions of its neighbours over the change
+  of $`\ln P`$ (for the ideal EOS this is $`\nabla_\mu`$ exactly). *Degenerate cores:* "as far as
+  possible" runs with a Fermi–Dirac EOS stop when $`\eta_c > 1`$, with a message, until stage 5.
+* **6.3** Ionisation equilibrium as on this page (ground-state weights, mass ratio 1), solved with
+  the Fermi–Dirac $`\eta`$. *Metals:* their electrons form one pool of bound electrons that
+  ionises with the hydrogen energy and weights; no metal ionisation stages (a stated
+  approximation). Energy zero: neutral atoms. *Tests:* Saha limit to 10⁻³; nearly full ionisation
+  at high $`T`$ and low density reproduces 6.2 to the size of the remaining He⁺ fraction;
+  $`\nabla_{\mathrm{ad}}`$ minimum 0.12 near 10⁴ K at $`P = 10^5`$ dyn cm⁻²; neutral and ionised
+  limits of $`\mu`$; consistency scan passed. Without 6.4 the equilibrium recombines 26% of the
+  hydrogen at the centre of the Sun **[measured]**: not usable alone for models.
+* **6.4** Pols term coded as on this page; $`\eta(n_0, T)`$ by Newton inversion started from the
+  free-electron $`\eta`$. *Tests:* dilute gas reproduces 6.3 to 10⁻⁶; at $`\rho \approx 10^3`$ g cm⁻³,
+  $`T = 10^6`$ K hydrogen and helium stay ionised ($`x > 0.99`$; ideal equilibrium recombines);
+  $`P_{\mathrm{PI}}/P < 10^{-5}`$ near full ionisation; at the solar centre $`x_{\mathrm{H}} = 0.999998`$.
+  *Stability scan:* $`\mathcal{R}`$, $`c_V > 0`$, $`\alpha > 0`$ on a 12×12 grid of
+  $`10^2 \le P \le 10^{19}`$ dyn cm⁻², $`3000 \le T \le 10^8`$ K: passed (no failing point, so the
+  domain is not restricted).
+* **6.5** H₂: dissociation equilibrium $`n_{\mathrm{H}}^2/n_{\mathrm{H_2}} = (\pi m_{\mathrm{H}}kT/h^2)^{3/2}\,4\,(2\Theta_r/T)(1 - e^{-\Theta_v/T})\,e^{-D_0/kT}`$
+  (rigid rotor, high-$`T`$ limit; harmonic oscillator; $`D_0 = 4.478`$ eV,
+  $`\Theta_r = 85.3`$ K, $`\Theta_v = 6332`$ K, Huber & Herzberg 1979), with its internal energy in
+  $`u`$; solved in closed form with charge neutrality. Molecular limit of $`\mu`$ at 1500 K (test).
+  *Paczyński:* `Paczynski` with the published $`K_1`$, $`K_2`$, $`\rho`$ by bisection, derivatives
+  from the generic layer; comparison only, not offered for evolution in the app's description.
+* **Cost.** The Fermi–Dirac EOS is about 10⁴ times slower than the ideal gas (one root search and
+  four evaluations per call, each a quadrature of 168 nodes; the pressure-ionisation term adds an
+  inversion). Measured on the build machine (an emulated CPU, roughly 20× slower than a desktop):
+  1 M☉ ZAMS 3 s (ideal), 72 s (Fermi–Dirac), 207 s (full). Tabulating $`F_k`$ was not done.
 
 ### Derived quantities for any EOS (plan 6.1)
 

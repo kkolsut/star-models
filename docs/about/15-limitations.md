@@ -11,15 +11,16 @@ It is **not quantitatively solar**. With $`X = 0.70`$ and $`Z = 0.02`$:
 
 | 1 M☉ ZAMS | $`L`$ | $`R`$ | Convective envelope base |
 |---|---|---|---|
-| This model | ≈ 0.42 L☉ | ≈ 1.12 R☉ | $`0.97\,R`$ (thin) |
-| Detailed ZAMS Sun | ≈ 0.7 L☉ | ≈ 0.89 R☉ | ≈ $`0.71\,R`$ |
+| This model (analytic physics) | ≈ 0.42 L☉ | ≈ 1.12 R☉ | $`0.97\,R`$ (thin) |
+| This model, *Physics › All upgrades* | ≈ 0.65 L☉ | ≈ 0.90 R☉ | $`0.73\,R`$ |
+| Detailed ZAMS Sun | ≈ 0.7 L☉ | ≈ 0.89 R☉ | ≈ $`0.73\,R`$ |
 
-This model also has $`T_{\mathrm{eff}} \approx 4380`$ K. The leading suspects for the difference are
-listed below; their shares have not been isolated:
+This model also has $`T_{\mathrm{eff}} \approx 4380`$ K. The causes were measured by swapping one ingredient at a time (plan 7.7): the opacity tables alone raise L to 0.68 L☉ (the analytic central κ is 1.8 times the OPAL value), the EOS with ionisation alone moves the envelope base to 0.76 R, and the integrated atmosphere changes R by at most 1%. Only all of them together come close: with Physics › All upgrades the same 1 M☉ model has L = 0.648 L☉, R = 0.905 R☉, T_eff = 5444 K and its envelope base at 0.727 R, uncalibrated. That set is about 130 times slower and is not the default (see [`docs/physics/11`](../physics/11-validity-and-roadmap.md)).
 
-* the textbook Kramers opacity is too high in the core (the leading suspect for the low luminosity) and
-  far too low at $`10^5`$–$`10^6`$ K;
-* the EOS has no ionisation zones.
+*Provisional solar calibration* (Physics › Calibrated Sun): with all upgrades, $`Y_0 = 0.2834`$,
+$`Z_0 = 0.01714`$ ($`Z/X = 0.0245`$, Grevesse & Noels 1993) and $`\alpha_{\mathrm{MLT}} = 2.020`$ give $`L_\odot`$
+and $`R_\odot`$ at 4.57 Gyr, $`T_{\mathrm{eff}} = 5772`$ K and the envelope base at 0.733 R (helioseismic 0.713 R;
+no element settling yet, which deepens it).
 
 With $`Z = 0.008`$ the same physics reproduces the classic StatStar Sun of Carroll & Ostlie
 ($`L \approx 0.83\,L_\odot`$, $`T_{\mathrm{eff}} \approx 5500`$ K). This confirms that the
