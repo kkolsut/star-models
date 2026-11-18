@@ -20,7 +20,7 @@ This model also has $`T_{\mathrm{eff}} \approx 4380`$ K. The causes were measure
 *Provisional solar calibration* (Physics › Calibrated Sun): with all upgrades, $`Y_0 = 0.2834`$,
 $`Z_0 = 0.01714`$ ($`Z/X = 0.0245`$, Grevesse & Noels 1993) and $`\alpha_{\mathrm{MLT}} = 2.020`$ give $`L_\odot`$
 and $`R_\odot`$ at 4.57 Gyr, $`T_{\mathrm{eff}} = 5772`$ K and the envelope base at 0.733 R (helioseismic 0.713 R;
-no element settling yet, which deepens it).
+no element settling yet, which deepens it). Against the published Eggleton-code grid (Tout et al. 1996, Hurley et al. 2000; plan 7.9) the full set gives ZAMS luminosities within 7% and radii within 4% for 0.5–20 M☉, and main-sequence lifetimes 8–19% shorter (that grid includes core overshoot, which is off here by default).
 
 With $`Z = 0.008`$ the same physics reproduces the classic StatStar Sun of Carroll & Ostlie
 ($`L \approx 0.83\,L_\odot`$, $`T_{\mathrm{eff}} \approx 5500`$ K). This confirms that the

@@ -119,8 +119,23 @@ the measurements:
   (rigid rotor, high-$`T`$ limit; harmonic oscillator; $`D_0 = 4.478`$ eV,
   $`\Theta_r = 85.3`$ K, $`\Theta_v = 6332`$ K, Huber & Herzberg 1979), with its internal energy in
   $`u`$; solved in closed form with charge neutrality. Molecular limit of $`\mu`$ at 1500 K (test).
+  *Full convection* **[measured]** (all upgrades, $`X = 0.70`$, $`Z = 0.02`$, $`\alpha = 1.8`$,
+  `tests/cool_star.rs`): ZAMS models of 0.35, 0.30, 0.25 and 0.20 M☉ are fully convective; 0.40 M☉
+  keeps a radiative shell between a tiny convective core ($`q < 0.0014`$) and the envelope (base at
+  $`q = 0.139`$); the envelope base is at $`q = 0.61`$ for 0.5 M☉, 0.89 for 0.7 M☉ and 0.97 for 1 M☉.
+  The boundary near 0.35 M☉ agrees with the usual value for solar metallicity.
+  *Degenerate sequence* (Fermi–Dirac, otherwise analytic): converges down to 0.1 M☉, where
+  $`\eta_c = 1.21`$ and $`R = 0.206`$ R☉ (test).
+  *Past hydrogen exhaustion* (1 M☉, Fermi–Dirac, otherwise analytic, 400 points, "as far as
+  possible"): a helium core of $`q = 0.073`$ forms, isothermal to within 15%, and the run stops with
+  the message "the core became degenerate" when $`\eta_c`$ reaches 1 (test).
   *Paczyński:* `Paczynski` with the published $`K_1`$, $`K_2`$, $`\rho`$ by bisection, derivatives
-  from the generic layer; comparison only, not offered for evolution in the app's description.
+  from the generic layer; comparison only. *Consistency scan* (10×10 grid, same domain): $`c_V > 0`$
+  and $`\alpha > 0`$ everywhere, but $`|\mathcal{R}|`$ up to 4.9×10⁻³ (at $`P = 10^{19}`$, $`T = 10^8`$ K),
+  114 times the tolerance used for the other EOSs — as expected for an interpolation without a
+  common potential. *Along the analytic ZAMS Sun*, against the fully ionised Fermi–Dirac EOS: largest
+  relative differences 0.9% in $`\rho`$, 0.16% in $`\nabla_{\mathrm{ad}}`$, 0.11% in $`\Gamma_1`$
+  **[measured]** (`tests/cool_star.rs::paczynski_comparison`).
 * **Cost.** The Fermi–Dirac EOS is about 10⁴ times slower than the ideal gas (one root search and
   four evaluations per call, each a quadrature of 168 nodes; the pressure-ionisation term adds an
   inversion). Measured on the build machine (an emulated CPU, roughly 20× slower than a desktop):

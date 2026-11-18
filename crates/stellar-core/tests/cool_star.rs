@@ -202,3 +202,31 @@ fn calibrated_sun() {
     // Rounding of the published parameters (4 digits) moves L by about 2e-3.
     assert!((g.luminosity - 1.0).abs() < 5e-3 && (g.radius - 1.0).abs() < 2e-3);
 }
+
+/// Plan 6.5: the Paczyński interpolation is run through the consistency scan
+/// (it is not derived from a free energy, so ℛ is reported, not required to
+/// vanish) and compared with the fully ionised Fermi–Dirac EOS along the
+/// analytic ZAMS Sun.
+#[test]
+fn paczynski_comparison() {
+    use stellar_core::physics::Eos;
+    use stellar_core::physics::eos::{FermiDiracEos, Paczynski};
+    use stellar_core::physics::eos_fd::stellar_scan;
+    let c = StarParams::sun().composition().unwrap();
+    let scan = stellar_scan(&Paczynski, &c, 10);
+    eprintln!("Paczyński scan: {scan:?}");
+    assert!(scan.unstable == 0, "c_V or α not positive somewhere");
+    let m = solve_model(&StarParams { n_points: 200, ..StarParams::sun() }, &Physics::analytic(), None, &mut NoControl)
+        .unwrap();
+    let fd = FermiDiracEos::fully_ionised();
+    let p = &m.profile;
+    let (mut d_rho, mut d_nad, mut d_g1) = (0.0f64, 0.0f64, 0.0f64);
+    for k in 0..p.len() {
+        let (a, b) = (Paczynski.eval(p.p[k], p.t[k], &c), fd.eval(p.p[k], p.t[k], &c));
+        d_rho = d_rho.max((a.rho / b.rho - 1.0).abs());
+        d_nad = d_nad.max((a.nabla_ad / b.nabla_ad - 1.0).abs());
+        d_g1 = d_g1.max((a.gamma1 / b.gamma1 - 1.0).abs());
+    }
+    eprintln!("along the ZAMS Sun, largest relative differences: ρ {d_rho:.2e}, ∇_ad {d_nad:.2e}, Γ₁ {d_g1:.2e}");
+    assert!(d_rho < 0.05 && d_nad < 0.05 && d_g1 < 0.05);
+}

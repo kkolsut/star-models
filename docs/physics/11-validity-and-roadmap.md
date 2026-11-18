@@ -237,6 +237,24 @@ Differences beyond the tolerances (bold) and their named suspects (open items, n
 * The Tout et al. fits interpolate a grid with their own errors (up to 3% / 1.2%), so differences
   of that size are not attributable.
 
+*Main-sequence lifetimes* (to $`X_c < 10^{-3}`$; all upgrades with the time-step targets of the
+calibration, $`\Delta\log = 0.05`$, $`\Delta X = 0.05`$; analytic values from the regression runs):
+
+| $`M`$ [M☉] | all upgrades | analytic | Hurley et al. (2000) fit | $`\Delta`$ all | $`\Delta`$ analytic |
+|---|---|---|---|---|---|
+| 1 | 10.16 Gyr | 15.12 Gyr | 11.00 Gyr | **−7.7%** | +37% |
+| 3 | 312.9 Myr | 268.6 Myr | 377.5 Myr | **−17.1%** | −29% |
+| 5 | 84.6 Myr | 72.0 Myr | 104.0 Myr | **−18.7%** | −31% |
+
+Tolerance 5% (the fit's $`t_{\mathrm{MS}} = \max(0.95, t_{\mathrm{hook}}/t_{\mathrm{BGB}})\,t_{\mathrm{BGB}}`$ is
+itself a definition with a few per cent of slack). Suspects: **core overshoot** for 3 and 5 M☉ — the
+Pols et al. (1998) models include convective overshooting, our default has none; the step overshoot
+of plan 2.1 at $`\alpha_{\mathrm{ov}} = 0.2`$ lengthens our analytic 3 and 5 M☉ main sequence by 26%
+and 23% (page 5), the size of the gap (to be measured with the full set; open item). For 1 M☉ the
+fit's end point (95% of the time to the base of the giant branch) and our $`X_c < 10^{-3}`$ differ in
+definition; the remaining 8% is an open item (the ZAMS $`L`$ is 7% *lower* than the fit, which
+would lengthen, not shorten, the main sequence).
+
 *The analytic default against the same fits* ($`\alpha = 1.8`$): $`\Delta L`$ = −74%, −47%, −40%, −26%,
 −18%, −6%, +7%, +9%, +4% and $`\Delta R`$ = +53%, +40%, +26%, −14%, −14%, −11%, −8%, −6%, −7% for 0.5,
 0.8, 1, 1.5, 2, 3, 5, 10, 20 M☉. This checks the statement at the top of the page that massive
@@ -244,7 +262,8 @@ stars are closer to detailed models: for the analytic physics they are within 10
 at and below 1 M☉), not better; with all upgrades they agree to 1–2%.
 
 *Validity ranges following from this table* (all upgrades): ZAMS $`L`$ to about 7% and $`R`$ to
-about 4% for 0.5–20 M☉; the Sun after calibration to $`10^{-4}`$ in $`L`$, $`R`$ by construction, its
+about 4% for 0.5–20 M☉; main-sequence lifetimes 8% (1 M☉) to 19% (5 M☉) shorter than the grid,
+which includes overshoot; the Sun after calibration to $`10^{-4}`$ in $`L`$, $`R`$ by construction, its
 envelope base to 0.02 R (no settling). These replace the "qualitative" label for the full set on the
 main sequence; the analytic default stays qualitative.
 
