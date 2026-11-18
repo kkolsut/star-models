@@ -69,9 +69,9 @@ cost).
   table separates the first three.
 
 Qualitatively right: radiative core and convective envelope in Sun-like stars, convective cores and
-CNO burning above about 1.2 M☉, deep envelopes at low mass. Massive stars are expected to be closer
-to detailed models because their opacity is mostly electron scattering; this has not been checked
-against a published grid.
+CNO burning above about 1.2 M☉, deep envelopes at low mass. Massive stars are closer to detailed
+models because their opacity is mostly electron scattering: within 10% in $`L`$ and $`R`$ for 5–20 M☉
+against the published grid (plan 7.9, below).
 
 With $`Z = 0.008`$ the model reproduces the textbook StatStar Sun (0.8348 L☉, 5515 K), which checks
 the implementation, not the physics.
@@ -202,6 +202,51 @@ both in the direction expected without settling (settling lowers the surface $`Z
 the envelope; it is plan 8.5). The parameters are the preset `StarParams::sun_calibrated()` and
 the app's *Calibrated Sun* button; `tests/cool_star.rs::calibrated_sun` (ignored, slow) re-checks
 them. The final three-parameter calibration is plan 8.6.
+
+**Validation against published models (plan 7.9)** **[measured]**. Different physics, unlike
+track V. Reference set: the Eggleton-code models of Pols et al. (1998), represented by the ZAMS fits
+of Tout et al. (1996; quoted fit errors at $`Z = 0.02`$ below 3% in $`L`$ and 1.2% in $`R`$) and the
+main-sequence lifetime fits of Hurley, Pols & Tout (2000); the solar reference is the B16-GS98
+standard solar model above. Our models: all upgrades, $`X = 0.70`$, $`Z = 0.02`$,
+$`\alpha_{\mathrm{MLT}} = 2.02`$ (the calibrated value; Pols et al. used $`X = 0.70`$, $`Z = 0.02`$,
+$`\alpha = 2.0`$), 800 points (`examples/validation.rs`; output in
+[`docs/measurements/validation.md`](../measurements/validation.md)). Tolerances stated in advance:
+5% in $`L`$, 3% in $`R`$ (the fit errors plus a margin for different input physics).
+
+| $`M`$ [M☉] | $`L`$ [L☉] | fit | $`\Delta L`$ | $`R`$ [R☉] | fit | $`\Delta R`$ | $`T_{\mathrm{eff}}`$ [K] | $`T_c`$ [K] | $`\rho_c`$ | env. base | core $`m/M`$ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.5 | 0.0398 | 0.0379 | **+5.1%** | 0.4417 | 0.4588 | **−3.7%** | 3880 | 8.47e6 | 69.4 | 0.548 | – |
+| 0.8 | 0.2241 | 0.2363 | **−5.2%** | 0.7180 | 0.7292 | −1.5% | 4686 | 1.10e7 | 76.1 | 0.679 | – |
+| 1 | 0.6511 | 0.6977 | **−6.7%** | 0.8872 | 0.8882 | −0.1% | 5505 | 1.32e7 | 80.7 | 0.721 | – |
+| 1.5 | 4.473 | 4.628 | −3.4% | 1.4494 | 1.4372 | +0.8% | 6972 | 1.81e7 | 80.0 | 0.969 | 0.071 |
+| 2 | 14.98 | 15.89 | **−5.7%** | 1.6403 | 1.6102 | +1.9% | 8867 | 2.07e7 | 62.2 | 0.999 | 0.144 |
+| 3 | 75.00 | 79.98 | **−6.2%** | 2.0322 | 1.9791 | +2.7% | 11915 | 2.35e7 | 38.1 | – | 0.199 |
+| 5 | 512.0 | 530.1 | −3.4% | 2.7052 | 2.6356 | +2.6% | 16693 | 2.67e7 | 19.8 | – | 0.246 |
+| 10 | 5505 | 5552 | −0.8% | 3.9951 | 3.9419 | +1.4% | 24875 | 3.10e7 | 8.71 | – | 0.317 |
+| 20 | 42604 | 42845 | −0.6% | 5.8838 | 5.9990 | −1.9% | 34187 | 3.50e7 | 4.47 | – | 0.446 |
+
+Differences beyond the tolerances (bold) and their named suspects (open items, none isolated):
+
+* **$`L`$ 5–7% low for 0.8–3 M☉.** Suspects: the nuclear rates (Solar Fusion III against the
+  Caughlan & Fowler 1988 rates of the Eggleton code; our CNO rate is about half the old one, which
+  matters at 1.5–3 M☉), and the opacity mixture (GN93 here; Pols et al. used OPAL tables of their
+  time). The 1 M☉ value is the same 7% found against the detailed ZAMS in the table at the top.
+* **0.5 M☉: $`L`$ +5%, $`R`$ −4%.** Suspects: the EOS (no Coulomb corrections here; the Eggleton EOS
+  has a different pressure-ionisation treatment) and the Krishna Swamy atmosphere used outside the
+  solar regime.
+* The Tout et al. fits interpolate a grid with their own errors (up to 3% / 1.2%), so differences
+  of that size are not attributable.
+
+*The analytic default against the same fits* ($`\alpha = 1.8`$): $`\Delta L`$ = −74%, −47%, −40%, −26%,
+−18%, −6%, +7%, +9%, +4% and $`\Delta R`$ = +53%, +40%, +26%, −14%, −14%, −11%, −8%, −6%, −7% for 0.5,
+0.8, 1, 1.5, 2, 3, 5, 10, 20 M☉. This checks the statement at the top of the page that massive
+stars are closer to detailed models: for the analytic physics they are within 10% (against 40–70%
+at and below 1 M☉), not better; with all upgrades they agree to 1–2%.
+
+*Validity ranges following from this table* (all upgrades): ZAMS $`L`$ to about 7% and $`R`$ to
+about 4% for 0.5–20 M☉; the Sun after calibration to $`10^{-4}`$ in $`L`$, $`R`$ by construction, its
+envelope base to 0.02 R (no settling). These replace the "qualitative" label for the full set on the
+main sequence; the analytic default stays qualitative.
 
 Details, files and tests are in [`../implementation-plan.md`](../implementation-plan.md).
 

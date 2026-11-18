@@ -140,12 +140,16 @@ web server). Options A and B need no server-side code and no special HTTP header
 
 ## Expectations and risks
 
-* **Download size:** about 3–5 MB compressed, including the 61 embedded equation SVGs.
-  `wasm-opt` and brotli/gzip help; it can be cached after the first load.
+* **Download size:** about 3–5 MB compressed, including the 61 embedded equation SVGs, plus the
+  opacity and conduction tables of stage 4 (3.2 MB of text, about 1 MB compressed; embedded with
+  `include_str!`, so no file access is needed). Parsing them takes a moment the first time the
+  tables are selected. `wasm-opt` and brotli/gzip help; it can be cached after the first load.
 * **Browsers:** recent Chrome, Firefox and Safari through eframe's wgpu backend (WebGPU, or WebGL2
   as fallback). Safari needs the most testing.
 * **Speed:** WASM numerics run about 1.3–2× slower than native. A single model takes 0.1–0.3 s; long
-  evolution runs take tens of seconds (with option A, see above).
+  evolution runs take tens of seconds (with option A, see above). With the stage-4 *All upgrades*
+  physics (Fermi–Dirac EOS) everything is about 130 times slower: a ZAMS model takes tens of seconds,
+  an evolution run many minutes.
 * **Memory:** timeline snapshots are already thinned (well under 100 MB), within WASM limits.
 * **Clipboard:** "Copy LaTeX" needs a secure context: https, or localhost when previewing.
 * **3D view:** the CPU renderer draws about 40 000 triangles per frame (about 2 ms natively). In WASM

@@ -77,6 +77,12 @@ fn boundary_derivatives_are_smooth() {
     );
     let n = q.len();
     let yn: Vec<f64> = m.solution[(n - 1) * NVAR..].to_vec();
+    // Plan 3.2: ∇ is continuous across the fitting point (interior A = 1
+    // against the atmosphere's A = 1 + q'(τ_fit), |q'| < 1e-3).
+    let atm = problem.atmosphere_at(&yn).unwrap();
+    let (inside, outside) = (m.profile.nabla[n - 1], *atm.nabla.last().unwrap());
+    eprintln!("∇ at the fitting point: interior {inside:.6}, atmosphere {outside:.6}");
+    assert!((inside / outside - 1.0).abs() < 2e-3, "∇ jumps at the fitting point: {inside} vs {outside}");
     for var in [I_LNR, I_LNP, I_LNT, I_L] {
         let d = |h: f64| {
             let (mut a, mut b) = (yn.clone(), yn.clone());

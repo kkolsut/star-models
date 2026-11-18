@@ -11,9 +11,10 @@
 //! (`src/cosmic/src/zdata.h`, `SSE/SSE_zcnsts.f`, `SSE/SSE_zfuncs.f`), with
 //! Z☉ = 0.02 in ζ = log₁₀(Z/0.02).
 //!
-//! Run: `cargo run --release -p stellar-core --example validation -- [physics] [X] [Z] [alpha] [lifetimes]`
+//! Run: `cargo run --release -p stellar-core --example validation -- [physics] [X] [Z] [alpha] [lifetimes|lifetimes-only]`
 //! with physics `all` or `analytic`; `lifetimes` also evolves 1, 3 and 5 M☉ to
-//! the end of the main sequence.
+//! the end of the main sequence (time-step targets Δlog = 0.05, ΔX = 0.05, as
+//! in the solar calibration), `lifetimes-only` skips the ZAMS table.
 
 use stellar_core::physics::options::PhysicsOptions;
 use stellar_core::{
@@ -193,11 +194,20 @@ impl Fits {
 }
 
 fn lifetime(zams: StarModel, physics: &Physics) -> f64 {
-    let opts = EvolutionOptions { stop: StopCondition::EndOfMainSequence, pulsation: false, ..Default::default() };
+    let opts = EvolutionOptions {
+        stop: StopCondition::EndOfMainSequence,
+        pulsation: false,
+        dlog_target: 0.05,
+        dx_max: 0.05,
+        ..Default::default()
+    };
     let mut evo = Evolution::new(zams, opts);
     loop {
         match evo.step(physics, &mut NoControl).expect("evolution") {
-            EvolutionStep::Advanced { .. } => {}
+            EvolutionStep::Advanced { .. } => {
+                let g = &evo.model.globals;
+                eprintln!("  M = {:.1}: {:.4e} yr, X_c = {:.4}", g.mass, g.age_yr, g.x_c);
+            }
             EvolutionStep::Finished(_) => return evo.model.globals.age_yr / 1e6,
         }
     }
@@ -211,7 +221,8 @@ fn main() {
     };
     let num = |i: usize, d: f64| args.get(i).map(|s| s.parse().unwrap()).unwrap_or(d);
     let (x, z, alpha) = (num(1, 0.70), num(2, 0.02), num(3, 1.8));
-    let lifetimes = args.iter().any(|a| a == "lifetimes");
+    let only = args.iter().any(|a| a == "lifetimes-only");
+    let lifetimes = only || args.iter().any(|a| a == "lifetimes");
     let physics = Physics::from_options(&opts);
     let fits = Fits::new(z);
     println!("{}; X = {x}, Z = {z}, α_MLT = {alpha}\n", physics.describe());
@@ -222,7 +233,8 @@ fn main() {
     let base = StarParams { x, z, alpha_mlt: alpha, f_cno: stellar_core::mixture::GN93.f_cno, ..StarParams::sun() };
     let mut prev: Option<StarModel> = None;
     let mut models = Vec::new();
-    for m in [1.0, 0.8, 0.5, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0] {
+    let masses: &[f64] = if only { &[1.0, 3.0, 5.0] } else { &[1.0, 0.8, 0.5, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0] };
+    for &m in masses {
         let p = StarParams { mass: m, ..base.clone() };
         // Warm start from the previous mass when it is within a factor of two.
         let warm = prev.as_ref().filter(|w| (w.globals.mass - m).abs() / m < 1.0);
