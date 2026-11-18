@@ -137,8 +137,59 @@ About §15 lists general relativity under "Not modelled".
 its floor.
 
 *Validation of the solver*: Lane–Emden zeros $`\xi_1 = \pi`$ ($`n = 1`$) and $`\xi_1 = 6.89685`$
-($`n = 3`$); banded solver against a dense one; mesh refinement (800 → 1600 points changes $`L`$,
-$`R`$, $`T_c`$ of the Sun by less than 0.5%).
+($`n = 3`$); banded solver against a dense one; mesh and central cut-off convergence (next
+section).
+
+### Mesh and central-cut-off convergence (track V.2)
+
+`crates/stellar-core/examples/mesh_convergence.rs`, analytic physics, measured 2026-11-17 on
+`agent/cool-start` **[measured]**. Nested meshes of 401, 801, 1601 and 3201 points (uniform in
+$`s(q)`$, so every point of a coarse mesh is a point of the finer ones; local profiles are compared
+at the 401 shared points, without interpolation). Evolved models are reached with the same sequence
+of time steps on every mesh (taken from the 401-point run; none had to be split), so only the
+spatial discretisation differs. $`e_N`$: difference to the 3201-point model (relative for globals;
+for profiles the largest absolute difference of $`\ln r`$, $`\ln P`$, $`\ln T`$, $`L/L_s`$,
+$`\varepsilon/\varepsilon_c`$, and of $`dX/dq`$); $`p = \log_2(e_N/e_{2N})`$.
+
+| Model | $`e_{801}`$: $`L`$, $`R`$, $`T_c`$, $`\rho_c`$ | $`e_{801}`$: $`\ln P`$, $`\ln T`$ profiles | $`e_{801}`$: $`X_c`$, $`dX/dq`$ | observed $`p`$ |
+|---|---|---|---|---|
+| 1 M☉ ZAMS | 4.9e-5, 2.0e-5, 2.1e-5, 5.8e-5 | 4.1e-4, 2.5e-4 | – | 2.07–2.32 |
+| 1 M☉, 8 Gyr ($`X_c = 0.35`$) | 4.5e-5, 2.3e-5, 2.9e-5, 1.3e-4 | 4.3e-4, 2.6e-4 | 1.2e-4, 0.16 | 2.07–2.32 |
+| 1 M☉, 15 Gyr ($`X_c = 0.0013`$) | 5.5e-5, 3.7e-5, 4.5e-5, 8.3e-5 | 4.9e-4, 3.4e-4 | 4.5e-3, 0.017 | 2.06–2.32 |
+| 3 M☉ ZAMS | 3.9e-5, 2.8e-5, 2.7e-5, 7.2e-5 | 4.3e-4, 1.1e-4 | core mass 7.3e-5 | 2.05–2.38 |
+| 3 M☉, 130 Myr ($`X_c = 0.48`$) | 5.6e-6, 2.0e-5, 5.3e-5, 1.4e-4 | 2.5e-4, 5.9e-5 | 2.1e-4, 0.014 | ≈2 (401→801), 0.1–1.5 (801→1601) |
+| 3 M☉, 255 Myr ($`X_c = 0.087`$) | 1.7e-4, 1.9e-4, 6.5e-4, 2.1e-3 | 1.5e-3, 6.5e-4 | 9.9e-3, 2.4 | ≈1 (401→801), irregular |
+
+Findings:
+
+* Where the structure is smooth (radiative cores, homogeneous models, the 1 M☉ star throughout
+  the main sequence) the scheme converges at second order, as designed; the default 800 points
+  give $`L`$, $`R`$ to 5×10⁻⁵, the profiles to 5×10⁻⁴ in $`\ln P`$. Before this measurement the
+  pages quoted "less than 0.5%".
+* With a receding convective core (3 M☉) the composition profile is a staircase left by instant
+  mixing on a mesh fixed in $`q`$: $`dX/dq`$ does not converge (its largest difference stays 2.4 at
+  every resolution: a step whose position moves with the mesh), and the central quantities converge
+  at first order or irregularly, $`X_c`$ to 1% and $`T_c`$ to 6.5×10⁻⁴ at 801 points near the end of the
+  main sequence. This is a property of the composition treatment (plans 5.R, 8.1), not of the
+  structure solver; it bounds what later changes of central values can be attributed to physics
+  for convective-core stars (differences below about 1% in $`X_c`$ are mesh effects at 800 points).
+* $`r_{\mathrm{env}}`$ (envelope base, interpolated between points) converges irregularly at the
+  10⁻⁵ level.
+
+*Central cut-off* $`m_0 = q_0 M`$, 1601 points, relative to $`q_0 = 10^{-8}`$:
+
+| $`q_0`$ | 1 M☉: $`L`$, $`R`$ | 1 M☉: $`T_c`$, $`\rho_c`$ | 3 M☉: $`L`$, $`R`$, core mass | 3 M☉: $`T_c`$, $`\rho_c`$ |
+|---|---|---|---|---|
+| 10⁻⁷ | 7e-7, 3e-7 | −1.3e-5, −2.2e-5 | −2e-7, 3e-7, −1.3e-6 | −1.3e-5, −2.1e-5 |
+| 10⁻⁶ (default) | 1.3e-6, 8e-7 | −7.0e-5, −1.2e-4 | 1.0e-6, 7e-7, −9e-7 | −7.0e-5, −1.1e-4 |
+| 10⁻⁵ | 2.0e-6, 8e-7 | −3.4e-4, −5.8e-4 | 1.2e-6, 1.0e-6, −4.0e-6 | −3.4e-4, −5.2e-4 |
+| 10⁻⁴ | 3.7e-6, 3e-7 | −1.6e-3, −2.7e-3 | 3.1e-6, −1.8e-6, −7.3e-6 | −1.6e-3, −2.4e-3 |
+
+Global values (and the convective-core mass) are stable to a few 10⁻⁶ over four decades of
+$`q_0`$. The full output is in [`docs/measurements/v2-mesh-convergence.md`](../measurements/v2-mesh-convergence.md). $`T_c`$ and $`\rho_c`$ are the
+values at the first mesh point, not at $`m = 0`$; they differ from the centre by
+about $`q_0^{2/3}`$ (relative; $`r_0 \propto m_0^{1/3}`$ and $`\Delta T/T \propto r_0^2`$): 7×10⁻⁵ in $`T_c`$ and 1.2×10⁻⁴ in $`\rho_c`$ at the default
+$`q_0 = 10^{-6}`$, larger than the mesh error at 800 points.
 
 ### Helium tied to metallicity (F5, plan 1.7)
 

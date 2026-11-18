@@ -4,6 +4,7 @@
 //! stellar-cli --mass 1 --x 0.70 --z 0.02 -o sun.csv --json sun.json
 //! stellar-cli --sweep 0.5,1,2,5,10
 //! stellar-cli --mass 60 --evolve --wind --track m60.csv
+//! stellar-cli --mass 1 --eos full --opacity tables --atmosphere krishna-swamy
 //! ```
 
 use std::time::Instant;
@@ -11,6 +12,7 @@ use std::time::Instant;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use stellar_core::output::{profile_csv, summary_json};
+use stellar_core::physics::options::{AtmosphereChoice, EosChoice, OpacityChoice, PhysicsOptions};
 use stellar_core::{Physics, SolveControl, SolveEvent, StarModel, StarParams, solve_model};
 
 #[derive(Parser, Debug)]
@@ -70,9 +72,33 @@ struct Args {
     /// Write the evolutionary track to this CSV file (with --evolve)
     #[arg(long)]
     track: Option<String>,
+    /// Equation of state: ideal, degenerate (Fermi–Dirac, fully ionised), ionisation (+ H/He
+    /// ionisation, no pressure ionisation), full (+ Pols pressure ionisation and H₂), paczynski (comparison only)
+    #[arg(long, default_value = "ideal")]
+    eos: String,
+    /// Opacity: analytic (Kramers + H⁻ + e⁻ scattering) or tables (OPAL GN93 + Ferguson et al. 2005, Potekhin conduction)
+    #[arg(long, default_value = "analytic")]
+    opacity: String,
+    /// Atmosphere: grey (Eddington, one κ), integrated (grey, integrated with convection) or krishna-swamy
+    #[arg(long, default_value = "grey")]
+    atmosphere: String,
     /// Print every Newton iteration
     #[arg(short, long)]
     verbose: bool,
+}
+
+/// Physics options from the command line.
+fn physics_options(args: &Args) -> Result<PhysicsOptions> {
+    let keys = |all: &[&str]| all.join(", ");
+    Ok(PhysicsOptions {
+        eos: EosChoice::from_key(&args.eos)
+            .with_context(|| format!("--eos must be one of {}", keys(&EosChoice::ALL.map(|c| c.key()))))?,
+        opacity: OpacityChoice::from_key(&args.opacity)
+            .with_context(|| format!("--opacity must be one of {}", keys(&OpacityChoice::ALL.map(|c| c.key()))))?,
+        atmosphere: AtmosphereChoice::from_key(&args.atmosphere).with_context(|| {
+            format!("--atmosphere must be one of {}", keys(&AtmosphereChoice::ALL.map(|c| c.key())))
+        })?,
+    })
 }
 
 /// Primordial helium Y_p and enrichment ΔY/ΔZ of the "helium follows
@@ -202,11 +228,23 @@ fn print_summary(m: &StarModel) {
         r.continuity, r.hydrostatic, r.energy, r.transport, r.boundary
     );
     println!("  physics: {}; MLT α = {}", m.physics, m.params.alpha_mlt);
+    let s = &g.surface;
+    if s.integrated {
+        println!(
+            "  atmosphere: fit at τ = {:.3}, photosphere at τ = {:.3}, Δr = {:.3e} R, P_ph = {:.4e} dyn/cm²{}",
+            s.tau_fit,
+            s.tau_ph,
+            s.dr / (g.radius * stellar_core::constants::R_SUN),
+            s.p_phot,
+            if s.convective { ", convective" } else { "" }
+        );
+    }
+    println!("  central degeneracy η_c = {:.3}", g.eta_c);
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let physics = Physics::analytic();
+    let physics = Physics::from_options(&physics_options(&args)?);
     let x = if args.helium_from_z { x_from_z(args.z) } else { args.x };
     let base = StarParams {
         mass: args.mass,

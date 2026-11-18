@@ -96,6 +96,47 @@ pub fn nabla_mu(mu: &[f64], p: &[f64]) -> Vec<f64> {
         .collect()
 }
 
+/// Composition term B = Σ_i (∂ln ρ/∂X_i)_{P,T} dX_i/d ln P (`docs/physics/05`),
+/// by the same centred differences as [`nabla_mu`]: at point k, the change of
+/// ln ρ at the (P_k, T_k) of the point between the compositions of the two
+/// neighbours, over the change of ln P. `ln_rho_at(k, j)` is ln ρ at
+/// (P_k, T_k) with the composition of point j. For the ideal EOS B = ∇_μ
+/// exactly.
+pub fn composition_term(
+    p: &[f64],
+    same_comp: &dyn Fn(usize, usize) -> bool,
+    ln_rho_at: &dyn Fn(usize, usize) -> f64,
+) -> Vec<f64> {
+    let n = p.len();
+    if n < 2 {
+        return vec![0.0; n];
+    }
+    (0..n)
+        .map(|k| {
+            let (a, b) = (k.saturating_sub(1), (k + 1).min(n - 1));
+            let dlnp = (p[b] / p[a]).ln();
+            if same_comp(a, b) || !(dlnp.abs() > 0.0) {
+                return 0.0;
+            }
+            (ln_rho_at(k, b) - ln_rho_at(k, a)) / dlnp
+        })
+        .collect()
+}
+
+/// N² = (g² ρ / P) [δ (∇_ad − ∇) + B] with the general composition term B
+/// of [`composition_term`].
+pub fn buoyancy_n2_general(
+    g: &[f64],
+    rho: &[f64],
+    p: &[f64],
+    delta: &[f64],
+    nabla_ad: &[f64],
+    nabla: &[f64],
+    b: &[f64],
+) -> Vec<f64> {
+    (0..g.len()).map(|k| g[k] * g[k] * rho[k] / p[k] * (delta[k] * (nabla_ad[k] - nabla[k]) + b[k])).collect()
+}
+
 /// Buoyancy frequency squared from the production formula
 /// N² = (g² ρ / P) [δ (∇_ad − ∇) + φ ∇_μ] [s⁻²], at every point.
 ///

@@ -42,9 +42,48 @@ $`(P, T)`$, so the condition is implicit and is solved together with the structu
 * The Eddington relation is grey. Real atmospheres of cool stars are a few hundred kelvin away from
   it at small $`\tau`$.
 
-## Planned
+## Implemented, selectable: integrated atmosphere (plans 3.1–3.3)
 
-### Integrated atmosphere (D13, plan phase 3)
+Source: `crates/stellar-core/src/physics/atmosphere.rs` (`Atmosphere`, `TTau`, `integrate`,
+`surface`), `physics/convection.rs` (`mlt` with `hopf_a`, `thin_elements`; `element_loss`),
+`structure/equations.rs` (`outer_bc`, `atmosphere_at`), `structure/model.rs` (`SurfaceInfo`).
+Selector: `--atmosphere grey|integrated|krishna-swamy` (CLI), *Physics › Atmosphere* (app). The
+default stays the grey closed form above until the defaults are changed (plan 7.7, page 11).
+
+*Status (2026-11-17, branch `agent/cool-start`).* Coded as described in the rest of this page, with
+these choices and measurements:
+
+* **Start and steps.** RK4 with a fixed 100 steps in $`\ln\tau`$ from $`\tau_0 = 10^{-6}`$ (the
+  plan's $`10^{-4}`$ leaves a first-order dependence on $`\tau_0`$ of 2×10⁻⁴ in $`P_{\mathrm{fit}}`$
+  for the analytic Sun; at $`10^{-6}`$ it is 3×10⁻⁷ and the step error 5×10⁻⁷ **[measured]**).
+  $`\kappa_0`$ by Newton in $`\ln P`$ to 10⁻¹³.
+* **Tests** (`atmosphere.rs`, `tests/cool_star.rs`): constant κ with $`q = 2/3`$ reproduces the
+  closed form to 10⁻⁶ for $`\tau_0 = 10^{-3}`$ … $`10^{-6}`$; independence of $`\tau_0`$ and of the
+  number of steps to 2×10⁻⁶; a radiative atmosphere integrated as a $`(P, T)`$ pair reproduces
+  $`T(\tau)`$ to 2×10⁻⁶; boundary derivatives smooth (central differences with $`h`$ and
+  $`h/10`$ agree); ZAMS sequence 0.4–20 M☉ converges; for $`T_{\mathrm{eff}} > 10^4`$ K, $`L`$, $`R`$,
+  $`T_{\mathrm{eff}}`$ change by less than 0.1%.
+* **Convection in the atmosphere** (3.2): the $`(P, T)`$ pair with the general cubic, $`A = 1 + q'`$
+  and $`U_e`$, coded as on this page. *Accepted first version, labelled approximate:* the interior
+  keeps $`A = 1`$, and with the Krishna Swamy relation the fitting point is at
+  $`\tau_{\mathrm{fit}} = 3.1`$, where $`|q'| = 7.8\times10^{-4} < 10^{-3}`$. With convection in the
+  atmosphere the thin-element losses $`U_e`$ are used on both sides of the fitting point (in the
+  interior $`\tau_e \gg 1`$, so $`U_e \to U`$), so $`\nabla`$ is continuous there. Tests: $`A = 1`$
+  and $`\tau_e \to \infty`$ reproduce the cubic of page 5; the limits of $`U_e`$; continuity of
+  $`\nabla`$ at the onset of convection for $`A`$ = 0.8, 1, 1.7.
+* **Non-grey relation** (3.3): `TTau::KrishnaSwamy`. *Hot stars keep the grey relation:* $`q(\tau)`$
+  is blended C¹ from Krishna Swamy to $`2/3`$ over $`3.9 \le \log T_{\mathrm{eff}} \le 4.0`$ (a choice
+  of this implementation, so that the boundary condition stays differentiable along a track).
+* **Photospheric radius.** $`R = r_N + \Delta r`$ with $`\Delta r`$ from the integration
+  ($`\int d\tau/\kappa\rho`$ from the photosphere, located by cubic interpolation of the integrated
+  $`T`$, to $`\tau_{\mathrm{fit}}`$); $`R`$ is found by substitution (a few integrations, to 10⁻¹³).
+  $`T_{\mathrm{eff}}`$ is derived from $`L`$ and $`R`$ in every model (also for $`\nu_{\max}`$).
+  Plane parallel: $`g = GM/R^2`$, and the mass of the atmosphere is neglected. For the 1 M☉ ZAMS
+  $`\Delta r/R`$ is of order 10⁻⁴ (output `Globals::surface`).
+* **What changes** (measured on the analytic 1 M☉ ZAMS; table of page 11): integrated grey: $`L`$
+  unchanged, $`R`$ 1.1218 → 1.1099 R☉, envelope base 0.967 → 0.957; Krishna Swamy: $`R`$ → 1.1209 R☉.
+
+### Integrated atmosphere: the equations (D13, plan 3.1)
 
 Integrate from a small $`\tau_0`$ to the fitting point $`\tau_{\mathrm{fit}}`$ with the local
 opacity:

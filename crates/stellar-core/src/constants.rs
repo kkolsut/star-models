@@ -29,3 +29,16 @@ pub const FOUR_PI: f64 = 4.0 * std::f64::consts::PI;
 
 /// Julian year [s].
 pub const YEAR: f64 = 3.155_76e7;
+
+/// Planck constant [erg s] (exact, SI 2019).
+pub const H_PLANCK: f64 = 6.626_070_15e-27;
+/// Reduced Planck constant ħ = h/2π [erg s].
+pub const HBAR: f64 = H_PLANCK / (2.0 * std::f64::consts::PI);
+/// Electron mass [g] (CODATA 2018).
+pub const M_E: f64 = 9.109_383_701_5e-28;
+/// Elementary charge [esu] (CODATA 2018, e = 1.602176634e-19 C × c/10).
+pub const E_CHARGE: f64 = 4.803_204_712_570_263e-10;
+/// Electron volt [erg] (exact).
+pub const EV: f64 = 1.602_176_634e-12;
+/// Mass of the hydrogen atom [g] (1.00782503 u).
+pub const M_H: f64 = 1.007_825_032 * M_U;

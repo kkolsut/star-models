@@ -15,6 +15,7 @@
 
 pub mod composition;
 pub mod constants;
+pub mod mixture;
 pub mod output;
 pub mod physics;
 pub mod pulsation;

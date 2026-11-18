@@ -53,6 +53,14 @@ const ROWS: &[Row] = &[
     ("pp / CNO / 3α [%]", |g, _| {
         format!("{:.1} / {:.1} / {:.2}", 100.0 * g.frac_pp, 100.0 * g.frac_cno, 100.0 * g.frac_3a)
     }),
+    ("Central degeneracy η_c", |g, _| format!("{:.2}", g.eta_c)),
+    ("Photosphere: τ_fit / Δr [R]", |g, _| {
+        if g.surface.integrated {
+            format!("{:.2} / {:.1e}", g.surface.tau_fit, g.surface.dr / (g.radius * stellar_core::constants::R_SUN))
+        } else {
+            "grey, τ = 2/3".into()
+        }
+    }),
     ("Grav. redshift [m/s]", |g, _| format!("{:.0}", g.grav_redshift_m_s)),
     ("Screening exponent (max)", |g, _| format!("{:.3}", g.screening.max_exponent)),
     ("Virial check", |g, _| format!("{:.5}", g.virial_ratio)),

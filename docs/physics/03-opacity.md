@@ -50,17 +50,71 @@ away at high temperature.
 ### Accuracy
 
 * At the centre of the ZAMS Sun ($`T = 1.25\times10^{7}`$ K, $`\rho = 62`$ g cm⁻³) the formulas give
-  $`\kappa = 2.74`$ **[measured]**. Detailed solar models have roughly half that at
-  their own centre (literature value). This is a comparison between centres of different models,
-  not at the same state: the test still to be made is the analytic formula against a table at
-  identical $`(\rho, T, X, Z)`$. The high opacity is the leading suspect for the model Sun's
+  $`\kappa = 2.74`$ **[measured]**; the OPAL table at the same state gives 1.56 (ratio 0.57, plan 7.3,
+  below). The high opacity is the leading suspect for the model Sun's
   0.42 L☉, but its share has not been isolated (see [Validity](11-validity-and-roadmap.md)).
 * Between $`10^5`$ and $`10^6`$ K the formulas are too low, which makes the solar convective
   envelope too shallow.
 * There are no opacity peaks from metal lines (for example the iron peak near $`2\times10^5`$ K).
 * Below 2600 K the formulas are outside their range; evolution runs stop there.
 
-## Planned
+## Implemented, selectable: opacity tables and conduction (plans 7.1–7.5)
+
+Source: `crates/stellar-core/src/physics/opacity_table.rs`, `physics/interp.rs`, `mixture.rs`;
+data in `crates/stellar-core/data/` (see its README for sources, checksums and licence status).
+Selector: `--opacity analytic|tables` (CLI), *Physics › Opacity* (app). The analytic formulas stay
+the default (page 11).
+
+*Status (2026-11-17, branch `agent/cool-start`).*
+
+* **7.1 Data and licence (decided).** OPAL `GN93hz` (126 compositions; obtained from Boothroyd's
+  CITA mirror, md5 equal to the mirror's list, because the LLNL site was not reachable), Ferguson
+  et al. (2005) `f05.g93` (155 files, from the Internet Archive copy of the Wichita State page,
+  md5 equal to the CITA list) and Potekhin's `condtab21wd.dat` (2021 update, Ioffe Institute). None
+  states a licence. *Decided:* embedded unchanged with `include_str!` (the web build keeps working)
+  and full attribution in the About page and in `data/README.md`; the MIT licence of the code does
+  not cover them. Permission from the authors has not been asked; if refused, a run-time "load
+  tables" path is the fallback (open item). *Mixture:* Grevesse & Noels (1993) for both sets;
+  `mixture::GN93` holds $`f_{\mathrm{CNO}} = 0.7087`$ (mass fraction of C+N+O in the metals, from
+  the `GN93hz` header; the app's default 0.7 is within rounding), $`\langle A\rangle = 17.02`$,
+  $`\langle Z\rangle = 8.443`$, $`\langle Z^2\rangle = 82.80`$, $`\langle Z/A\rangle = 0.4961`$, used
+  by the burning rates (through the user's CNO fraction), the Fermi–Dirac EOS and conduction.
+* **7.2 Interpolation.** $`\log\kappa`$ in $`(\log T, \log R)`$ by bicubic Hermite interpolation with
+  node derivatives from the parabola through each node and its neighbours (non-uniform grids):
+  C¹ everywhere, exact at the nodes. Between compositions: the same C¹ cubic in $`X`$ (at each
+  tabulated $`Z`$) and in $`\zeta = \ln(Z + 10^{-5})`$. *Missing entries* (OPAL: blank high-density
+  corner, 9.999 in hydrogen-free tables at low $`T`$, low $`R`$) are filled along each row by linear
+  extrapolation, only so that the interpolant is defined; each table carries the range in
+  $`\log R`$ where it has data. *Tests:* nodes reproduced to 10⁻¹² (spot checks against the files,
+  including Table 3 of Iglesias & Rogers 1996 at $`X = 0.7`$, $`Z = 0.02`$); first derivatives
+  continuous across cell edges and the blend (jump below 10⁻⁴) and equal to finite differences.
+* **7.3 Blend and edges.** $`\log\kappa`$ blended between the Ferguson and OPAL sets with the C¹
+  weight $`3s^2 - 2s^3`$ over $`3.75 \le \log T \le 4.0`$. Outside the region where a table has
+  data, it is continued by its tangent plane and blended over 0.5 dex into the analytic formulas
+  (weight reported as `KappaParts::table_weight`). *Comparison at identical $`(\rho, T, X, Z)`$
+  along the analytic ZAMS Sun* (`examples/opacity_compare.rs`) **[measured]**: table/analytic =
+  0.57 at the centre, 0.55 at $`r = 0.25R`$, 1.0 at $`0.41R`$, 2.1–3.2 between $`0.56R`$ and $`0.96R`$
+  (the analytic formulas lack the metal bound–bound opacity; this is what kept the convective
+  envelope shallow), 2.4 in the hydrogen-ionisation zone, 0.3–0.5 just below the photosphere and
+  2.3 at the surface point. With the tables (other physics analytic) the 1 M☉ ZAMS has
+  $`L = 0.679`$ L☉ (0.417 analytic), $`R = 1.391`$ R☉ **[measured]**. With the ideal EOS the solver
+  converges for 0.85–20 M☉ (test), but **not below about 0.75 M☉**: $`T_{\mathrm{eff}}`$ falls to about
+  3200 K, where the molecular opacities of the Ferguson tables meet a fully ionised gas with
+  $`\mu = 0.6`$, and Newton finds no solution (finding of 2026-11-17). That combination is
+  inconsistent anyway; the low-mass end is computed with the full EOS (page 2). The app says so
+  when tables and the ideal gas are selected.
+* **7.4 Evolved compositions.** $`X \to 0`$ uses the hydrogen-free OPAL and Ferguson tables
+  (continuous in $`X`$, test). Type 2 (C/O) tables are not used: $`Z`$ is clamped at 0.1 and the app
+  shows the note "results qualitative" when $`Z > 0.1`$ (after helium burning) or when the
+  composition lies outside the tables.
+* **7.5 Conduction (brought forward).** $`1/\kappa = 1/\kappa_{\mathrm{rad}} + 1/\kappa_{\mathrm{cond}}`$,
+  $`\kappa_{\mathrm{cond}} = 16\sigma T^3/(3\rho K)`$, $`K`$ from Potekhin's table for a pure plasma of
+  charge $`Z_{\mathrm{eff}} = \langle Z^2\rangle^{1/2}`$ averaged by number over the ions (Cassisi et
+  al. 2007, §2.2.3: "a much simpler yet reasonable approximation … an effective charge number
+  equal to $`\langle Z^2\rangle^{1/2}`$"), C¹ in $`(\log\rho, \log T)`$ and in $`\log Z`$. The
+  table's own $`Z/A`$ (most abundant isotope) is used, not the mixture's. Negligible at the solar
+  centre ($`\kappa_{\mathrm{rad}}/\kappa_{\mathrm{cond}} < 10^{-2}`$), dominant in a degenerate helium
+  core ($`\rho = 10^6`$, $`T = 5\times10^7`$: $`\kappa_{\mathrm{cond}} < 0.1\,\kappa_{\mathrm{rad}}`$) — tests.
 
 ### Tabulated opacity (D14, plan phase 7)
 

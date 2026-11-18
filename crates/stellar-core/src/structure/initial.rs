@@ -6,7 +6,7 @@ use super::equations::{I_L, I_LNP, I_LNR, I_LNT, NVAR};
 use crate::composition::Composition;
 use crate::constants::{FOUR_PI, G, L_SUN, M_SUN, R_SUN};
 use crate::physics::Physics;
-use crate::physics::atmosphere::{effective_temperature, solve_photosphere};
+use crate::physics::atmosphere::starting_surface;
 use crate::physics::eos::temperature_for_density;
 
 /// Tabulated solution of the Lane–Emden equation
@@ -88,7 +88,14 @@ pub struct InitialGuess {
 }
 
 /// Build the starting model on mesh `q` for total mass `mass_msun`.
-pub fn polytrope_guess(physics: &Physics, mass_msun: f64, comp: &Composition, q: &[f64]) -> InitialGuess {
+/// `alpha_mlt` is used only by an integrated atmosphere with convection.
+pub fn polytrope_guess(
+    physics: &Physics,
+    mass_msun: f64,
+    comp: &Composition,
+    q: &[f64],
+    alpha_mlt: f64,
+) -> InitialGuess {
     let le = LaneEmden::solve(3.0, 1e-3);
     let qs = le.mass_fractions();
 
@@ -100,8 +107,7 @@ pub fn polytrope_guess(physics: &Physics, mass_msun: f64, comp: &Composition, q:
     let rho_c = le.central_condensation() * rho_mean;
     let p_c = le.pressure_constant() * G * mass * mass / radius.powi(4);
     let t_c = temperature_for_density(physics.eos.as_ref(), p_c, rho_c, comp);
-    let teff = effective_temperature(lum, radius);
-    let p_ph = solve_photosphere(physics, mass, radius, teff, comp);
+    let (p_ph, teff) = starting_surface(physics, alpha_mlt, mass, radius, lum, comp);
 
     let interp = |qv: f64, ys: &[f64], y_end: f64| -> f64 {
         if qv <= qs[0] {

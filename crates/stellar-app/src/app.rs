@@ -7,6 +7,8 @@ use std::time::Duration;
 
 use egui::{Color32, RichText};
 use stellar_core::output::{profile_csv, summary_json};
+use stellar_core::physics::opacity_table::TabulatedOpacity;
+use stellar_core::physics::options::{AtmosphereChoice, EosChoice, OpacityChoice, PhysicsOptions};
 use stellar_core::{NoControl, Physics, SolveError, SolveEvent, StarModel, StarParams, solve_model};
 
 use crate::evolution::{EvoAction, EvolutionRun, EvolutionSettings, ScaleMode, StopChoice};
@@ -136,6 +138,7 @@ impl StarApp {
         // SVG loader for the typeset equations of the About page.
         egui_extras::install_image_loaders(&cc.egui_ctx);
         let physics = Arc::new(Physics::analytic());
+        let options = PhysicsOptions::default();
         let mut params = StarParams::sun();
         if let Some(m) = std::env::var("STAR_MODELS_MASS").ok().and_then(|s| s.parse().ok()) {
             params.mass = m;
@@ -192,7 +195,7 @@ impl StarApp {
         let mut app = Self {
             params,
             model: None,
-            worker: Worker::new(cc.egui_ctx.clone(), physics),
+            worker: Worker::new(cc.egui_ctx.clone(), options),
             auto_solve: true,
             helium_from_z: false,
             changed_at: -1.0,
@@ -337,7 +340,7 @@ impl StarApp {
     /// Start computing the ZAMS line if the composition changed.
     fn ensure_zams(&mut self) {
         let Some(model) = &self.model else { return };
-        let key = ZamsKey::of(&model.params);
+        let key = ZamsKey::of(&model.params, self.worker.options());
         if self.zams.key != Some(key) {
             self.zams = ZamsLine { key: Some(key), points: Vec::new(), done: false };
             self.worker.submit_zams(model.params.clone(), model.clone());
@@ -448,12 +451,23 @@ impl StarApp {
         ui.add_space(4.0);
         ui.heading("Star Models");
         ui.label(RichText::new("Stellar structure and evolution").color(theme::secondary(dark)));
+        let o = self.worker.options();
         ui.label(
-            RichText::new(format!(
-                "Physics: analytic Kramers + H⁻ opacity, fully ionized ideal gas + radiation, MLT (α = {:.2}), grey \
-                 atmosphere. Qualitative, not quantitatively solar.",
-                self.params.alpha_mlt
-            ))
+            RichText::new(if o == PhysicsOptions::analytic() {
+                format!(
+                    "Physics: analytic Kramers + H⁻ opacity, fully ionized ideal gas + radiation, MLT (α = {:.2}), \
+                     grey atmosphere. Qualitative, not quantitatively solar.",
+                    self.params.alpha_mlt
+                )
+            } else {
+                format!(
+                    "Physics: EOS {}; opacity {}; atmosphere {}; MLT (α = {:.2}). Provisional: see About › Accuracy.",
+                    o.eos.label(),
+                    o.opacity.label(),
+                    o.atmosphere.label(),
+                    self.params.alpha_mlt
+                )
+            })
             .small()
             .color(theme::muted(dark)),
         )
@@ -533,6 +547,7 @@ impl StarApp {
                 ui.end_row();
             });
         });
+        self.physics_panel(ui);
         if self.helium_from_z {
             self.params.x = (1.0 - (Y_PRIMORDIAL + DY_DZ * self.params.z) - self.params.z).max(0.0);
         }
@@ -571,6 +586,104 @@ impl StarApp {
         }
         ui.separator();
         self.results(ui);
+    }
+
+    /// Selectors of the cool-star physics (plans 3.x, 6.x, 7.x). Changing them
+    /// discards the current model and run and solves again.
+    fn physics_panel(&mut self, ui: &mut egui::Ui) {
+        let mut o = self.worker.options();
+        egui::CollapsingHeader::new("Physics").show(ui, |ui| {
+            egui::Grid::new("physics").num_columns(2).spacing([8.0, 6.0]).show(ui, |ui| {
+                ui.label("Equation of state").on_hover_text(
+                    "ideal: fully ionised ideal gas + radiation. Fermi–Dirac: degenerate electrons; with ionisation \
+                     of H and He, the Pols et al. (1995) pressure-ionisation term and H₂ in the full version. \
+                     Paczyński (1983) is for comparison only. The Fermi–Dirac EOSs are much slower.",
+                );
+                egui::ComboBox::from_id_salt("eos").selected_text(o.eos.label()).show_ui(ui, |ui| {
+                    for c in EosChoice::ALL {
+                        ui.selectable_value(&mut o.eos, c, c.label());
+                    }
+                });
+                ui.end_row();
+                ui.label("Opacity").on_hover_text(
+                    "analytic formulas, or the OPAL (Iglesias & Rogers 1996) and Ferguson et al. (2005) tables \
+                     for the Grevesse & Noels (1993) mixture, with Potekhin's electron conduction",
+                );
+                egui::ComboBox::from_id_salt("opacity").selected_text(o.opacity.label()).show_ui(ui, |ui| {
+                    for c in OpacityChoice::ALL {
+                        ui.selectable_value(&mut o.opacity, c, c.label());
+                    }
+                });
+                ui.end_row();
+                ui.label("Atmosphere").on_hover_text(
+                    "grey Eddington photosphere with one κ; or an integrated atmosphere (grey or the solar \
+                     Krishna Swamy 1966 T(τ)) with convection and the local opacity",
+                );
+                egui::ComboBox::from_id_salt("atmosphere").selected_text(o.atmosphere.label()).show_ui(ui, |ui| {
+                    for c in AtmosphereChoice::ALL {
+                        ui.selectable_value(&mut o.atmosphere, c, c.label());
+                    }
+                });
+                ui.end_row();
+            });
+            ui.horizontal(|ui| {
+                if ui.button("Analytic (default)").clicked() {
+                    o = PhysicsOptions::analytic();
+                }
+                if ui.button("All upgrades").clicked() {
+                    o = PhysicsOptions::all_upgrades();
+                }
+                if ui
+                    .button("Calibrated Sun")
+                    .on_hover_text(
+                        "All upgrades with the provisional solar calibration: Y₀ = 0.2834, Z = 0.01714 \
+                         (Z/X = 0.0245, Grevesse & Noels 1993), α_MLT = 2.020 (L☉ and R☉ at 4.57 Gyr, no diffusion)",
+                    )
+                    .clicked()
+                {
+                    o = PhysicsOptions::all_upgrades();
+                    self.params = StarParams {
+                        mass: self.params.mass,
+                        n_points: self.params.n_points,
+                        ..StarParams::sun_calibrated()
+                    };
+                }
+            });
+            if o.opacity == OpacityChoice::Tables && o.eos == EosChoice::Ideal {
+                ui.label(
+                    RichText::new(
+                        "Tables with the fully ionised ideal gas: no converged models below about 0.75 M☉ \
+                         (cool molecular atmospheres need the full EOS).",
+                    )
+                    .small(),
+                );
+            }
+            if o.opacity == OpacityChoice::Tables {
+                ui.label(
+                    RichText::new(format!(
+                        "Tables use the {} mixture (CNO fraction {:.3}); set the CNO fraction to match.",
+                        stellar_core::mixture::GN93.name,
+                        stellar_core::mixture::GN93.f_cno
+                    ))
+                    .small(),
+                );
+                if let Ok(c) = self.params.composition()
+                    && let Some(note) = TabulatedOpacity::composition_note(&c)
+                {
+                    ui.label(RichText::new(format!("Note: {note}")).small());
+                }
+            }
+        });
+        if o != self.worker.options() {
+            self.worker.cancel();
+            self.worker.set_options(o);
+            self.model = None;
+            self.evolution = None;
+            self.zams = ZamsLine::default();
+            self.pending = None;
+            self.failed = None;
+            self.solve();
+        }
     }
 
     fn results(&mut self, ui: &mut egui::Ui) {

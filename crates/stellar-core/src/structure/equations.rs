@@ -17,12 +17,16 @@
 //!
 //! Boundary conditions:
 //! * inner (first point, m₀ ≪ M): r₀³ = 3 m₀ / (4π ρ₀) and L₀ = (ε₀ + ε_grav,0) m₀
-//! * outer (photosphere): L = 4π R² σ T⁴ and P = ⅔ G M / (R² κ) + a T⁴ / 6
+//! * outer, grey closed form (default): the last point is the photosphere,
+//!   L = 4π R² σ T⁴ and P = ⅔ G M / (R² κ) + a T⁴ / 6
+//! * outer, integrated atmosphere: the last point is the fitting point τ_fit,
+//!   T = T_atm(τ_fit) and P = P_atm(τ_fit) for T_eff from L = 4πR²σT_eff⁴ with
+//!   the photospheric radius R = r_N + Δr (see [`crate::physics::atmosphere`])
 
 use super::local::{LocalState, evaluate};
 use crate::composition::Composition;
 use crate::constants::{FOUR_PI, G, SIGMA_SB};
-use crate::physics::atmosphere::photosphere_pressure;
+use crate::physics::atmosphere::{Atmosphere, AtmosphereSolution, photosphere_pressure, surface};
 use crate::physics::{EosState, Physics};
 use crate::solver::BvpProblem;
 
@@ -54,6 +58,10 @@ pub struct StructureProblem<'a> {
     pub l_scale: f64,
     /// Previous time step, for ε_grav (None for a static model).
     pub prev: Option<PrevStep>,
+    /// The last atmosphere integrated, keyed on (r_N, L): the outer boundary
+    /// condition does not depend on P_N, T_N, so the Jacobian columns of those
+    /// reuse it.
+    atm_cache: std::cell::RefCell<Option<([u64; 2], AtmosphereSolution)>>,
 }
 
 impl<'a> StructureProblem<'a> {
@@ -66,6 +74,7 @@ impl<'a> StructureProblem<'a> {
             alpha_mlt,
             l_scale,
             prev: None,
+            atm_cache: std::cell::RefCell::new(None),
         }
     }
 
@@ -128,6 +137,25 @@ impl<'a> StructureProblem<'a> {
     }
 }
 
+impl StructureProblem<'_> {
+    /// The atmosphere above the last point `yn` (`None` for the grey closed
+    /// form, whose last point is the photosphere itself).
+    pub fn atmosphere_at(&self, yn: &[f64]) -> Option<AtmosphereSolution> {
+        let Atmosphere::Integrated(a) = &self.physics.atmosphere else { return None };
+        let key = [yn[I_LNR].to_bits(), yn[I_L].to_bits()];
+        if let Some((k, s)) = &*self.atm_cache.borrow()
+            && *k == key
+        {
+            return Some(s.clone());
+        }
+        let k = self.m.len() - 1;
+        let s =
+            surface(self.physics, a, self.alpha_mlt, &self.comp[k], self.mass, yn[I_LNR].exp(), yn[I_L] * self.l_scale);
+        *self.atm_cache.borrow_mut() = Some((key, s.clone()));
+        Some(s)
+    }
+}
+
 impl BvpProblem for StructureProblem<'_> {
     fn nvar(&self) -> usize {
         NVAR
@@ -169,11 +197,20 @@ impl BvpProblem for StructureProblem<'_> {
         let k = self.m.len() - 1;
         let comp = &self.comp[k];
         let (r, p, t) = (yn[I_LNR].exp(), yn[I_LNP].exp(), yn[I_LNT].exp());
-        let rho = self.physics.eos.eval(p, t, comp).rho;
-        let kappa = self.physics.opacity.kappa(rho, t, comp);
-        out[0] = yn[I_LNP] - photosphere_pressure(self.mass, r, t, kappa).ln();
         let l = yn[I_L] * self.l_scale;
-        out[1] = l / (FOUR_PI * SIGMA_SB * r * r * t.powi(4)) - 1.0;
+        match &self.physics.atmosphere {
+            Atmosphere::GreyClosedForm => {
+                let rho = self.physics.eos.eval(p, t, comp).rho;
+                let kappa = self.physics.opacity.kappa(rho, t, comp);
+                out[0] = yn[I_LNP] - photosphere_pressure(self.mass, r, t, kappa).ln();
+                out[1] = l / (FOUR_PI * SIGMA_SB * r * r * t.powi(4)) - 1.0;
+            }
+            Atmosphere::Integrated(_) => {
+                let s = self.atmosphere_at(yn).expect("integrated atmosphere");
+                out[0] = yn[I_LNP] - s.p_fit.ln();
+                out[1] = yn[I_LNT] - s.t_fit.ln();
+            }
+        }
     }
 
     fn max_correction(&self, var: usize) -> f64 {
