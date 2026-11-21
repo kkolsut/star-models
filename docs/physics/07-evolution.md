@@ -384,7 +384,19 @@ intervals, so a point that is still needed keeps its place from step to step.
   ([Moving mesh](#moving-mesh)); with a wind the two maps are applied in turn. The structural change
   that controls $`\Delta t`$ is measured against the previous model on the new points.
 
-REMESH_RESULTS
+Measured (`tests/remesh.rs`, analytic physics, 2026-11-21) **[measured]**:
+
+* A converged ZAMS model re-solved on a mesh refined by tight criteria (800 → 1600 points) changes
+  by $`\Delta L/L = 6.6\times10^{-6}`$, $`\Delta R/R = 8.9\times10^{-6}`$ (1 M☉) and
+  $`1.4\times10^{-5}`$, $`2.1\times10^{-5}`$ (3 M☉): below the mesh error at 800 points
+  ([V.2](10-numerics-and-checks.md#mesh-and-central-cut-off-convergence-track-v2), 5×10⁻⁵).
+* The composition remap conserves every species to $`10^{-13}M`$ and keeps $`\sum X_i = 1`$ to
+  $`10^{-13}`$, on a 3 M☉ model at 130 Myr.
+* Shell luminosity of a 3 M☉ star in the Hertzsprung gap ($`q_{\mathrm{He}} = 0.053`$, reached on a
+  fixed base mesh of 400 points; one step), relative to the finest refinement (2491 points): base
+  mesh $`+9.1\times10^{-4}`$, default criteria (641 points) $`-3.8\times10^{-4}`$, criteria halved
+  (1264 points) $`-2.1\times10^{-4}`$. The hydrogen-burning luminosity converges with refinement;
+  the default criteria reduce the error of the base mesh by a factor of 2.4.
 
 ### Limits
 

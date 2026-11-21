@@ -457,9 +457,23 @@ prints the central C/O ratio.
 * Fuel accounting per channel (`EnergyCheck::fuel_by_channel`): carbon made by triple-α,
   $`\Delta\!\int\! X_{\mathrm C}dm + \tfrac34\Delta\!\int\! X_{\mathrm O}dm`$, times $`Q_{3\alpha}`$, and carbon
   burnt, $`\tfrac34\Delta\!\int\! X_{\mathrm O}dm`$, times $`Q_{\mathrm C\alpha}`$, each against
-  $`\int\!\!\int\varepsilon\,dm\,dt`$ of the channel; `fuel_ratio` now adds all channels.
+  $`\int\!\!\int\varepsilon\,dm\,dt`$ of the channel; `fuel_ratio` now adds all channels. The
+  helium channels integrate the rates of the previous model, those the composition step uses:
+  $`\varepsilon_{\mathrm C\alpha}`$ grows with $`X_{\mathrm C}`$ by up to 10% per step, and the rates of
+  the new model left a lag of 5%.
 
-HELIUM_STAR_RESULTS
+*Test: a 1 M☉ helium star* (`tests/helium_burning.rs`, analytic physics, 2026-11-21)
+**[measured]**. A ZAMS model with $`X = 0`$ does not converge from the default starting guess; it
+is reached by continuation in $`X`$ from the solar composition (half-decades to $`10^{-9}`$, then
+decades). Below $`X \approx 10^{-10}`$ the CNO cycle can no longer supply the luminosity and the core
+heats to helium ignition: $`T_c = 1.34\times10^8`$ K, $`L = 222\,L_\odot`$, $`R = 0.20\,R_\odot`$,
+all of it from triple-α. Evolved (with remeshing) until $`Y_c = 0.1`$: 89 models, 9.4 Myr,
+central $`X_{\mathrm C} = 0.69`$, $`X_{\mathrm O} = 0.19`$ (C/O = 3.6), $`L = 324\,L_\odot`$;
+¹²C(α,γ) supplies 52% of the nuclear luminosity at the end (triple-α dominates at
+$`Y_c = 0.75`$). Mass fractions sum to 1 to $`10^{-12}`$ at every point; $`Z_0`$ is unchanged.
+Fuel accounting: triple-α 1.0003, ¹²C(α,γ) 1.0003, all channels against $`\int L\,dt`$ 1.0012;
+total-energy residual $`-6.6\times10^{-3}`$. The C/O ratio of the analytic physics is not
+validated (no neutrino losses, no semiconvection or overshoot at the core boundary, CF88 rate).
 
 ### Screening diagnostic (plan 1.11)
 

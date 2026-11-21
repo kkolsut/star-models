@@ -498,8 +498,12 @@ fn accumulate_run(old: &StarModel, new: &StarModel, comps: &[Composition], physi
     run.fuel_ca += 0.75 * oxygen_made * Q_C_ALPHA;
     let g = &new.globals;
     run.nuc_dt_h += g.e_nuc * (g.frac_pp + g.frac_cno) * dt_s;
-    run.nuc_dt_3a += g.e_nuc * g.frac_3a * dt_s;
-    run.nuc_dt_ca += g.e_nuc * g.frac_ca * dt_s;
+    // The helium channels integrate the rates the composition step used (those
+    // of the previous model): ε_Cα grows with X_C by up to 10% per step, and
+    // the rates of the new model would leave a lag of several per cent.
+    let g_old = &old.globals;
+    run.nuc_dt_3a += g_old.e_nuc * g_old.frac_3a * dt_s;
+    run.nuc_dt_ca += g_old.e_nuc * g_old.frac_ca * dt_s;
     // Composition term of ε_grav, −(∂h/∂X_i)_{P,T} dX_i/dt, evaluated at the
     // previous (P, T): Σ Δm [h(P, T, X_new) − h(P, T, X_old)], h = u + P/ρ.
     let dm = point_masses(&p.m);

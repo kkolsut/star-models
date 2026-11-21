@@ -89,7 +89,9 @@ fn shell_luminosity_converges_with_refinement() {
     let physics = Physics::analytic();
     let params = StarParams { mass: 3.0, n_points: 400, ..StarParams::sun() };
     let zams = solve_model(&params, &physics, None, &mut NoControl).unwrap();
-    let opts = EvolutionOptions { stop: StopCondition::AsFarAsPossible, pulsation: false, ..Default::default() };
+    // Reached on the fixed base mesh, so that the step without remeshing is on it.
+    let opts =
+        EvolutionOptions { stop: StopCondition::AsFarAsPossible, pulsation: false, remesh: None, ..Default::default() };
     let mut evo = Evolution::new(zams, opts);
     let r_zams = evo.r_zams();
     // Into the Hertzsprung gap: a helium core of 5% of the mass, burning in a shell.

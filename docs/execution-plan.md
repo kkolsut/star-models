@@ -33,7 +33,7 @@ Effort: **S** under a day, **M** a few days, **L** a week or more.
 | 2 | Convective boundaries, seismic diagnostics | 2.1, 2.2 | no (overshoot off) | M | 1 |
 | 3 | Mass loss, rotating-star display | 4.1–4.3, 5.1 | no (wind off) | M | 1 |
 | 4 | Cool-star block: atmosphere, EOS, opacity, calibration | 3.1–3.3, 6.1–6.5, 7.1–7.4, 7.7–7.9 | yes, strongly | L | 1 |
-| 5 | Red-giant physics | 5.R, 7.5, 9.6, 9.7, 9.5 | only past the main sequence | L | 4 |
+| 5 | Red-giant physics | 5.R, 7.5, 9.6, 9.7, 9.5 | slightly on the main sequence (9.7, 5.R); past it | L | 4 |
 | 6 | Rotation in the structure, mixing by diffusion | 5.2, 8.1–8.6 | no (off by default) | L | 4; 2.1 |
 | 7 | New modes and phases | 9.1–9.4, 9.8 | no | L | 2.2, 4 |
 | V | Verification with identical physics | V.1–V.3 | no | M | – (parallel) |
@@ -415,6 +415,23 @@ on the tickets:
   the app follow from this table.
 
 ## Stage 5: red-giant physics
+
+*Status (2026-11-21, branch `agent/check`).* Done: 5.R, 9.7, 9.5 (7.5 was done in stage 4).
+Measured numbers are in `physics/04` and `07`. Default results changed on the main sequence, against
+the plan's "only past the main sequence"; regression values re-pinned:
+
+* 9.7: the all-regime screening moves ZAMS L, R, T_c by 0.05–0.15% (0.5–3 M☉) and ρ_c by up to
+  0.5%. At the solar centre the pp rate changes by −0.8% and the CNO rate by −12% against the
+  weak-screening (Salpeter) factor: the f₀ fit at Γ ≈ 0.1–1 is below its Debye–Hückel limit. This
+  is larger than SF III §X.B suggests for the Sun and is an open item; the test tolerance is 15%.
+  Cost: ZAMS solves about 1.6× slower.
+* 5.R: remeshing is on by default (`EvolutionOptions::remesh`, CLI `--no-remesh`); together with
+  9.7 it moves the 3 M☉ main-sequence lifetime by 7×10⁻⁴, within the V.2 mesh error for
+  convective cores.
+* 9.5: no default result changes (helium burning is not reached by the default runs).
+* 9.5 test of the C/O ratio: on a 1 M☉ pure-helium star (red giants do not reach helium ignition
+  with the default physics). Its ZAMS model is reached by continuation in X; see `physics/04`.
+  The gate on helium ignition in red giants is not lifted.
 
 ### 5.R Remeshing during evolution (M) *not in `physics/`; prerequisite*
 

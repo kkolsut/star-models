@@ -3,15 +3,39 @@
 //! convective core from the start, so helium burning can be followed without
 //! the red-giant phases.
 
+use std::sync::OnceLock;
+
 use stellar_core::{
     Evolution, EvolutionOptions, EvolutionStep, NoControl, Phase, Physics, StarModel, StarParams, StopCondition,
     solve_model,
 };
 
-fn helium_star() -> (Vec<StarModel>, String) {
+/// A pure-helium ZAMS model does not converge from the default starting guess;
+/// it is reached by continuation in X from the solar composition, each model
+/// the starting guess of the next. Below X ≈ 10⁻¹⁰ the CNO cycle can no longer
+/// supply the luminosity and the core heats to helium ignition.
+fn helium_zams(physics: &Physics) -> StarModel {
+    let base = StarParams::sun();
+    let mut m = solve_model(&base, physics, None, &mut NoControl).unwrap();
+    // Half-decades down to X = 10⁻⁹, then decades.
+    let half_decades = (1..=17).map(|i| 0.3 * 10f64.powf(-0.5 * (i - 1) as f64));
+    let x_chain = half_decades.chain([1e-10, 1e-11, 1e-12, 0.0]);
+    for x in x_chain {
+        let p = StarParams { x, ..base };
+        m = solve_model(&p, physics, Some(&m), &mut NoControl).unwrap_or_else(|e| panic!("X = {x:e}: {e}"));
+    }
+    m
+}
+
+/// The helium star's evolution, computed once for both tests.
+fn helium_star() -> &'static (Vec<StarModel>, String) {
+    static RUN: OnceLock<(Vec<StarModel>, String)> = OnceLock::new();
+    RUN.get_or_init(run_helium_star)
+}
+
+fn run_helium_star() -> (Vec<StarModel>, String) {
     let physics = Physics::analytic();
-    let params = StarParams { mass: 1.0, x: 0.0, z: 0.02, ..StarParams::sun() };
-    let zams = solve_model(&params, &physics, None, &mut NoControl).unwrap();
+    let zams = helium_zams(&physics);
     let opts = EvolutionOptions {
         stop: StopCondition::AsFarAsPossible,
         pulsation: false,
@@ -56,9 +80,12 @@ fn helium_burning_makes_carbon_and_oxygen() {
     assert!(g.c_c > 0.1 && g.o_c > 0.01, "C {} O {}", g.c_c, g.o_c);
     let mid = models.iter().find(|m| m.globals.y_c < 0.75).unwrap();
     assert!(mid.globals.c_c / mid.globals.o_c > g.c_c / g.o_c);
-    assert!(g.frac_ca > 0.0 && g.frac_3a > g.frac_ca);
+    // Triple-α dominates while helium is plentiful; ¹²C(α,γ) (∝ Y X_C, against
+    // Y³) takes a growing share as helium is used up and carbon builds up.
+    assert!(mid.globals.frac_3a > mid.globals.frac_ca && mid.globals.frac_ca > 0.0);
+    assert!(g.frac_ca > mid.globals.frac_ca);
     // Z₀ is not changed by burning; mass fractions sum to 1 at every point.
-    for m in &models {
+    for m in models {
         let p = &m.profile;
         for k in 0..p.len() {
             let (c, o) = p.c_o_at(k);

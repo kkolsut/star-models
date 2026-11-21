@@ -173,6 +173,10 @@ Findings:
   main sequence. This is a property of the composition treatment (plans 5.R, 8.1), not of the
   structure solver; it bounds what later changes of central values can be attributed to physics
   for convective-core stars (differences below about 1% in $`X_c`$ are mesh effects at 800 points).
+* Since plan 5.R evolution runs remesh every step by default (`physics/07`,
+  [Remeshing](07-evolution.md#remeshing-plan-5r)); the table above was measured without it
+  (`mesh_convergence.rs` sets `remesh: None`, so the meshes stay nested). Remeshing a converged
+  ZAMS model changes $`L`$, $`R`$ by 1–2×10⁻⁵, below the mesh error at 800 points.
 * $`r_{\mathrm{env}}`$ (envelope base, interpolated between points) converges irregularly at the
   10⁻⁵ level.
 
