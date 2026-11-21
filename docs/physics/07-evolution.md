@@ -4,7 +4,9 @@
 
 Source: `crates/stellar-core/src/structure/evolve.rs`, `structure/equations.rs`.
 
-Evolution is a sequence of structure models on a fixed mesh in $`q = m/M`$. The total mass is
+Evolution is a sequence of structure models on a mesh in $`q = m/M`$: the base mesh of
+[Numerics](10-numerics-and-checks.md), refined before every step where the previous model needs it
+([Remeshing](#remeshing-plan-5r)). The total mass is
 constant unless a wind is switched on ([Mass loss](#mass-loss-e1-plans-41-43)). Each time step
 $`\Delta t`$ has two parts.
 
@@ -21,7 +23,9 @@ equations of [Nuclear burning](04-nuclear-burning.md). Every convective zone of 
 ```
 
 and the same for helium with $`\dot Y_{3\alpha} = -\varepsilon_{3\alpha}/Q_{\mathrm{He}}`$ (the helium made
-by hydrogen burning is added first). A radiative point is a zone of its own. The amount burnt is
+by hydrogen burning is added first), then for carbon burnt to oxygen by ¹²C(α,γ)¹⁶O (plan 9.5; the
+carbon made by triple-α is added first). All five mass fractions $`X, Y, Z_0, X_{\mathrm C}, X_{\mathrm O}`$
+are mixed. A radiative point is a zone of its own. The amount burnt is
 limited to what the zone contains, so the zone stays uniform even at exhaustion; before, each point
 burnt at its own rate and was clipped on its own, which made the burning step and the time-step limit
 (which already used the zone average) disagree slightly near hydrogen exhaustion. A convective core
@@ -50,7 +54,8 @@ handled. The contribution of the composition change to $`ds`$ is neglected.
 *Burning limit.* No shell may change its hydrogen, nor (wherever $`\varepsilon_{3\alpha} > 0`$) its
 helium, by more than the following in one step; a mixed zone counts as one shell with its
 mass-averaged rate, and shells with $`X`$ (or $`Y`$) $`\le 10^{-8}`$ are ignored. The helium limit is
-C8, plan 1.2; it does not act on the main sequence.
+C8, plan 1.2; it does not act on the main sequence. Since plan 9.5 the produced carbon burnt by
+¹²C(α,γ)¹⁶O, $`|\Delta X_{\mathrm C}|`$, has the same limit.
 
 ```math
 |\Delta X| \le \min\!\left(0.01,\ \max(0.3\,X,\ 10^{-5})\right), \qquad |\Delta Y| \le \min\!\left(0.01,\ \max(0.3\,Y,\ 10^{-5})\right)
@@ -91,6 +96,11 @@ hydrogen-burning power over the hydrogen consumption rate:
 ```math
 \sum_{\mathrm{steps}} Q_{\mathrm{H}}^{\mathrm{eff}}\,\Delta\!\left[\int X\, dm\right] \approx \int_0^t L\, dt', \qquad Q_{\mathrm{H}}^{\mathrm{eff}} = \frac{\int (\varepsilon_{pp} + \varepsilon_{\mathrm{CNO}})\,dm}{\int \left(\varepsilon_{pp}/Q_{pp}^{\mathrm{eff}} + \varepsilon_{\mathrm{CNO}}/Q_{\mathrm{CNO}}\right) dm}
 ```
+
+Since plan 9.5 the fuel of helium burning is added: carbon made by triple-α times $`Q_{3\alpha}`$ and
+carbon burnt to oxygen times $`Q_{\mathrm C\alpha}`$
+([Carbon and oxygen](04-nuclear-burning.md#carbon-and-oxygen-d18-plan-95-implemented)); each
+channel is also compared with its own $`\int\!\!\int\varepsilon\,dm\,dt`$ (`fuel_by_channel`).
 
 This is a *fuel* check, not energy conservation (that is the next section). It is close to 1 only on
 the main sequence, where hydrogen burning supplies nearly all the luminosity; contraction, expansion
@@ -342,11 +352,47 @@ rises. The work of the surface pressure on the outflow, $`P/\rho`$ per gram at t
 omitted; it is of order $`u_s`$, three orders of magnitude below $`G M/R`$. The check reports
 $`E_{\mathrm{wind}}/\int L\,dt`$ separately.
 
+### Remeshing (plan 5.R)
+
+Source: `crates/stellar-core/src/structure/remesh.rs`. On by default
+(`EvolutionOptions::remesh`; CLI `--no-remesh` keeps the base mesh).
+
+The base mesh is fixed in $`q`$, and a hydrogen-burning shell, or the composition step left by a
+receding convective core, is far thinner than its interior spacing. Before every step the mesh is
+rebuilt from the base mesh: an interval is bisected in $`q`$ while the previous model, interpolated
+linearly in $`m`$, changes across it by more than
+
+| Quantity | Limit per interval |
+|---|---|
+| $`\ln P`$ | 0.1 |
+| $`\ln T`$ | 0.05 |
+| $`X`$ | 0.05 |
+| $`\int \varepsilon_{\mathrm{nuc}}\,dm`$ | 2% of $`L_{\mathrm{nuc}}`$ |
+
+The worst interval is split first, at most 8 times, until as many points as the base mesh has
+were added. Starting again from the base mesh every step lets the refinement follow a moving
+shell and vanish where it is no longer needed; the split points are dyadic subdivisions of the base
+intervals, so a point that is still needed keeps its place from step to step.
+
+* *Composition*: conservative remap. Every point stands for the mass between the midpoints to its
+  neighbours (the point masses of the composition step), with uniform composition; a new cell takes
+  the mass-weighted mean of the old cells it overlaps. Every species is conserved to rounding; where
+  a new cell straddles two old ones they are mixed (diffusion over one cell, the price of
+  conservation).
+* *Previous model*: $`\ln P`$, $`\ln T`$ for $`\varepsilon_{\mathrm{grav}}`$, and the starting
+  solution are interpolated at fixed $`m`$, linearly in the stretched coordinate, as for the wind
+  ([Moving mesh](#moving-mesh)); with a wind the two maps are applied in turn. The structural change
+  that controls $`\Delta t`$ is measured against the previous model on the new points.
+
+REMESH_RESULTS
+
 ### Limits
 
 * Results after the main sequence are qualitative. Without degeneracy and with the analytic opacity,
   low-mass stars do not climb the red giant branch.
-* The mesh is fixed in $`q`$; a thin burning shell is resolved only by raising the number of points.
+* The base mesh is fixed in $`q`$; thin shells and composition steps are resolved by remeshing
+  ([Remeshing](#remeshing-plan-5r)) up to its limits (8 bisections of a base interval, as many added
+  points as the base mesh has).
 
 ## Planned
 

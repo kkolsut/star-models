@@ -100,7 +100,7 @@ following diagnostics (to be added as profile outputs with the EOS work) answer 
 | Coulomb coupling | $`\Gamma_{\mathrm{C}} = \dfrac{\bar Z^2 e^2}{a_i\,k\,T}`$, $`a_i = \left(\dfrac{3}{4\pi n_i}\right)^{1/3}`$ | $`\gtrsim 0.1`$: non-ideal corrections matter; $`\gtrsim 1`$: ideal gas fails |
 | Departure from full ionisation | $`1 - x_{\mathrm{H}}`$, $`1 - x_{\mathrm{He}2}`$ from the ionisation equilibrium | not $`\approx 0`$ (partly ionised **or neutral**): $`\mu`$ and $`\rho`$ of the implemented EOS are wrong |
 | Partial ionisation | $`x(1-x)`$ for each stage | not $`\approx 0`$: enhanced heat capacity; $`\nabla_{\mathrm{ad}}`$, $`c_P`$, $`\Gamma_1`$ of the implemented EOS are wrong |
-| Screening regime | exponent of the screening factor (reported per model and run since plan 1.11) | $`\gtrsim 0.3`$: outside weak screening; at the cap: rates unreliable |
+| Screening regime | exponent of the screening factor (reported per model and run since plan 1.11) | $`\gtrsim 0.3`$: outside weak screening (all-regime prescription since plan 9.7; helium ignition not validated) |
 | Radiation pressure | $`1 - \beta`$ | $`\to 1`$: $`\Gamma_1 \to 4/3`$, model close to instability |
 
 The degeneracy coefficient is where $`P_{\mathrm{nd}} = P_{\mathrm{nr}}`$ in the formulas of

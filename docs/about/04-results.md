@@ -25,7 +25,7 @@ These are shown in the left panel, the Compare table and the JSON export.
 | Δν asymptotic [μHz] | Large frequency separation from the interior, $`[2\int dr/c_s]^{-1}`$, see [Pulsations & oscillations](13-pulsations.md#characteristic-frequencies-and-asymptotic-spacings) |
 | ΔΠ₁ [s] | Asymptotic dipole g-mode period spacing of the largest candidate cavity; every cavity is listed in More profiles and in the JSON (`g_cavities`) |
 | Grav. redshift [m/s] | Gravitational redshift of light from the surface, as a velocity (see [below](#gravitational-redshift)) |
-| Screening exponent | Largest exponent of the weak-screening factors (see [below](#screening-exponent)) |
+| Screening exponent | Largest exponent of the screening factors (see [below](#screening-exponent)) |
 | Run: total-energy residual, fuel accounting | Evolved models only: the energy checks of the run up to this model, see [Evolution in time](12-evolution.md#checks) |
 
 ## Effective temperature and surface gravity
@@ -74,10 +74,10 @@ It is an output only: general relativity is not modelled in the structure (see
 ## Screening exponent
 
 Free electrons partly shield the charges of reacting nuclei, which speeds the reactions up by a factor
-$`f = \exp(\ldots)`$ (see [Microphysics](07-microphysics.md)). The formula used holds while the
-exponent is small (weak screening). The value shown is the largest exponent over the reactions that
-supply at least 1% of the nuclear energy, where they burn. Above 0.3 a warning says the rates are
-approximate; at the cap of 2 that they are unreliable. The ZAMS Sun has 0.23. Evolution runs also
+$`f = \exp(\ldots)`$ (see [Microphysics](07-microphysics.md)). The value shown is the largest exponent
+over the reactions that supply at least 1% of the nuclear energy, where they burn. Above 0.3
+screening is no longer weak and a warning says so: the rates still follow the all-regime
+prescription, but helium ignition is not validated. The ZAMS Sun has 0.18. Evolution runs also
 report the largest value of the run.
 
 ## Residuals

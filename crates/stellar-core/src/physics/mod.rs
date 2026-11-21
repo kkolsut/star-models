@@ -15,6 +15,7 @@ pub mod nuclear;
 pub mod opacity;
 pub mod opacity_table;
 pub mod options;
+pub mod screening;
 
 use crate::composition::Composition;
 
@@ -153,6 +154,8 @@ pub struct NuclearRates {
     pub pp: f64,
     pub cno: f64,
     pub triple_alpha: f64,
+    /// ¹²C(α,γ)¹⁶O on the carbon made by helium burning (plan 9.5).
+    pub c_alpha: f64,
     /// pp branching: helium nuclei made per pp I chain, φ ∈ [1, 2] (1 = pp I only).
     /// Hydrogen consumption follows from it (see [`nuclear::q_pp_eff`]).
     pub pp_phi: f64,
@@ -160,33 +163,52 @@ pub struct NuclearRates {
 
 impl Default for NuclearRates {
     fn default() -> Self {
-        Self { pp: 0.0, cno: 0.0, triple_alpha: 0.0, pp_phi: 1.0 }
+        Self { pp: 0.0, cno: 0.0, triple_alpha: 0.0, c_alpha: 0.0, pp_phi: 1.0 }
     }
 }
 
 impl NuclearRates {
     pub fn total(&self) -> f64 {
-        self.pp + self.cno + self.triple_alpha
+        self.pp + self.cno + self.triple_alpha + self.c_alpha
+    }
+
+    /// Helium burning: triple-α plus ¹²C(α,γ)¹⁶O.
+    pub fn helium(&self) -> f64 {
+        self.triple_alpha + self.c_alpha
     }
 }
 
 /// Exponents of the screening factors f = exp(exponent), per channel, before
-/// any cap is applied. For a channel with several reactions the largest is given.
+/// any cap is applied. For a channel with several reactions the largest is
+/// given; for triple-α the exponent of the whole chain.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ScreeningExponents {
     pub pp: f64,
     pub cno: f64,
     pub triple_alpha: f64,
+    pub c_alpha: f64,
 }
 
 /// Nuclear energy generation ε(ρ, T).
+///
+/// `eta` is the electron degeneracy parameter of the EOS at the state, used
+/// by the electron screening (plan 9.7); NaN for an EOS without Fermi–Dirac
+/// electrons, whose electrons are then classical for the screening as well.
 pub trait Nuclear: Send + Sync {
     fn name(&self) -> &'static str;
-    fn eps(&self, rho: f64, t: f64, comp: &Composition) -> NuclearRates;
+    fn eps_eta(&self, rho: f64, t: f64, eta: f64, comp: &Composition) -> NuclearRates;
+    /// Rates with classical electrons in the screening.
+    fn eps(&self, rho: f64, t: f64, comp: &Composition) -> NuclearRates {
+        self.eps_eta(rho, t, f64::NAN, comp)
+    }
     /// Screening exponents at (ρ, T), for the screening diagnostic; `None` if
     /// the rates are unscreened or the implementation does not report them.
-    fn screening(&self, _rho: f64, _t: f64, _comp: &Composition) -> Option<ScreeningExponents> {
+    fn screening_eta(&self, _rho: f64, _t: f64, _eta: f64, _comp: &Composition) -> Option<ScreeningExponents> {
         None
+    }
+    /// [`Nuclear::screening_eta`] with classical electrons.
+    fn screening(&self, rho: f64, t: f64, comp: &Composition) -> Option<ScreeningExponents> {
+        self.screening_eta(rho, t, f64::NAN, comp)
     }
     /// Value at which the implementation caps a screening exponent, if any.
     fn screening_cap(&self) -> Option<f64> {
@@ -211,7 +233,7 @@ impl Physics {
         Self {
             eos: Box::new(eos::IdealGasRadiation),
             opacity: Box::new(opacity::AnalyticOpacity),
-            nuclear: Box::new(nuclear::AnalyticNuclear),
+            nuclear: Box::new(nuclear::AnalyticNuclear::default()),
             atmosphere: atmosphere::Atmosphere::GreyClosedForm,
         }
     }
@@ -221,7 +243,7 @@ impl Physics {
         Self {
             eos: o.eos.build(),
             opacity: o.opacity.build(),
-            nuclear: Box::new(nuclear::AnalyticNuclear),
+            nuclear: Box::new(nuclear::AnalyticNuclear::default()),
             atmosphere: o.atmosphere.build(),
         }
     }

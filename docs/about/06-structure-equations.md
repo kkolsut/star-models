@@ -19,7 +19,7 @@ Lagrangian form). It runs from the centre ($`m = 0`$) to the surface ($`m = M`$)
 *Energy conservation*
 
 ```math
-\frac{dL}{dm} = \varepsilon = \varepsilon_{pp} + \varepsilon_{\mathrm{CNO}} + \varepsilon_{3\alpha}
+\frac{dL}{dm} = \varepsilon = \varepsilon_{pp} + \varepsilon_{\mathrm{CNO}} + \varepsilon_{3\alpha} + \varepsilon_{\mathrm{C}\alpha}
 ```
 
 *Energy transport*

@@ -7,4 +7,5 @@ pub mod initial;
 pub mod local;
 pub mod mesh;
 pub mod model;
+pub mod remesh;
 pub mod solve;

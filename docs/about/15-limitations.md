@@ -78,15 +78,15 @@ equations are solved accurately. They say nothing about how realistic the physic
   $`GM/(Rc^2) \approx 2\times10^{-6}`$ for the Sun and $`1.2\times10^{-5}`$ for 60 M☉, below the
   discretisation error. The gravitational redshift of the surface light is reported as an output
   (636 m/s for 1 M☉ at 1 R☉).
-* Screening beyond the weak regime. The weak-screening formula is used with its exponent capped at 2;
-  each model reports its largest exponent and warns above 0.3 and at the cap.
+* Helium ignition. Screening covers all regimes (Chugunov & DeWitt), but thermal-neutrino losses are
+  missing, so runs with Fermi–Dirac electrons still stop when the core becomes degenerate; each model
+  reports its largest screening exponent and warns above 0.3.
 
 ## Planned
 
 * Tabulated opacities and an EOS with ionisation and degeneracy, plugged into the existing physics
   interfaces. This is the step that would make the solar model quantitative and allow the red giant
   branch.
-* Adaptive remeshing around burning shells.
 * A web version (see [the web version notes](../web-version.md)).
 
 > Use the app to understand how stars are built and how their structure depends on mass and

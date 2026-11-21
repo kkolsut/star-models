@@ -43,7 +43,7 @@ Stars that cross the instability strip pulsate.
 |---|---|
 | Equation of state | ideal gas + radiation (fully ionized) |
 | Opacity | analytic (Kramers + H⁻ + e⁻ scattering) |
-| Nuclear reactions | Solar Fusion III pp (with pp II branching) + CNO, analytic 3α (weak screening) |
+| Nuclear reactions | Solar Fusion III pp (with pp II branching) + CNO, analytic 3α, CF88 ¹²C(α,γ) (Chugunov–DeWitt screening) |
 
 The [Microphysics](07-microphysics.md) section gives every formula.
 

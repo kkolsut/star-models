@@ -30,9 +30,9 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "struct_dl",
-        tex: "\\frac{dL}{dm} = \\varepsilon = \\varepsilon_{pp} + \\varepsilon_{\\mathrm{CNO}} + \\varepsilon_{3\\alpha}",
+        tex: "\\frac{dL}{dm} = \\varepsilon = \\varepsilon_{pp} + \\varepsilon_{\\mathrm{CNO}} + \\varepsilon_{3\\alpha} + \\varepsilon_{\\mathrm{C}\\alpha}",
         svg: include_bytes!("../assets/equations/struct_dl.svg"),
-        width: 206.53,
+        width: 252.93,
         height: 35.07,
     },
     Equation {
@@ -51,10 +51,10 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "eos_mu",
-        tex: "\\frac{1}{\\mu} = 2X + \\frac{3}{4}\\,Y + \\frac{1}{2}\\,Z",
+        tex: "\\frac{1}{\\mu} = 2X + \\frac{3}{4}\\,Y + \\frac{1}{2}\\,Z + \\frac{7}{12}\\,X_{\\mathrm{C}} + \\frac{9}{16}\\,X_{\\mathrm{O}}",
         svg: include_bytes!("../assets/equations/eos_mu.svg"),
-        width: 167.53,
-        height: 38.08,
+        width: 312.47,
+        height: 38.25,
     },
     Equation {
         id: "eos_beta",
@@ -149,9 +149,9 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "nuc_c",
-        tex: "n_p = \\frac{\\rho X}{m_{\\mathrm{H}}}, \\qquad n_{14} = \\frac{\\rho X_{\\mathrm{CNO}}}{m_{14}}, \\qquad X_{\\mathrm{CNO}} = f_{\\mathrm{CNO}}\\, Z, \\qquad E_{\\mathrm{I}} = 26.20\\ \\mathrm{MeV}, \\qquad E_{\\mathrm{CNO}} = 25.03\\ \\mathrm{MeV}",
+        tex: "n_p = \\frac{\\rho X}{m_{\\mathrm{H}}}, \\qquad n_{14} = \\frac{\\rho X_{\\mathrm{CNO}}}{m_{14}}, \\qquad X_{\\mathrm{CNO}} = f_{\\mathrm{CNO}}\\, Z + X_{\\mathrm{C}}, \\qquad E_{\\mathrm{I}} = 26.20\\ \\mathrm{MeV}, \\qquad E_{\\mathrm{CNO}} = 25.03\\ \\mathrm{MeV}",
         svg: include_bytes!("../assets/equations/nuc_c.svg"),
-        width: 722.64,
+        width: 767.50,
         height: 37.25,
     },
     Equation {
@@ -162,11 +162,25 @@ pub static EQUATIONS: &[Equation] = &[
         height: 40.71,
     },
     Equation {
+        id: "nuc_ca",
+        tex: "\\varepsilon_{\\mathrm{C}\\alpha} = f_{\\mathrm{C}\\alpha}\\,\\rho\\, X_{\\mathrm{C}}\\, Y\\, N_A\\langle\\sigma v\\rangle_{\\mathrm{CF88}}\\, f_{2,6}\\,\\frac{Q_{\\mathrm{C}\\alpha}}{4}, \\qquad Q_{\\mathrm{C}\\alpha} = \\frac{7.162\\ \\mathrm{MeV}}{12\\,m_u}",
+        svg: include_bytes!("../assets/equations/nuc_ca.svg"),
+        width: 467.41,
+        height: 37.73,
+    },
+    Equation {
         id: "nuc_screen",
         tex: "f_{Z_1 Z_2} = \\exp\\!\\left(0.188\\, Z_1 Z_2\\, \\zeta\\, \\rho^{1/2}\\, T_6^{-3/2}\\right), \\qquad \\zeta^2 = 2X + 1.5\\,Y + 4Z",
         svg: include_bytes!("../assets/equations/nuc_screen.svg"),
         width: 474.22,
         height: 30.53,
+    },
+    Equation {
+        id: "nuc_screen_cd",
+        tex: "\\ln f_{ij} = \\frac{C_{ij} + \\Gamma_{ij}^{2}}{1 + \\Gamma_{ij}^{2}}\\left[f_0\\!\\left(\\frac{\\Gamma_i}{t_{ij}}\\right) + f_0\\!\\left(\\frac{\\Gamma_j}{t_{ij}}\\right) - f_0\\!\\left(\\frac{\\Gamma_c}{t_{ij}}\\right)\\right]\\sqrt{1 + k_{\\mathrm{TF}}^{2}\\,\\tilde D_{\\mathrm{ion}}^{2}}, \\qquad \\Gamma_s = Z_s^{5/3}\\,\\frac{e^2}{a_e kT}, \\qquad \\ln f_{3\\alpha} = \\ln f_{2,2} + \\ln f_{4,2}\\ \\ (t_{ij} = 1)",
+        svg: include_bytes!("../assets/equations/nuc_screen_cd.svg"),
+        width: 932.68,
+        height: 49.97,
     },
     Equation {
         id: "tr_nabla_rad",
@@ -352,16 +366,16 @@ pub static EQUATIONS: &[Equation] = &[
     },
     Equation {
         id: "evo_burn_he",
-        tex: "\\frac{\\partial Y}{\\partial t} = -\\frac{\\partial X}{\\partial t} - \\frac{\\varepsilon_{3\\alpha}}{Q_{\\mathrm{He}}}, \\qquad \\frac{\\partial Z}{\\partial t} = \\frac{\\varepsilon_{3\\alpha}}{Q_{\\mathrm{He}}}, \\qquad Q_{\\mathrm{He}} = 5.85\\times10^{17}\\ \\mathrm{erg\\,g^{-1}}",
+        tex: "\\frac{\\partial Y}{\\partial t} = -\\frac{\\partial X}{\\partial t} - \\frac{\\varepsilon_{3\\alpha}}{Q_{\\mathrm{He}}} - \\frac{1}{3}\\,\\frac{\\varepsilon_{\\mathrm{C}\\alpha}}{Q_{\\mathrm{C}\\alpha}}, \\qquad \\frac{\\partial X_{\\mathrm{C}}}{\\partial t} = \\frac{\\varepsilon_{3\\alpha}}{Q_{\\mathrm{He}}} - \\frac{\\varepsilon_{\\mathrm{C}\\alpha}}{Q_{\\mathrm{C}\\alpha}}, \\qquad \\frac{\\partial X_{\\mathrm{O}}}{\\partial t} = \\frac{4}{3}\\,\\frac{\\varepsilon_{\\mathrm{C}\\alpha}}{Q_{\\mathrm{C}\\alpha}}, \\qquad Q_{\\mathrm{He}} = 5.85\\times10^{17}, \\quad Q_{\\mathrm{C}\\alpha} = 5.76\\times10^{17}\\ \\mathrm{erg\\,g^{-1}}",
         svg: include_bytes!("../assets/equations/evo_burn_he.svg"),
-        width: 514.34,
+        width: 986.73,
         height: 38.53,
     },
     Equation {
         id: "evo_mix",
-        tex: "X \\;\\leftarrow\\; \\bar X_{\\mathrm{zone}} = \\frac{\\int_{\\mathrm{zone}} X\\, dm}{\\int_{\\mathrm{zone}} dm} \\qquad \\text{(same for } Y, Z\\text{) in every convective zone}",
+        tex: "X \\;\\leftarrow\\; \\bar X_{\\mathrm{zone}} = \\frac{\\int_{\\mathrm{zone}} X\\, dm}{\\int_{\\mathrm{zone}} dm} \\qquad \\text{(same for } Y, Z, X_{\\mathrm{C}}, X_{\\mathrm{O}}\\text{) in every convective zone}",
         svg: include_bytes!("../assets/equations/evo_mix.svg"),
-        width: 522.33,
+        width: 586.34,
         height: 46.30,
     },
     Equation {

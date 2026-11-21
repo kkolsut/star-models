@@ -25,18 +25,14 @@ fn screening_exponent_at_the_solar_centre() {
     let zams = solve_model(&StarParams::sun(), &physics, None, &mut NoControl).unwrap();
     let s = &zams.globals.screening;
     let p = &zams.profile;
-    let c = Composition { x: p.x[0], y: p.y[0], z: p.z[0], x_cno: 0.7 * p.z[0] };
-    let centre = AnalyticNuclear.screening(p.rho[0], p.t[0], &c).unwrap();
-    eprintln!(
-        "ZAMS Sun, centre: exponents p + p {:.4}, ³He + ³He {:.4}, p + ¹⁴N {:.4}",
-        centre.pp / 4.0,
-        centre.pp,
-        centre.cno
-    );
+    let c = p.composition_at(0, 0.7);
+    let centre = AnalyticNuclear::default().screening(p.rho[0], p.t[0], &c).unwrap();
+    eprintln!("ZAMS Sun, centre: exponents pp chain (largest) {:.4}, p + ¹⁴N {:.4}", centre.pp, centre.cno);
     eprintln!("ZAMS Sun: largest screening exponent {:.4} ({}) at m/M = {:.4}", s.max_exponent, s.reaction, s.q);
     assert!(s.max_exponent > 0.0 && s.max_exponent < SCREENING_WEAK_LIMIT);
     assert!(s.reaction.contains("pp"), "{}", s.reaction);
-    assert_eq!(s.cap, Some(2.0));
+    // Plan 9.7: the all-regime screening has no cap.
+    assert_eq!(s.cap, None);
     assert!(s.warning().is_none());
     // Along a run the largest value is kept.
     let mut evo = Evolution::new(
@@ -56,12 +52,16 @@ fn screening_exponent_at_the_solar_centre() {
 #[test]
 fn dense_states_trigger_each_warning() {
     let c = Composition::new(0.0, 0.02, 0.7).unwrap();
-    let cap = AnalyticNuclear.screening_cap();
-    // Helium at 10⁸ K: weak at 10³ g/cm³, beyond 0.3 at 10⁵, at the cap at 10⁷.
-    let e = |rho: f64| AnalyticNuclear.screening(rho, 1e8, &c).unwrap().triple_alpha;
+    let cap = AnalyticNuclear::default().screening_cap();
+    assert_eq!(cap, None);
+    // Helium at 10⁸ K: weak at 10³ g/cm³, beyond 0.3 at 10⁵ and 10⁷ (no cap).
+    let e = |rho: f64| AnalyticNuclear::default().screening(rho, 1e8, &c).unwrap().triple_alpha;
     assert!(screening_warning(e(1e3), cap).is_none(), "{}", e(1e3));
-    let mid = screening_warning(e(1e5), cap).unwrap();
-    assert!(mid.contains("weak regime"), "{} → {mid}", e(1e5));
-    let top = screening_warning(e(1e7), cap).unwrap();
-    assert!(top.contains("cap"), "{} → {top}", e(1e7));
+    for rho in [1e5, 1e7] {
+        let w = screening_warning(e(rho), cap).unwrap();
+        assert!(w.contains("weak regime"), "{} → {w}", e(rho));
+    }
+    // A capped implementation still gets the cap warning.
+    assert!(screening_warning(2.5, Some(2.0)).unwrap().contains("cap"));
+    assert!(e(1e7) > e(1e5) && e(1e5) > e(1e3));
 }

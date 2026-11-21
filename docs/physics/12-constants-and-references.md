@@ -76,8 +76,8 @@ Implemented physics and methods:
   formulas, the StatStar model.
 * **Böhm-Vitense (1958)**, Z. Astrophys. 46, 108: mixing-length theory.
 * **Henyey, Forbes & Gould (1964)**, ApJ 139, 306: relaxation method.
-* **Clayton (1968)**, *Principles of Stellar Evolution and Nucleosynthesis*: weak screening, pp
-  branching.
+* **Clayton (1968)**, *Principles of Stellar Evolution and Nucleosynthesis*: weak screening (the
+  weak limit since plan 9.7), pp branching.
 * **Cox (1980)**, *Theory of Stellar Pulsation*: linear adiabatic wave equation. Classical polytrope
   eigenvalues ($`\Omega^2 \approx 2.712`$ for $`n = 1.5`$, 9.26 for $`n = 3`$) were quoted from memory
   **[check source]**; candidate sources: Hurley, Roberts & Wright (1966), ApJ 143, 535;
@@ -173,8 +173,8 @@ Planned upgrades (each to be checked when used):
   relations (§2.5, eqs. 35–38); range of the Krishna Swamy relation (§5).
 * **Henyey, Vardya & Bodenheimer (1965)**, ApJ 142, 841: convection with optically thin elements
   (eqs. 34–36, 39–40).
-* **Chugunov & DeWitt (2009)**, Phys. Rev. C 80, 014611: screening in ionic mixtures, candidate for
-  the strong regime.
+* **Chugunov & DeWitt (2009)**, Phys. Rev. C 80, 014611: screening in ionic mixtures, implemented for
+  all regimes (plan 9.7).
 * **Potekhin & Chabrier (2012)**, A&A 538, A115: electron screening, $`k_{\mathrm{TF}}`$ and the
   published electron-polarisation interpolation.
 * **Kushnir, Waxman & Chugunov (2019)**, MNRAS 486, 449–452: triple-α screening basis.

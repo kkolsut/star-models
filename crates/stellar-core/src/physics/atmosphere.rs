@@ -463,7 +463,7 @@ mod tests {
         Physics {
             eos: Box::new(IdealGasRadiation),
             opacity: Box::new(ConstKappa(k)),
-            nuclear: Box::new(AnalyticNuclear),
+            nuclear: Box::new(AnalyticNuclear::default()),
             atmosphere: Atmosphere::GreyClosedForm,
         }
     }

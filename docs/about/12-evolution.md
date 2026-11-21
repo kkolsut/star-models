@@ -21,16 +21,17 @@ chain and 25.03 MeV for the CNO cycle, after neutrino losses. The pp II branch d
 pp I, so $`Q_{pp}^{\mathrm{eff}}`$ falls with the pp II share $`F_{\mathrm{II}}`$ (see
 [Microphysics](07-microphysics.md)).
 
-*Helium burning* (triple-α); the carbon it produces counts as metals
+*Helium burning*: triple-α makes carbon, ¹²C(α,γ) turns it into oxygen; both are tracked apart from
+the initial metals Z
 
 ```math
-\frac{\partial Y}{\partial t} = -\frac{\partial X}{\partial t} - \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad \frac{\partial Z}{\partial t} = \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}}, \qquad Q_{\mathrm{He}} = 5.85\times10^{17}\ \mathrm{erg\,g^{-1}}
+\frac{\partial Y}{\partial t} = -\frac{\partial X}{\partial t} - \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}} - \frac{1}{3}\,\frac{\varepsilon_{\mathrm{C}\alpha}}{Q_{\mathrm{C}\alpha}}, \qquad \frac{\partial X_{\mathrm{C}}}{\partial t} = \frac{\varepsilon_{3\alpha}}{Q_{\mathrm{He}}} - \frac{\varepsilon_{\mathrm{C}\alpha}}{Q_{\mathrm{C}\alpha}}, \qquad \frac{\partial X_{\mathrm{O}}}{\partial t} = \frac{4}{3}\,\frac{\varepsilon_{\mathrm{C}\alpha}}{Q_{\mathrm{C}\alpha}}, \qquad Q_{\mathrm{He}} = 5.85\times10^{17}, \quad Q_{\mathrm{C}\alpha} = 5.76\times10^{17}\ \mathrm{erg\,g^{-1}}
 ```
 
 *Instant mixing*
 
 ```math
-X \;\leftarrow\; \bar X_{\mathrm{zone}} = \frac{\int_{\mathrm{zone}} X\, dm}{\int_{\mathrm{zone}} dm} \qquad \text{(same for } Y, Z\text{) in every convective zone}
+X \;\leftarrow\; \bar X_{\mathrm{zone}} = \frac{\int_{\mathrm{zone}} X\, dm}{\int_{\mathrm{zone}} dm} \qquad \text{(same for } Y, Z, X_{\mathrm{C}}, X_{\mathrm{O}}\text{) in every convective zone}
 ```
 
 After mixing, every mixed zone burns as one unit, at its mass-averaged rate:

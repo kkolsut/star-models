@@ -51,7 +51,7 @@ pub fn evaluate(
 ) -> LocalState {
     let eos = phys.eos.eval(p, t, comp);
     let kappa = phys.opacity.kappa(eos.rho, t, comp);
-    let nuc = phys.nuclear.eps(eos.rho, t, comp);
+    let nuc = phys.nuclear.eps_eta(eos.rho, t, eos.eta, comp);
     let g = G * m / (r * r);
     let hp = p / (eos.rho * g);
     let nabla_rad = 3.0 * kappa * l * p / (4.0 * FOUR_PI * A_RAD * C * G * m * t.powi(4));

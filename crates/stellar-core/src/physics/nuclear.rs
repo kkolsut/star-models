@@ -10,6 +10,8 @@
 //!   cycle deposited.
 //! * triple-α:  ε_3α  = 5.09e11 ρ² Y³ f T₈^(−3) exp(−44.027 / T₈)
 //!   (Kippenhahn & Weigert 1990).
+//! * ¹²C(α,γ)¹⁶O: ε_Cα = f_Cα ρ X_C Y N_A⟨σv⟩ f Q_Cα / 4 with the Caughlan &
+//!   Fowler (1988) fit, on the carbon made by helium burning (plan 9.5).
 //!
 //! The thermal rates ⟨σv⟩ of p + p, ³He + ³He, ³He + ⁴He and p + ¹⁴N are eq. 3
 //! of Solar Fusion III (Acharya et al. 2025, Rev. Mod. Phys. 97, 035002)
@@ -17,10 +19,15 @@
 //! and the S(0), S′(0), S″(0) of their Table I; tabulated once and interpolated
 //! with C¹ cubic Hermite polynomials.
 //!
-//! Each includes a weak-screening factor f = exp(0.188 Z₁Z₂ ζ ρ^½ T₆^(−3/2)).
+//! Each includes a screening factor f = e^H from [`super::screening`]: Chugunov &
+//! DeWitt (2009) with the electron factor of Potekhin & Chabrier (2012) for the
+//! binary reactions, the static two-stage form for triple-α (plan 9.7). H is
+//! not capped. Its weak limit is the former Salpeter factor
+//! exp(0.188 Z₁Z₂ ζ ρ^½ T₆^(−3/2)).
 
 use std::sync::OnceLock;
 
+use super::screening::{Pair, Plasma};
 use super::{Nuclear, NuclearRates, ScreeningExponents};
 use crate::composition::Composition;
 use crate::constants::M_U;
@@ -34,6 +41,9 @@ pub const Q_CNO: f64 = 5.99e18;
 /// Energy released per gram of helium burnt to carbon by the triple-α
 /// reaction [erg g⁻¹] (7.275 MeV per ¹²C nucleus).
 pub const Q_HE: f64 = 5.85e17;
+/// Energy released per gram of carbon burnt to oxygen by ¹²C(α,γ)¹⁶O
+/// [erg g⁻¹] (7.162 MeV per reaction, AME2020; `docs/physics/04`).
+pub const Q_C_ALPHA: f64 = 5.759e17;
 
 /// Atomic masses [u] (AME): ¹H, ⁴He, ¹⁴N.
 const A_H1: f64 = 1.007_825;
@@ -203,74 +213,199 @@ pub fn ln_sigma_v(t: f64) -> [f64; 4] {
     [tab[0].at_t(t), tab[1].at_t(t), tab[2].at_t(t), tab[3].at_t(t)]
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub struct AnalyticNuclear;
+/// ¹²C(α,γ)¹⁶O: N_A⟨σv⟩ [cm³ mol⁻¹ s⁻¹] of Caughlan & Fowler (1988), as
+/// reproduced term by term in the ORNL Fortran version of the compilation
+/// (reaction 62) and in MESA's `rate_c12ag_fxt` (`docs/physics/04`, decided
+/// 2026-11-12), without MESA's factor 1.7.
+pub fn c12_alpha_na_sigma_v(t: f64) -> f64 {
+    let t9 = t * 1e-9;
+    if !(t9 > 0.0) {
+        return 0.0;
+    }
+    let t913 = t9.cbrt();
+    let t923 = t913 * t913;
+    let t9m23 = 1.0 / t923;
+    let t92 = t9 * t9;
+    let gamow = (-32.120 / t913).exp();
+    1.04e8 / (t92 * (1.0 + 0.0489 * t9m23).powi(2)) * gamow * (-(t9 / 3.496).powi(2)).exp()
+        + 1.76e8 / (t92 * (1.0 + 0.2654 * t9m23).powi(2)) * gamow
+        + 1.25e3 * t9.powf(-1.5) * (-27.499 / t9).exp()
+        + 1.43e-2 * t9.powi(5) * (-15.541 / t9).exp()
+}
 
-/// Cap on the weak-screening exponent. The weak-screening approximation is
-/// only valid for small values; the cap also guards against overflow in
-/// unphysical intermediate states.
-const MAX_SCREENING_EXPONENT: f64 = 2.0;
+/// The analytic nuclear network: Solar Fusion III pp chain (with pp II
+/// branching) and CNO bottleneck, triple-α, and ¹²C(α,γ)¹⁶O, screened by the
+/// all-regime prescription of [`super::screening`] (plan 9.7).
+#[derive(Debug, Clone, Copy)]
+pub struct AnalyticNuclear {
+    /// Multiplier f_Cα of the ¹²C(α,γ)¹⁶O rate (1: CF88; MESA's
+    /// `rate_c12ag_fxt` uses 1.7). The spread is the present uncertainty.
+    pub f_c_alpha: f64,
+}
 
-/// ζ ρ^½ T₆^(−3/2) × 0.188: the weak-screening exponent per unit Z₁Z₂.
-fn screening_base(rho: f64, t: f64, c: &Composition) -> f64 {
-    // ζ² = Σ X_i Z_i (Z_i + 1) / A_i (metals approximated by CNO).
-    let zeta = (2.0 * c.x + 1.5 * c.y + 4.0 * c.z).sqrt();
-    0.188 * zeta * rho.sqrt() * (t * 1e-6).powf(-1.5)
+impl Default for AnalyticNuclear {
+    fn default() -> Self {
+        Self { f_c_alpha: 1.0 }
+    }
+}
+
+/// Reduced masses [u] of the screened pairs.
+const MU_PP: f64 = A_H1 * A_H1 / (A_H1 + A_H1);
+const MU_33: f64 = 3.016_029 * 3.016_029 / (2.0 * 3.016_029);
+const MU_34: f64 = 3.016_029 * A_HE4 / (3.016_029 + A_HE4);
+const MU_P14: f64 = A_H1 * A_N14 / (A_H1 + A_N14);
+const MU_C_ALPHA: f64 = 12.0 * A_HE4 / (12.0 + A_HE4);
+
+/// Ceiling on any one channel's ε [erg g⁻¹ s⁻¹], applied to ln ε. Not a cap on
+/// the screening exponent (plan 9.7 removed that): a guard against overflow
+/// reached only in unphysical trial states of the Newton iteration (for
+/// example 10³ K at 10⁻² g cm⁻³ with classical electrons, where H ≈ 10³),
+/// many orders of magnitude above any rate of a real model.
+pub const EPS_CEILING: f64 = 1e30;
+
+/// e^{ln ε}, limited to [`EPS_CEILING`]; 0 for ln ε = −∞.
+fn bounded(ln_eps: f64) -> f64 {
+    ln_eps.min(EPS_CEILING.ln()).exp()
+}
+
+/// Screening exponents ln f of every reaction at one state.
+#[derive(Clone, Copy, Debug, Default)]
+struct Screens {
+    pp: f64,
+    he33: f64,
+    he34: f64,
+    cno: f64,
+    triple_alpha: f64,
+    c_alpha: f64,
+}
+
+/// Below this temperature the triple-α rate is under 10⁻⁵⁰ erg g⁻¹ s⁻¹ at any
+/// stellar density, and its screening factor is not evaluated (f = 1).
+const T_MIN_TRIPLE_ALPHA: f64 = 3e7;
+
+/// The pairs: p + p, ³He + ³He, ³He + ⁴He, p + ¹⁴N, α + α and ⁸Be + α
+/// (static), ¹²C + α.
+fn pairs() -> &'static [Pair; 7] {
+    static PAIRS: OnceLock<[Pair; 7]> = OnceLock::new();
+    PAIRS.get_or_init(|| {
+        [
+            Pair::new(1.0, 1.0, Some(MU_PP)),
+            Pair::new(2.0, 2.0, Some(MU_33)),
+            Pair::new(2.0, 2.0, Some(MU_34)),
+            Pair::new(1.0, 7.0, Some(MU_P14)),
+            Pair::new(2.0, 2.0, None),
+            Pair::new(4.0, 2.0, None),
+            Pair::new(2.0, 6.0, Some(MU_C_ALPHA)),
+        ]
+    })
+}
+
+/// Last states evaluated: the finite-difference Jacobian repeats (ρ, T)
+/// whenever it perturbs r or L.
+type ScreenKey = [u64; 8];
+thread_local! {
+    static SCREEN_MEMO: std::cell::RefCell<Vec<(ScreenKey, Screens)>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Screening exponents of the reactions that can run in composition `c`
+/// (hydrogen burning needs X > 0, ¹²C(α,γ) produced carbon, triple-α
+/// T ≥ 3 × 10⁷ K and Y > 0); the others are 0.
+fn screens(rho: f64, t: f64, eta: f64, c: &Composition) -> Screens {
+    let key = [rho, t, eta, c.x, c.y, c.z, c.x_c, c.x_o].map(f64::to_bits);
+    if let Some(s) = SCREEN_MEMO.with(|m| m.borrow().iter().find(|(k, _)| *k == key).map(|(_, s)| *s)) {
+        return s;
+    }
+    let s = match Plasma::new(rho, t, eta, c) {
+        None => Screens::default(),
+        Some(pl) => {
+            let p = pairs();
+            let (hydrogen, helium) = (c.x > 0.0, c.y > 0.0);
+            let h = |on: bool, i: usize| if on { pl.h_pair(&p[i]) } else { 0.0 };
+            let hot = helium && t >= T_MIN_TRIPLE_ALPHA;
+            Screens {
+                pp: h(hydrogen, 0),
+                he33: h(hydrogen && helium, 1),
+                he34: h(hydrogen && helium, 2),
+                cno: h(hydrogen, 3),
+                triple_alpha: if hot { pl.h_pair(&p[4]) + pl.h_pair(&p[5]) } else { 0.0 },
+                c_alpha: h(helium && c.x_c > 0.0, 6),
+            }
+        }
+    };
+    SCREEN_MEMO.with(|m| {
+        let mut m = m.borrow_mut();
+        if m.len() >= 8 {
+            m.remove(0);
+        }
+        m.push((key, s));
+    });
+    s
 }
 
 impl Nuclear for AnalyticNuclear {
     fn name(&self) -> &'static str {
-        "Solar Fusion III pp (with pp II branching) + CNO, analytic 3α (weak screening)"
+        "Solar Fusion III pp (with pp II branching) + CNO, analytic 3α, CF88 ¹²C(α,γ) (Chugunov–DeWitt screening)"
     }
 
-    fn screening(&self, rho: f64, t: f64, c: &Composition) -> Option<ScreeningExponents> {
+    fn screening_eta(&self, rho: f64, t: f64, eta: f64, c: &Composition) -> Option<ScreeningExponents> {
         if !(t > 0.0 && rho > 0.0) {
             return None;
         }
-        let b = screening_base(rho, t, c);
-        // pp: p + p (³He + ³He and ³He + ⁴He enter only through α, with 4b);
-        // CNO: p + ¹⁴N; triple-α: α + ⁸Be.
-        Some(ScreeningExponents { pp: 4.0 * b, cno: 7.0 * b, triple_alpha: 8.0 * b })
+        // Every reaction, also those that cannot run in this composition.
+        let p = pairs();
+        let pl = Plasma::new(rho, t, eta, c)?;
+        let h = |i: usize| pl.h_pair(&p[i]);
+        let s = Screens { pp: h(0), he33: h(1), he34: h(2), cno: h(3), triple_alpha: h(4) + h(5), c_alpha: h(6) };
+        // pp chain: the largest of p + p and the ³He reactions entering φ.
+        Some(ScreeningExponents {
+            pp: s.pp.max(s.he33).max(s.he34),
+            cno: s.cno,
+            triple_alpha: s.triple_alpha,
+            c_alpha: s.c_alpha,
+        })
     }
 
-    fn screening_cap(&self) -> Option<f64> {
-        Some(MAX_SCREENING_EXPONENT)
-    }
-
-    fn eps(&self, rho: f64, t: f64, c: &Composition) -> NuclearRates {
+    fn eps_eta(&self, rho: f64, t: f64, eta: f64, c: &Composition) -> NuclearRates {
         if !(t > 0.0 && rho > 0.0) {
             return NuclearRates::default();
         }
-        let screen_base = screening_base(rho, t, c);
-        let screen = |z1z2: f64| (z1z2 * screen_base).min(MAX_SCREENING_EXPONENT).exp();
+        let s = screens(rho, t, eta, c);
         let [l11, l33, l34, l114] = ln_sigma_v(t);
 
         // Number densities [cm⁻³].
         let n_p = rho * c.x / (A_H1 * M_U);
         let n_14 = rho * c.x_cno / (A_N14 * M_U);
 
-        // pp I: r₁₁ = ½ n_p² ⟨σv⟩₁₁ f₁₁ reactions per cm³ s, one chain per two reactions.
-        let r11 = 0.5 * n_p * n_p * l11.exp() * screen(1.0);
-        let pp_1 = 0.5 * r11 * E_PP_I / rho;
+        // pp I: r₁₁ = ½ n_p² ⟨σv⟩₁₁ f₁₁ reactions per cm³ s, one chain per two
+        // reactions; ε_pp,I = r₁₁ E_I/(2ρ). Rates are formed as logarithms.
+        let ln_pp_1 = (0.25 * n_p * n_p * E_PP_I / rho).ln() + l11 + s.pp;
 
-        // pp II branching: α with the screening factors f₃₄² / (f₁₁ f₃₃) = f₄/f₁.
+        // pp II branching: α with the screening factors f₃₄² / (f₁₁ f₃₃).
         let pp_phi = if c.x > 0.0 && c.y > 0.0 {
             let n4_np = c.y * A_H1 / (c.x * A_HE4);
-            pp_phi(n4_np * n4_np * (2.0 * l34 - l11 - l33).exp() * screen(4.0) / screen(1.0))
+            pp_phi(n4_np * n4_np * (2.0 * (l34 + s.he34) - (l11 + s.pp) - (l33 + s.he33)).exp())
         } else {
             1.0
         };
         let psi = pp_phi * (1.0 - 0.021 * pp2_fraction(pp_phi));
-        let pp = psi * pp_1;
+        let pp = bounded(psi.ln() + ln_pp_1);
 
         // CNO: one cycle per p + ¹⁴N reaction in CN equilibrium.
-        let cno = n_p * n_14 * l114.exp() * screen(7.0) * E_CNO / rho;
+        let cno = bounded((n_p * n_14 * E_CNO / rho).ln() + l114 + s.cno);
 
         let t8 = t * 1e-8;
         let triple_alpha =
-            5.09e11 * rho * rho * c.y.powi(3) * screen(4.0) * screen(8.0) * (-44.027 / t8).exp() / t8.powi(3);
+            bounded((5.09e11 * rho * rho * c.y.powi(3) / t8.powi(3)).ln() + s.triple_alpha - 44.027 / t8);
 
-        NuclearRates { pp, cno, triple_alpha, pp_phi }
+        // ¹²C(α,γ)¹⁶O: ε = ρ X_C Y N_A⟨σv⟩ Q_Cα / 4 (Q_Cα per gram of carbon),
+        // on the carbon produced by helium burning.
+        let c_alpha = if c.x_c > 0.0 && c.y > 0.0 {
+            bounded((self.f_c_alpha * rho * c.x_c * c.y * c12_alpha_na_sigma_v(t) * Q_C_ALPHA / 4.0).ln() + s.c_alpha)
+        } else {
+            0.0
+        };
+
+        NuclearRates { pp, cno, triple_alpha, c_alpha, pp_phi }
     }
 }
 
@@ -282,7 +417,7 @@ mod tests {
     fn present_solar_centre_order_of_magnitude() {
         // Present-day solar centre: T ≈ 15.7 MK, ρ ≈ 150 g/cm³, X ≈ 0.34.
         let c = Composition::new(0.34, 0.02, 0.7).unwrap();
-        let e = AnalyticNuclear.eps(150.0, 1.57e7, &c);
+        let e = AnalyticNuclear::default().eps(150.0, 1.57e7, &c);
         assert!(e.pp > 3.0 && e.pp < 50.0, "ε_pp = {}", e.pp);
         assert!(e.cno < e.pp, "pp should dominate in the Sun");
         assert!(e.triple_alpha < 1e-20);
@@ -291,7 +426,7 @@ mod tests {
     #[test]
     fn cno_dominates_in_hot_cores() {
         let c = Composition::new(0.7, 0.02, 0.7).unwrap();
-        let e = AnalyticNuclear.eps(20.0, 2.8e7, &c);
+        let e = AnalyticNuclear::default().eps(20.0, 2.8e7, &c);
         assert!(e.cno > e.pp, "pp {} vs cno {}", e.pp, e.cno);
     }
 
@@ -360,7 +495,7 @@ mod tests {
         }
         // φ → 1 at low temperature for any composition.
         let c = Composition::new(0.3, 0.02, 0.7).unwrap();
-        assert!((AnalyticNuclear.eps(100.0, 3e6, &c).pp_phi - 1.0).abs() < 1e-6);
+        assert!((AnalyticNuclear::default().eps(100.0, 3e6, &c).pp_phi - 1.0).abs() < 1e-6);
         // Q_pp^eff: pp I value without branching, 2.1% lower for pure pp II.
         assert_eq!(q_pp_eff(1.0), Q_PP_I);
         assert!((q_pp_eff(2.0) / Q_PP_I - 0.979).abs() < 1e-12);
@@ -370,10 +505,63 @@ mod tests {
     #[test]
     fn pp2_share_at_solar_centre() {
         let c = Composition::new(0.34, 0.02, 0.7).unwrap();
-        let e = AnalyticNuclear.eps(150.0, 1.57e7, &c);
+        let e = AnalyticNuclear::default().eps(150.0, 1.57e7, &c);
         let f2 = pp2_fraction(e.pp_phi);
         eprintln!("present solar centre: φ = {:.4}, F_II = {:.3}", e.pp_phi, f2);
         assert!(e.pp_phi > 1.0 && e.pp_phi < 2.0);
+    }
+
+    /// Plan 9.7: at the centre of the present Sun (classical electrons, as with
+    /// the ideal EOS) the all-regime screening changes the rates from the
+    /// former weak (Salpeter) factors, ζ² = 2X + 1.5Y + 4Z, by less than the
+    /// stated tolerance: 1% for pp, 15% for CNO. Measured −0.8% and −12%. The
+    /// CNO change is the intermediate coupling of ¹⁴N itself: Γ_N = 7^{5/3} Γ_e
+    /// = 1.7 at Γ_e = 0.067, where the free energy f₀ is well below its
+    /// Debye–Hückel form; the rigid-background exponent of p + ¹⁴N is 0.156
+    /// against 0.269 in the weak limit, the electron factor 1.33 against 1.27.
+    #[test]
+    fn solar_centre_rates_against_weak_screening() {
+        let c = Composition::new(0.34, 0.02, 0.7).unwrap();
+        let (rho, t) = (150.0, 1.57e7);
+        let new = AnalyticNuclear::default().eps(rho, t, &c);
+        let b = 0.188 * (2.0 * c.x + 1.5 * c.y + 4.0 * c.z).sqrt() * rho.sqrt() * (t * 1e-6).powf(-1.5);
+        let [l11, l33, l34, l114] = ln_sigma_v(t);
+        let n_p = rho * c.x / (A_H1 * M_U);
+        let n4_np = c.y * A_H1 / (c.x * A_HE4);
+        let phi = pp_phi(n4_np * n4_np * (2.0 * l34 - l11 - l33).exp() * (4.0 * b).exp() / b.exp());
+        let pp_old = phi * (1.0 - 0.021 * pp2_fraction(phi)) * 0.25 * n_p * n_p * (l11 + b).exp() * E_PP_I / rho;
+        let cno_old = n_p * rho * c.x_cno / (A_N14 * M_U) * (l114 + 7.0 * b).exp() * E_CNO / rho;
+        let (dpp, dcno) = (new.pp / pp_old - 1.0, new.cno / cno_old - 1.0);
+        eprintln!("solar centre, new/old − 1: pp {dpp:+.4e}, CNO {dcno:+.4e}");
+        assert!(dpp.abs() < 0.01 && dcno.abs() < 0.15);
+    }
+
+    /// ¹²C(α,γ)¹⁶O: positive, increasing with T over helium burning, zero
+    /// without carbon; ε/Q_Cα is the carbon burnt per gram and second,
+    /// 12 m_u n_C n_α ⟨σv⟩ / ρ.
+    #[test]
+    fn carbon_alpha_rate() {
+        let ts = [5e7, 1e8, 2e8, 3e8, 5e8, 1e9];
+        let r: Vec<f64> = ts.iter().map(|&t| c12_alpha_na_sigma_v(t)).collect();
+        assert!(r.iter().all(|v| *v > 0.0 && v.is_finite()));
+        assert!(r.windows(2).all(|w| w[1] > w[0]), "{r:?}");
+        let pure_he = Composition { x: 0.0, y: 0.98, z: 0.02, x_cno: 0.014, x_c: 0.0, x_o: 0.0 };
+        assert_eq!(AnalyticNuclear::default().eps(1e4, 2e8, &pure_he).c_alpha, 0.0);
+        let c = Composition { x_c: 0.4, y: 0.58, ..pure_he };
+        let (rho, t) = (1e4, 2e8);
+        let nuc = AnalyticNuclear { f_c_alpha: 1.0 };
+        let eps = nuc.eps(rho, t, &c).c_alpha;
+        let h = Plasma::new(rho, t, f64::NAN, &c).unwrap().h(2.0, 6.0, MU_C_ALPHA);
+        let n_c = rho * c.x_c / (12.0 * M_U);
+        let n_a = rho * c.y / (4.0 * M_U);
+        let sv = c12_alpha_na_sigma_v(t) * M_U; // N_A⟨σv⟩ / N_A
+        let want = 12.0 * M_U * n_c * n_a * sv * h.exp() / rho;
+        assert!((eps / Q_C_ALPHA / want - 1.0).abs() < 1e-12, "{} vs {want}", eps / Q_C_ALPHA);
+        // The multiplier scales the rate.
+        let doubled = AnalyticNuclear { f_c_alpha: 2.0 }.eps(rho, t, &c).c_alpha;
+        assert!((doubled / eps - 2.0).abs() < 1e-12);
+        // Q_Cα from the AME2020 Q value, 7.1619 MeV per ¹²C.
+        assert!((7.1619e6 * crate::constants::EV / (12.0 * M_U) / Q_C_ALPHA - 1.0).abs() < 2e-4);
     }
 
     #[test]
@@ -383,7 +571,7 @@ mod tests {
             for lr in -120..=60 {
                 let t = 10f64.powf(lt as f64 / 10.0);
                 let rho = 10f64.powf(lr as f64 / 10.0);
-                let e = AnalyticNuclear.eps(rho, t, &c);
+                let e = AnalyticNuclear::default().eps(rho, t, &c);
                 assert!(e.total().is_finite() && e.total() >= 0.0);
             }
         }

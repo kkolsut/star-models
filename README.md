@@ -125,8 +125,10 @@ Code layout: `crates/stellar-core` holds the physics and solver (no GUI dependen
   conduction, embedded in the binary with attribution
   ([`crates/stellar-core/data/README.md`](crates/stellar-core/data/README.md)).
 * **Nuclear:** pp chain (with the pp II branching factor ψ) and CNO cycle from the Solar Fusion III
-  reaction rates (S(0), S′, S″ integrated over the Gamow peak), analytic triple-α; weak screening;
-  separate energies per gram of hydrogen for pp and CNO.
+  reaction rates (S(0), S′, S″ integrated over the Gamow peak), analytic triple-α, Caughlan &
+  Fowler (1988) ¹²C(α,γ)¹⁶O with carbon and oxygen tracked; screening for all regimes (Chugunov &
+  DeWitt 2009 with the electron factor of Potekhin & Chabrier 2012); separate energies per gram of
+  hydrogen for pp and CNO.
 * **Boundary conditions:** central expansions at m₀ = 10⁻⁶ M, and a grey Eddington photosphere at
   τ = ⅔ at the surface. Selectable: an integrated atmosphere (grey or the Krishna Swamy 1966 solar
   T(τ)) with convection and optically thin elements.

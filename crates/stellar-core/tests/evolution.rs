@@ -67,7 +67,7 @@ fn fuel_accounting_with_per_channel_energies() {
             break; // clipping at exhaustion is allowed to remove less
         }
         let dt = (w[1].globals.age_yr - w[0].globals.age_yr) * YEAR;
-        let (h, _) = burning_rates(&w[0]);
+        let h = burning_rates(&w[0]).h;
         let p = &w[0].profile;
         let expected: f64 = (0..p.len())
             .map(|k| {
