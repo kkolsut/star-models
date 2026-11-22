@@ -13,6 +13,9 @@
 * **Böhm-Vitense (1958)**, Zeitschrift für Astrophysik 46, 108: mixing-length theory.
 * **Clayton (1968)**, *Principles of Stellar Evolution and Nucleosynthesis*, McGraw-Hill: thermonuclear
   rates and weak screening.
+* **Chugunov & DeWitt (2009)**, Phys. Rev. C 80, 014611, and **Potekhin & Chabrier (2012)**, A&A
+  538, A115: electron screening in all regimes, for ionic mixtures and with electron polarisation.
+* **Caughlan & Fowler (1988)**, At. Data Nucl. Data Tables 40, 283: the ¹²C(α,γ)¹⁶O rate.
 * **Asplund, Grevesse, Sauval & Scott (2009)**, ARA&A 47, 481: the AGSS09 solar composition preset.
 * **Acharya et al. (2025)**, Rev. Mod. Phys. 97, 035002 ("Solar Fusion III"): the astrophysical
   factors $`S(0)`$, $`S'(0)`$, $`S''(0)`$ behind the pp and CNO rates and the pp II branching factor

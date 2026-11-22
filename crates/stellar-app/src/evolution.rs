@@ -361,6 +361,8 @@ pub struct EvolutionSettings {
     pub wind_efficiency: f64,
     /// Reimers η (cool-star wind).
     pub reimers_eta: f64,
+    /// Remeshing during evolution (plan 5.R; on by default).
+    pub remesh: bool,
 }
 
 impl Default for EvolutionSettings {
@@ -371,6 +373,7 @@ impl Default for EvolutionSettings {
             wind: false,
             wind_efficiency: 1.0,
             reimers_eta: REIMERS_ETA_DEFAULT,
+            remesh: true,
         }
     }
 }
@@ -387,7 +390,9 @@ impl EvolutionSettings {
         } else {
             Wind::Off
         };
-        EvolutionOptions { stop, wind, ..Default::default() }
+        let defaults = EvolutionOptions::default();
+        let remesh = if self.remesh { defaults.remesh } else { None };
+        EvolutionOptions { stop, wind, remesh, ..defaults }
     }
 }
 
@@ -461,6 +466,14 @@ pub fn controls(
             "the star loses mass during evolution: de Jager et al. (1988) for T_eff ≥ 8000 K, times \
              (Z/0.019)^0.69 (Vink et al. 2001); Reimers (1975) below 8000 K. Matters above about 15 M☉ on the \
              main sequence. Off by default. Applies to the next run or Continue.",
+        );
+    });
+    ui.horizontal_wrapped(|ui| {
+        ui.checkbox(&mut settings.remesh, "remesh during evolution").on_hover_text(
+            "before every step, intervals of the base mesh are bisected where ln P, ln T, X or the nuclear \
+             luminosity change too much across them, so that a burning shell or a composition step is resolved; \
+             composition is remapped conserving every species. Off: the mesh stays fixed in mass fraction (as \
+             before plan 5.R). On by default. Applies to the next run or Continue.",
         );
     });
     if settings.wind {

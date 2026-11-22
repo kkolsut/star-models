@@ -175,7 +175,7 @@ impl BvpProblem for StructureProblem<'_> {
         let eos = self.physics.eos.eval(p, t, comp);
         let m0 = self.m[0];
         out[0] = y0[I_LNR] - (3.0 * m0 / (FOUR_PI * eos.rho)).ln() / 3.0;
-        let mut eps = self.physics.nuclear.eps(eos.rho, t, comp).total();
+        let mut eps = self.physics.nuclear.eps_eta(eos.rho, t, eos.eta, comp).total();
         if let Some(prev) = &self.prev {
             eps += self.eps_grav(&eos, t, y0[I_LNP], y0[I_LNT], prev.ln_p[0], prev.ln_t[0]);
         }

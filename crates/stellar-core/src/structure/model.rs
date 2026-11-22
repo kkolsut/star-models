@@ -129,6 +129,9 @@ pub struct Profile {
     pub eps_pp: Vec<f64>,
     pub eps_cno: Vec<f64>,
     pub eps_3a: Vec<f64>,
+    /// ¹²C(α,γ)¹⁶O [erg g⁻¹ s⁻¹] (plan 9.5); empty in older saved models.
+    #[serde(default)]
+    pub eps_ca: Vec<f64>,
     pub eps: Vec<f64>,
     /// Gravitational energy release ε_grav = −T ds/dt [erg g⁻¹ s⁻¹] (0 on the ZAMS).
     pub eps_grav: Vec<f64>,
@@ -145,7 +148,14 @@ pub struct Profile {
     pub gamma1: Vec<f64>,
     pub x: Vec<f64>,
     pub y: Vec<f64>,
+    /// Initial heavy elements Z₀ (helium-burning products are in `x_c`, `x_o`).
     pub z: Vec<f64>,
+    /// Carbon and oxygen made by helium burning (plan 9.5); empty in older
+    /// saved models (read as 0).
+    #[serde(default)]
+    pub x_c: Vec<f64>,
+    #[serde(default)]
+    pub x_o: Vec<f64>,
     /// pp branching factor φ (helium nuclei per pp I chain, 1 to 2); empty in
     /// models saved before it existed (read as 1).
     #[serde(default)]
@@ -208,9 +218,32 @@ impl Profile {
     pub fn phi_at(&self, k: usize) -> f64 {
         self.pp_phi.get(k).copied().unwrap_or(1.0)
     }
+
+    /// Produced carbon and oxygen at point `k` (0 if not stored).
+    pub fn c_o_at(&self, k: usize) -> (f64, f64) {
+        (self.x_c.get(k).copied().unwrap_or(0.0), self.x_o.get(k).copied().unwrap_or(0.0))
+    }
+
+    /// ¹²C(α,γ)¹⁶O rate at point `k` (0 if not stored).
+    pub fn eps_ca_at(&self, k: usize) -> f64 {
+        self.eps_ca.get(k).copied().unwrap_or(0.0)
+    }
+
+    /// Composition at point `k`, with the CNO catalysts f_CNO Z₀ + X_C.
+    pub fn composition_at(&self, k: usize, f_cno: f64) -> Composition {
+        let (x_c, x_o) = self.c_o_at(k);
+        Composition {
+            x: self.x[k],
+            y: self.y[k],
+            z: self.z[k],
+            x_cno: Composition::cno_catalysts(f_cno, self.z[k], x_c),
+            x_c,
+            x_o,
+        }
+    }
 }
 
-/// Largest weak-screening exponent of a model, over the channels that supply at
+/// Largest screening exponent of a model, over the channels that supply at
 /// least 1% of the nuclear luminosity and the points where such a channel burns
 /// at more than 1% of its peak rate.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -240,13 +273,18 @@ impl ScreeningDiagnostic {
     }
 }
 
-/// Warning for a screening exponent: at the cap the rates are unreliable;
-/// above 0.3 screening is outside the weak regime and the rates approximate.
+/// Warning for a screening exponent: at a cap (rates that cap it) the rates
+/// are unreliable; above 0.3 screening is outside the weak regime. The
+/// all-regime prescription (plan 9.7) has no cap; the warning then marks the
+/// states where it matters, whose helium ignition is not yet validated.
 pub fn screening_warning(exponent: f64, cap: Option<f64>) -> Option<&'static str> {
     if cap.is_some_and(|c| exponent >= c) {
         Some("screening exponent at the cap: nuclear rates unreliable")
     } else if exponent > SCREENING_WEAK_LIMIT {
-        Some("screening exponent above 0.3: outside the weak regime, nuclear rates approximate")
+        Some(
+            "screening exponent above 0.3: outside the weak regime (intermediate/strong screening, \
+             Chugunov & DeWitt); helium ignition not validated",
+        )
     } else {
         None
     }
@@ -268,6 +306,19 @@ pub struct RunTotals {
     pub comp_term: f64,
     /// Fuel accounting: Σ (hydrogen burnt × Q_H^eff) over the steps [erg].
     pub fuel: f64,
+    /// Fuel accounting of helium burning (plan 9.5): carbon made by triple-α
+    /// × Q_He and carbon burnt to oxygen × Q_Cα, from the abundances [erg].
+    #[serde(default)]
+    pub fuel_3a: f64,
+    #[serde(default)]
+    pub fuel_ca: f64,
+    /// ∫∫ε dm dt per channel: hydrogen burning (pp + CNO), triple-α, ¹²C(α,γ) [erg].
+    #[serde(default)]
+    pub nuc_dt_h: f64,
+    #[serde(default)]
+    pub nuc_dt_3a: f64,
+    #[serde(default)]
+    pub nuc_dt_ca: f64,
     /// Largest screening exponent of any model of the run (see [`ScreeningDiagnostic`]).
     pub max_screening: f64,
     /// Mass lost to the wind [g].
@@ -300,10 +351,14 @@ pub struct EnergyCheck {
     pub composition: f64,
     /// The rest: time and mesh discretisation, shrinks with the time step.
     pub numerical: f64,
-    /// Fuel accounting: hydrogen burnt × Q_H^eff / ∫L dt (≈ 1 on the main sequence only).
-    /// With a wind the hydrogen burnt is the loss of ∫X dm less the hydrogen
-    /// carried off by the wind, X_s |ΔM|.
+    /// Fuel accounting: fuel burnt × Q / ∫L dt, all channels (≈ 1 while the
+    /// star is near thermal equilibrium). With a wind the hydrogen burnt is the
+    /// loss of ∫X dm less the hydrogen carried off by the wind, X_s |ΔM|.
     pub fuel_ratio: f64,
+    /// Fuel accounting per channel (hydrogen, triple-α, ¹²C(α,γ)): fuel burnt
+    /// × Q from the abundance changes over ∫∫ε dm dt of that channel; `None`
+    /// for a channel that has not burnt.
+    pub fuel_by_channel: [Option<f64>; 3],
     /// Part of the residual from the energy of the gas removed by the wind,
     /// E_wind / ∫L dt (0 without a wind).
     pub wind: f64,
@@ -359,6 +414,11 @@ pub struct Globals {
     pub x_c: f64,
     #[serde(default)]
     pub y_c: f64,
+    /// Central carbon and oxygen made by helium burning (plan 9.5).
+    #[serde(default)]
+    pub c_c: f64,
+    #[serde(default)]
+    pub o_c: f64,
     /// Mass fraction of the hydrogen-exhausted core (X < 10⁻³), 0 on the main sequence.
     #[serde(default)]
     pub he_core_q: f64,
@@ -436,10 +496,12 @@ pub struct Globals {
     pub conv_env_base_r: Option<f64>,
     /// Mass coordinate of the base of the convective envelope [m/M], if any.
     pub conv_env_base_q: Option<f64>,
-    /// Fractions of the luminosity from pp, CNO, 3α.
+    /// Fractions of the luminosity from pp, CNO, 3α and ¹²C(α,γ)¹⁶O.
     pub frac_pp: f64,
     pub frac_cno: f64,
     pub frac_3a: f64,
+    #[serde(default)]
+    pub frac_ca: f64,
     /// Virial check: ∫3P/ρ dm / ∫G m/r dm (should be ≈ 1).
     pub virial_ratio: f64,
     /// Energy check: (Σ Δm (ε_nuc + ε_grav) + L₀) / L_surface with the solver's midpoint rule (≈ 1).
@@ -507,7 +569,9 @@ impl Globals {
             residual,
             composition,
             numerical: residual - composition,
-            fuel_ratio: run.fuel / run.l_dt,
+            fuel_ratio: (run.fuel + run.fuel_3a + run.fuel_ca) / run.l_dt,
+            fuel_by_channel: [(run.fuel, run.nuc_dt_h), (run.fuel_3a, run.nuc_dt_3a), (run.fuel_ca, run.nuc_dt_ca)]
+                .map(|(f, e)| (e > 1e-6 * run.l_dt).then(|| f / e)),
             wind: run.wind_energy / run.l_dt,
         })
     }
@@ -517,12 +581,11 @@ impl Globals {
 /// a_i = (3 / 4π n_i)^{1/3} (`docs/physics/11`), for full ionisation charges.
 pub fn coulomb_coupling(rho: f64, t: f64, c: &Composition) -> f64 {
     use crate::constants::{E_CHARGE, K_B, M_U};
-    use crate::mixture::GN93;
-    let ni = c.x + c.y / 4.0 + c.z / GN93.mean_a;
+    let ni = c.ions_per_mu();
     if !(ni > 0.0) {
         return 0.0;
     }
-    let z2 = (c.x + c.y + c.z / GN93.mean_a * GN93.mean_z2) / ni;
+    let z2 = c.z2_per_mu() / ni;
     let a_i = (3.0 / (FOUR_PI * ni * rho / M_U)).cbrt();
     z2 * E_CHARGE * E_CHARGE / (a_i * K_B * t)
 }
@@ -603,6 +666,7 @@ pub(crate) fn build_model(
         pr.eps_pp.push(s.nuc.pp);
         pr.eps_cno.push(s.nuc.cno);
         pr.eps_3a.push(s.nuc.triple_alpha);
+        pr.eps_ca.push(s.nuc.c_alpha);
         pr.eps.push(s.eps());
         pr.eps_grav.push(problem.eps_grav_at(k, &y[k * NVAR..(k + 1) * NVAR]));
         pr.nabla_rad.push(s.nabla_rad);
@@ -618,6 +682,8 @@ pub(crate) fn build_model(
         pr.x.push(c.x);
         pr.y.push(c.y);
         pr.z.push(c.z);
+        pr.x_c.push(c.x_c);
+        pr.x_o.push(c.x_o);
         pr.pp_phi.push(s.nuc.pp_phi);
         u.push(s.eos.u);
         pr.cs.push(seismic::sound_speed(s.eos.gamma1, s.p, s.rho()));
@@ -697,7 +763,8 @@ pub(crate) fn build_model(
     let e_pp = trap(&|k| pr.eps_pp[k]);
     let e_cno = trap(&|k| pr.eps_cno[k]);
     let e_3a = trap(&|k| pr.eps_3a[k]);
-    let e_tot = (e_pp + e_cno + e_3a).max(f64::MIN_POSITIVE);
+    let e_ca = trap(&|k| pr.eps_ca[k]);
+    let e_tot = (e_pp + e_cno + e_3a + e_ca).max(f64::MIN_POSITIVE);
     // Energy generated, with the solver's own midpoint rule: this verifies
     // that the converged solution conserves energy globally. (A point-based
     // quadrature would mostly measure how well thin burning shells are sampled.)
@@ -715,7 +782,7 @@ pub(crate) fn build_model(
     let e_int = trap(&|k| u[k]) + u[0] * pr.m[0];
     let e_grav_total = -grav - 0.6 * G * pr.m[0] * pr.m[0] / pr.r[0];
     let e_nuc = e_nuc_mid + pr.eps[0] * pr.m[0];
-    let screening = screening_diagnostic(problem.physics, &problem.comp, &pr, [e_pp, e_cno, e_3a]);
+    let screening = screening_diagnostic(problem.physics, &problem.comp, &pr, [e_pp, e_cno, e_3a, e_ca]);
 
     // Hydrogen-exhausted core: contiguous points from the centre with X < 10⁻³.
     let he_core_q = pr.x.iter().zip(&pr.q).take_while(|(x, _)| **x < 1e-3).last().map(|(_, q)| *q).unwrap_or(0.0);
@@ -729,6 +796,8 @@ pub(crate) fn build_model(
         phase: Phase::Zams,
         x_c: pr.x[0],
         y_c: pr.y[0],
+        c_c: pr.x_c[0],
+        o_c: pr.x_o[0],
         he_core_q,
         mean_density,
         nu_max_uhz: 3090.0 * (g_surf / g_sun) * (teff / TEFF_SUN).powf(-0.5),
@@ -762,6 +831,7 @@ pub(crate) fn build_model(
         frac_pp: e_pp / e_tot,
         frac_cno: e_cno / e_tot,
         frac_3a: e_3a / e_tot,
+        frac_ca: e_ca / e_tot,
         virial_ratio: thermal / grav,
         energy_ratio: (e_nuc_mid + e_grav + pr.l[0]) / lum,
         newton_iterations,
@@ -782,21 +852,22 @@ pub(crate) fn build_model(
 }
 
 /// Largest screening exponent over the burning channels and points (see
-/// [`ScreeningDiagnostic`]). `lum` are the luminosities of pp, CNO and 3α.
+/// [`ScreeningDiagnostic`]). `lum` are the luminosities of pp, CNO, 3α and
+/// ¹²C(α,γ)¹⁶O. The electrons screen as in the EOS (its η).
 fn screening_diagnostic(
     physics: &crate::physics::Physics,
     comp: &[Composition],
     pr: &Profile,
-    lum: [f64; 3],
+    lum: [f64; 4],
 ) -> ScreeningDiagnostic {
-    const NAMES: [&str; 3] = ["³He + ³He (pp chain)", "p + ¹⁴N (CNO)", "α + ⁸Be (triple-α)"];
+    const NAMES: [&str; 4] = ["³He + ³He (pp chain)", "p + ¹⁴N (CNO)", "triple-α (both stages)", "¹²C + α"];
     let total: f64 = lum.iter().sum();
-    let eps = [&pr.eps_pp, &pr.eps_cno, &pr.eps_3a];
+    let eps = [&pr.eps_pp, &pr.eps_cno, &pr.eps_3a, &pr.eps_ca];
     let mut diag = ScreeningDiagnostic { cap: physics.nuclear.screening_cap(), ..Default::default() };
     if !(total > 0.0) {
         return diag;
     }
-    for ch in 0..3 {
+    for ch in 0..4 {
         if !(lum[ch] >= 0.01 * total) {
             continue;
         }
@@ -805,8 +876,9 @@ fn screening_diagnostic(
             if !(eps[ch][k] >= 0.01 * peak) {
                 continue;
             }
-            let Some(s) = physics.nuclear.screening(pr.rho[k], pr.t[k], &comp[k]) else { continue };
-            let e = [s.pp, s.cno, s.triple_alpha][ch];
+            let eta = physics.eos.eval(pr.p[k], pr.t[k], &comp[k]).eta;
+            let Some(s) = physics.nuclear.screening_eta(pr.rho[k], pr.t[k], eta, &comp[k]) else { continue };
+            let e = [s.pp, s.cno, s.triple_alpha, s.c_alpha][ch];
             if e > diag.max_exponent {
                 diag.max_exponent = e;
                 diag.reaction = NAMES[ch].to_string();

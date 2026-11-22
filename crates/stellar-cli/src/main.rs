@@ -63,6 +63,9 @@ struct Args {
     /// Mass loss for --evolve: de Jager et al. (1988) above 8000 K, Reimers below (off by default)
     #[arg(long)]
     wind: bool,
+    /// Keep the base mesh during --evolve (no refinement of burning shells and composition steps)
+    #[arg(long)]
+    no_remesh: bool,
     /// Factor applied to the wind rates (with --wind)
     #[arg(long, default_value_t = 1.0)]
     wind_efficiency: f64,
@@ -142,7 +145,20 @@ fn print_summary(m: &StarModel) {
     println!("  T_eff  = {:.0} K   log g = {:.3}", g.teff, g.log_g);
     println!("  T_c    = {:.4e} K   ρ_c = {:.4e} g/cm³   P_c = {:.4e} dyn/cm²", g.tc, g.rhoc, g.pc);
     println!("  gravitational redshift v_z = GM/(Rc) = {:.0} m/s", g.grav_redshift_m_s);
-    println!("  energy: pp {:.1}%  CNO {:.1}%  3α {:.2}%", 100.0 * g.frac_pp, 100.0 * g.frac_cno, 100.0 * g.frac_3a);
+    println!(
+        "  energy: pp {:.1}%  CNO {:.1}%  3α {:.2}%  ¹²C(α,γ) {:.2}%",
+        100.0 * g.frac_pp,
+        100.0 * g.frac_cno,
+        100.0 * g.frac_3a,
+        100.0 * g.frac_ca
+    );
+    if g.c_c + g.o_c > 0.0 {
+        let ratio = if g.o_c > 0.0 { format!("{:.3}", g.c_c / g.o_c) } else { "∞".into() };
+        println!(
+            "  centre: X = {:.4}, Y = {:.4}, carbon {:.4}, oxygen {:.4} (from helium burning), C/O = {ratio}",
+            g.x_c, g.y_c, g.c_c, g.o_c
+        );
+    }
     if g.conv_core_q > 0.0 {
         println!("  convective core: m/M = {:.4}, r/R = {:.4}", g.conv_core_q, g.conv_core_r);
         if m.params.alpha_ov > 0.0 {
@@ -200,6 +216,15 @@ fn print_summary(m: &StarModel) {
             "  run: total-energy residual {:.2e} (composition term {:.2e}, numerical {:.2e}); fuel accounting {:.5}",
             c.residual, c.composition, c.numerical, c.fuel_ratio
         );
+        if c.fuel_by_channel[1..].iter().any(Option::is_some) {
+            let f = |v: Option<f64>| v.map_or("–".to_string(), |v| format!("{v:.4}"));
+            println!(
+                "  run: fuel accounting per channel (fuel × Q / ∫∫ε): H {}, 3α {}, ¹²C(α,γ) {}",
+                f(c.fuel_by_channel[0]),
+                f(c.fuel_by_channel[1]),
+                f(c.fuel_by_channel[2])
+            );
+        }
         if let Some(run) = &g.run {
             println!("  run: largest screening exponent {:.3}", run.max_screening);
             if run.wind_mass > 0.0 {
@@ -328,6 +353,9 @@ fn evolve(args: &Args, base: &StarParams, physics: &Physics, ctl: &mut Printer) 
     };
     wind.validate().map_err(anyhow::Error::msg)?;
     let mut opts = EvolutionOptions { stop, wind, ..Default::default() };
+    if args.no_remesh {
+        opts.remesh = None;
+    }
     if let (Some(a), false) = (args.max_age, matches!(stop, StopCondition::Age(_))) {
         opts.max_age_yr = a * 1e9;
     }

@@ -802,9 +802,8 @@ impl StarApp {
             let s = &g.screening;
             row(
                 "Screening exponent",
-                "largest exponent of the weak-screening factors, over the reactions that supply at least 1% of \
-                 the nuclear energy. Weak screening holds while it is small: above 0.3 the rates are approximate, \
-                 at the cap (2) unreliable",
+                "largest screening exponent (all regimes, Chugunov & DeWitt), over the reactions that supply at \
+                 least 1% of the nuclear energy. Above 0.3 screening is not weak; helium ignition is not validated",
                 if s.reaction.is_empty() { "–".into() } else { format!("{:.3}", s.max_exponent) },
                 "–".into(),
             );
@@ -1194,8 +1193,9 @@ impl eframe::App for StarApp {
 
 /// Compact phase name for the results table.
 /// Why post-main-sequence models are only qualitative.
-pub const POST_MS_NOTE: &str = "Not modelled: electron degeneracy, H/He ionization, conductive opacity, neutrino losses, \
-     strong screening and molecular opacities. The mass mesh is fixed, so thin burning shells are not resolved.";
+pub const POST_MS_NOTE: &str = "With the default (analytic) physics, not modelled: electron degeneracy, H/He ionization, \
+     conductive opacity and molecular opacities; neutrino losses are missing with any physics. Thin burning shells are \
+     resolved by remeshing.";
 
 fn short_phase(p: stellar_core::Phase) -> &'static str {
     use stellar_core::Phase::*;

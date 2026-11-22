@@ -9,7 +9,7 @@ P = P_{\mathrm{gas}} + P_{\mathrm{rad}} = \frac{\rho\, k\, T}{\mu\, m_u} + \frac
 *Mean molecular weight (full ionisation)*
 
 ```math
-\frac{1}{\mu} = 2X + \frac{3}{4}\,Y + \frac{1}{2}\,Z
+\frac{1}{\mu} = 2X + \frac{3}{4}\,Y + \frac{1}{2}\,Z + \frac{7}{12}\,X_{\mathrm{C}} + \frac{9}{16}\,X_{\mathrm{O}}
 ```
 
 ```math
@@ -175,7 +175,7 @@ more helium per p + p reaction; $`\psi`$ accounts for it (pp III is neglected):
 ```
 
 ```math
-n_p = \frac{\rho X}{m_{\mathrm{H}}}, \qquad n_{14} = \frac{\rho X_{\mathrm{CNO}}}{m_{14}}, \qquad X_{\mathrm{CNO}} = f_{\mathrm{CNO}}\, Z, \qquad E_{\mathrm{I}} = 26.20\ \mathrm{MeV}, \qquad E_{\mathrm{CNO}} = 25.03\ \mathrm{MeV}
+n_p = \frac{\rho X}{m_{\mathrm{H}}}, \qquad n_{14} = \frac{\rho X_{\mathrm{CNO}}}{m_{14}}, \qquad X_{\mathrm{CNO}} = f_{\mathrm{CNO}}\, Z + X_{\mathrm{C}}, \qquad E_{\mathrm{I}} = 26.20\ \mathrm{MeV}, \qquad E_{\mathrm{CNO}} = 25.03\ \mathrm{MeV}
 ```
 
 *Triple-α* (Kippenhahn & Weigert 1990)
@@ -184,7 +184,26 @@ n_p = \frac{\rho X}{m_{\mathrm{H}}}, \qquad n_{14} = \frac{\rho X_{\mathrm{CNO}}
 \varepsilon_{3\alpha} = 5.09\times10^{11}\;\rho^2\, Y^3\, f_{4}\, f_{8}\; T_8^{-3}\, \exp\!\left(-\frac{44.027}{T_8}\right)
 ```
 
-*Weak electron screening* (Salpeter / Clayton)
+*¹²C(α,γ)¹⁶O* on the carbon made by helium burning (Caughlan & Fowler 1988)
+
+```math
+\varepsilon_{\mathrm{C}\alpha} = f_{\mathrm{C}\alpha}\,\rho\, X_{\mathrm{C}}\, Y\, N_A\langle\sigma v\rangle_{\mathrm{CF88}}\, f_{2,6}\,\frac{Q_{\mathrm{C}\alpha}}{4}, \qquad Q_{\mathrm{C}\alpha} = \frac{7.162\ \mathrm{MeV}}{12\,m_u}
+```
+
+The rate multiplier $`f_{\mathrm{C}\alpha}`$ is 1 (CF88); MESA uses 1.7 with the same fit, which shows
+the present uncertainty. Carbon and oxygen made by helium burning are tracked separately from the
+initial metals $`Z`$; carbon mixed into hydrogen joins the CNO catalysts.
+
+*Electron screening for all regimes* (Chugunov & DeWitt 2009, with the electron factor of
+Potekhin & Chabrier 2012; triple-α in two static stages)
+
+```math
+\ln f_{ij} = \frac{C_{ij} + \Gamma_{ij}^{2}}{1 + \Gamma_{ij}^{2}}\left[f_0\!\left(\frac{\Gamma_i}{t_{ij}}\right) + f_0\!\left(\frac{\Gamma_j}{t_{ij}}\right) - f_0\!\left(\frac{\Gamma_c}{t_{ij}}\right)\right]\sqrt{1 + k_{\mathrm{TF}}^{2}\,\tilde D_{\mathrm{ion}}^{2}}, \qquad \Gamma_s = Z_s^{5/3}\,\frac{e^2}{a_e kT}, \qquad \ln f_{3\alpha} = \ln f_{2,2} + \ln f_{4,2}\ \ (t_{ij} = 1)
+```
+
+$`f_0`$ is the free energy of a one-component plasma, $`t_{ij}`$ a quantum correction, and the
+square root the screening by electrons, whose degeneracy comes from the EOS (classical with the
+ideal EOS). In the weak limit this is the Salpeter formula:
 
 ```math
 f_{Z_1 Z_2} = \exp\!\left(0.188\, Z_1 Z_2\, \zeta\, \rho^{1/2}\, T_6^{-3/2}\right), \qquad \zeta^2 = 2X + 1.5\,Y + 4Z
@@ -198,10 +217,11 @@ The charge products are:
 | p + ¹⁴N (the slowest CNO step) | 7 |
 | α + α | 4 |
 | α + ⁸Be | 8 |
+| ¹²C + α | 12 |
 
-The screening exponent is capped at 2, since weak screening is only valid for small values. Every model
-reports its largest exponent, with a warning above 0.3 and at the cap (see
-[Results](04-results.md#screening-exponent)).
+The exponent is not capped. At the centre of the Sun the rates differ from the weak formula by
+−0.8% (pp) and −12% (CNO: nitrogen is already moderately coupled). Every model reports its largest
+exponent, with a warning above 0.3 (see [Results](04-results.md#screening-exponent)).
 
 > EOS, opacity and nuclear rates sit behind interfaces (`Eos`, `Opacity`, `Nuclear`), so tabulated
 > physics can replace them without touching the solver.

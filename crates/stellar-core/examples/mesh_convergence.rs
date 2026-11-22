@@ -45,6 +45,8 @@ fn opts(end: f64) -> EvolutionOptions {
         dx_max: 1.0,
         reject_factor: 1e9,
         pulsation: false,
+        // The nested fixed meshes are the subject of this study: no remeshing.
+        remesh: None,
         ..Default::default()
     }
 }

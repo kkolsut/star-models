@@ -25,7 +25,7 @@ fn main() {
             continue;
         }
         last_lt = lt;
-        let c = stellar_core::Composition { x: p.x[k], y: p.y[k], z: p.z[k], x_cno: 0.7 * p.z[k] };
+        let c = p.composition_at(k, 0.7);
         let ka = AnalyticOpacity.kappa(p.rho[k], p.t[k], &c);
         let parts = tab.parts(p.rho[k], p.t[k], &c);
         let kt = tab.kappa(p.rho[k], p.t[k], &c);

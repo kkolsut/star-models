@@ -44,7 +44,6 @@ use super::interp::{Hermite1, Hermite2, hermite_weights, smoothstep};
 use super::opacity::AnalyticOpacity;
 use crate::composition::Composition;
 use crate::constants::SIGMA_SB;
-use crate::mixture;
 
 const OPAL_GN93: &str = include_str!("../../data/opal/GN93hz");
 const POTEKHIN: &str = include_str!("../../data/potekhin/condtab21wd.dat");
@@ -413,16 +412,14 @@ impl ConductionTable {
 }
 
 /// Effective ion charge ⟨Z²⟩^{1/2}, averaged over the ions by number
-/// (Cassisi et al. 2007, §2.2.3), for H, He and the metal mixture.
+/// (Cassisi et al. 2007, §2.2.3), for H, He, the metal mixture and the
+/// carbon and oxygen made by helium burning.
 pub fn effective_charge(c: &Composition) -> f64 {
-    let n_h = c.x;
-    let n_he = c.y / 4.0;
-    let n_z = c.z / mixture::GN93.mean_a;
-    let n = n_h + n_he + n_z;
+    let n = c.ions_per_mu();
     if !(n > 0.0) {
         return 1.0;
     }
-    ((n_h + 4.0 * n_he + mixture::GN93.mean_z2 * n_z) / n).sqrt()
+    (c.z2_per_mu() / n).sqrt()
 }
 
 fn parse_opal(text: &str) -> Vec<KappaTable> {
@@ -556,12 +553,12 @@ impl TabulatedOpacity {
         let wo = smoothstep((lt - BLEND_LOG_T.0) / (BLEND_LOG_T.1 - BLEND_LOG_T.0));
         let (mut lk, mut w) = (0.0, 0.0);
         if wo > 0.0 {
-            let (f, wt) = d.opal.eval(c.x, c.z, lt, lr);
+            let (f, wt) = d.opal.eval(c.x, c.z_all(), lt, lr);
             lk += wo * f;
             w += wo * wt;
         }
         if wo < 1.0 {
-            let (f, wt) = d.low_t.eval(c.x, c.z, lt, lr);
+            let (f, wt) = d.low_t.eval(c.x, c.z_all(), lt, lr);
             lk += (1.0 - wo) * f;
             w += (1.0 - wo) * wt;
         }
@@ -579,12 +576,13 @@ impl TabulatedOpacity {
     /// clamped, or Z > 0.1 as after helium burning); `None` inside.
     pub fn composition_note(c: &Composition) -> Option<&'static str> {
         let d = data();
-        if c.z > Z_MAX + 1e-12 {
+        let z = c.z_all();
+        if z > Z_MAX + 1e-12 {
             Some(
                 "Z above 0.1 (carbon and oxygen from helium burning): opacity taken from the Z = 0.1 \
                  scaled-solar tables; results qualitative (type 2 C/O tables not used)",
             )
-        } else if !d.opal.covers(c.x, c.z) || !d.low_t.covers(c.x, c.z) {
+        } else if !d.opal.covers(c.x, z) || !d.low_t.covers(c.x, z) {
             Some("composition outside the opacity tables: clamped to the nearest tabulated X, Z")
         } else {
             None
@@ -612,7 +610,7 @@ mod tests {
     use super::*;
 
     fn comp(x: f64, z: f64) -> Composition {
-        Composition::new(x, z, mixture::GN93.f_cno).unwrap()
+        Composition::new(x, z, crate::mixture::GN93.f_cno).unwrap()
     }
 
     #[test]
@@ -735,7 +733,7 @@ mod tests {
         }
         assert!(TabulatedOpacity::composition_note(&comp(0.7, 0.02)).is_none());
         assert!(TabulatedOpacity::composition_note(&comp(0.0, 0.02)).is_none());
-        let co_rich = Composition { x: 0.0, y: 0.5, z: 0.5, x_cno: 0.5 };
+        let co_rich = Composition { x: 0.0, y: 0.5, z: 0.5, x_cno: 0.5, x_c: 0.0, x_o: 0.0 };
         assert!(TabulatedOpacity::composition_note(&co_rich).is_some());
         // Clamped: Z = 0.5 gives the Z = 0.1 value.
         let (a, _) = d.opal.eval(0.0, 0.5, 7.0, -3.0);

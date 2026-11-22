@@ -5,16 +5,20 @@
 //!    mass-averaged composition (a convective core is first extended by step
 //!    overshoot, r_ov = r_cc + α_ov min(H_P(r_cc), r_cc); mixing only, the
 //!    temperature gradient there stays radiative). Then hydrogen burns to
-//!    helium, X ← X − (ε_pp/Q_pp^eff + ε_CNO/Q_CNO) Δt, and helium to carbon,
-//!    Y ← Y − ε_3α Δt / Q_He. A mixed zone burns as one unit at its
-//!    mass-averaged rate, limited to what it contains.
+//!    helium, X ← X − (ε_pp/Q_pp^eff + ε_CNO/Q_CNO) Δt, helium to carbon,
+//!    ΔX_C = ε_3α Δt / Q_He, and carbon to oxygen by ¹²C(α,γ)¹⁶O,
+//!    ΔX_O = (4/3) ε_Cα Δt / Q_Cα with X_C and Y losing ε_Cα Δt/Q_Cα and
+//!    a third of that (plan 9.5; Z₀ is not changed by burning). A mixed zone
+//!    burns as one unit at its mass-averaged rate, limited to what it contains.
+//!    The CNO catalysts are f_CNO Z₀ + X_C.
 //! 2. Structure: the four structure equations are solved for the new
 //!    composition, with the gravitational energy term
 //!    ε_grav = −c_P T (Δ ln T − ∇_ad Δ ln P) / Δt evaluated implicitly
 //!    against the previous model on the same mass mesh (Henyey method,
 //!    warm-started from the previous model).
-//! 3. Time-step control: Δt is limited by the hydrogen and helium consumption
-//!    (ΔX, ΔY ≤ dx_max per shell, and ≤ 30% of the local X, Y), by the mass
+//! 3. Time-step control: Δt is limited by the hydrogen, helium and carbon
+//!    consumption (ΔX, ΔY, ΔX_C ≤ dx_max per shell, and ≤ 30% of the local
+//!    value), by the mass
 //!    lost to a wind (|ΔM|/M ≤ `dm_max`) and by the structural change per step
 //!    (target `dlog_target` in ln r, ln P, ln T and ln L). A rejected or failed
 //!    step is retried with a smaller Δt.
@@ -26,20 +30,27 @@
 //! new m_k = q_k M at fixed m ([`remap_fixed_mass`]), so that ε_grav compares
 //! the same gas.
 //!
+//! Before each step the mesh is refined where the previous model does not
+//! resolve ln P, ln T, X or the nuclear luminosity ([`super::remesh`], plan 5.R;
+//! on by default, [`EvolutionOptions::remesh`]). The burnt composition is
+//! remapped conservatively to the new points, the previous ln P, ln T are
+//! interpolated to them at fixed m.
+//!
 //! Along the run the totals of the total-energy check are accumulated
 //! ([`RunTotals`]): ∫L dt, ∫∫ε_nuc dm dt, the composition term omitted from
 //! ε_grav and the energy of the gas removed by the wind; with
 //! Δ(E_int + E_grav) they close to the discretisation error.
 
 use super::equations::{I_L, I_LNP, I_LNR, I_LNT, NVAR, PrevStep};
-use super::mesh::{outer_integral, remap_fixed_mass};
+use super::mesh::{make_mesh, outer_integral, remap, remap_fixed_mass};
 use super::model::{ConvectiveZone, Phase, Profile, RunTotals, StarModel, StarParams};
+use super::remesh::{RemeshOptions, refine_mesh, remap_composition};
 use super::solve::{SolveControl, SolveError, solve_structure};
 use crate::composition::Composition;
 use crate::constants::{G, L_SUN, YEAR};
 use crate::physics::Physics;
 use crate::physics::mass_loss::Wind;
-pub use crate::physics::nuclear::{Q_CNO, Q_HE, Q_PP_I, q_pp_eff};
+pub use crate::physics::nuclear::{Q_C_ALPHA, Q_CNO, Q_HE, Q_PP_I, q_pp_eff};
 use crate::pulsation;
 use crate::solver::NewtonOptions;
 
@@ -73,6 +84,8 @@ pub struct EvolutionOptions {
     pub wind: Wind,
     /// Largest relative mass change |ΔM|/M per step with a wind.
     pub dm_max: f64,
+    /// Remeshing before every step (plan 5.R); `None` keeps the base mesh.
+    pub remesh: Option<RemeshOptions>,
 }
 
 impl Default for EvolutionOptions {
@@ -87,6 +100,7 @@ impl Default for EvolutionOptions {
             pulsation: true,
             wind: Wind::Off,
             dm_max: 1e-3,
+            remesh: Some(RemeshOptions::default()),
         }
     }
 }
@@ -231,6 +245,20 @@ impl Evolution {
         }
         let ln_p: Vec<f64> = (0..old.profile.len()).map(|k| old.solution[k * NVAR + I_LNP]).collect();
         let ln_t: Vec<f64> = (0..old.profile.len()).map(|k| old.solution[k * NVAR + I_LNT]).collect();
+        // The mesh of this step (the old one without remeshing).
+        let q_old = &old.profile.q;
+        let q_new = match &self.opts.remesh {
+            Some(o) => refine_mesh(old, &make_mesh(old.params.n_points), o),
+            None => q_old.clone(),
+        };
+        let remeshed = q_new != *q_old;
+        // The old solution on the new mesh: the starting guess, and the
+        // reference of the structural change per step.
+        let (y_old, y0) = if remeshed {
+            (remap(q_old, &old.solution, NVAR, &q_new), remap(q_old, &y0, NVAR, &q_new))
+        } else {
+            (old.solution.clone(), y0)
+        };
 
         let mut attempts = 0;
         loop {
@@ -239,17 +267,26 @@ impl Evolution {
             // below the lower mass limit of the model.
             let mass_new = (mass_old + mdot * dt).max(StarParams::MASS_RANGE.0.min(mass_old));
             let comps_burnt = advance_composition(old, dt * YEAR);
-            let (comps, prev) = if mass_new != mass_old {
-                at_fixed_mass(&old.profile.q, &comps_burnt, &ln_p, &ln_t, mass_old, mass_new, dt * YEAR)
+            let (mut comps, mut prev) = if mass_new != mass_old {
+                at_fixed_mass(q_old, &comps_burnt, &ln_p, &ln_t, mass_old, mass_new, dt * YEAR, old.params.f_cno)
             } else {
                 (comps_burnt.clone(), PrevStep { ln_p: ln_p.clone(), ln_t: ln_t.clone(), dt: dt * YEAR })
             };
+            if remeshed {
+                let m_old: Vec<f64> = q_old.iter().map(|q| q * mass_new).collect();
+                let m_new: Vec<f64> = q_new.iter().map(|q| q * mass_new).collect();
+                comps = remap_composition(&m_old, &comps, &m_new, old.params.f_cno);
+                let pt: Vec<f64> = prev.ln_p.iter().zip(&prev.ln_t).flat_map(|(p, t)| [*p, *t]).collect();
+                let pt = remap(q_old, &pt, 2, &q_new);
+                prev.ln_p = pt.iter().step_by(2).copied().collect();
+                prev.ln_t = pt.iter().skip(1).step_by(2).copied().collect();
+            }
             let opts = NewtonOptions { max_iter: 40, tol: 1e-8 };
             match solve_structure(
                 &old.params,
                 mass_new,
                 physics,
-                &old.profile.q,
+                &q_new,
                 comps,
                 Some(prev),
                 y0.clone(),
@@ -258,7 +295,7 @@ impl Evolution {
                 ctl,
             ) {
                 Ok(mut m) => {
-                    let change = max_change(old, &m);
+                    let change = max_change(&y_old, old.globals.luminosity, &m);
                     if change > self.opts.reject_factor * self.opts.dlog_target && dt > MIN_DT_YR && attempts < 12 {
                         dt *= 0.5;
                         continue;
@@ -293,6 +330,7 @@ impl Evolution {
 /// Composition (after the composition step, on the old star's mesh) and the
 /// previous model's ln P, ln T, interpolated to the points m_k = q_k M_new of
 /// a star whose mass changed from `mass_old` to `mass_new`, at fixed m.
+#[allow(clippy::too_many_arguments)]
 fn at_fixed_mass(
     q: &[f64],
     comps: &[Composition],
@@ -301,18 +339,11 @@ fn at_fixed_mass(
     mass_old: f64,
     mass_new: f64,
     dt_s: f64,
+    f_cno: f64,
 ) -> (Vec<Composition>, PrevStep) {
-    let xyz: Vec<f64> = comps.iter().flat_map(|c| [c.x, c.y, c.z]).collect();
-    let xyz = remap_fixed_mass(q, &xyz, 3, mass_old, mass_new);
-    let comps = comps
-        .iter()
-        .enumerate()
-        .map(|(k, c)| {
-            let (x, y, z) = (xyz[3 * k].max(0.0), xyz[3 * k + 1].max(0.0), xyz[3 * k + 2].max(0.0));
-            let s = x + y + z;
-            Composition { x: x / s, y: y / s, z: z / s, x_cno: c.x_cno }
-        })
-        .collect();
+    let v: Vec<f64> = comps.iter().flat_map(|c| [c.x, c.y, c.z, c.x_c, c.x_o]).collect();
+    let v = remap_fixed_mass(q, &v, 5, mass_old, mass_new);
+    let comps = v.chunks(5).map(|c| normalised(c[0], c[1], c[2], c[3], c[4], f_cno)).collect();
     let pt: Vec<f64> = ln_p.iter().zip(ln_t).flat_map(|(p, t)| [*p, *t]).collect();
     let pt = remap_fixed_mass(q, &pt, 2, mass_old, mass_new);
     let prev = PrevStep {
@@ -348,22 +379,36 @@ fn point_masses(m: &[f64]) -> Vec<f64> {
         .collect()
 }
 
-/// Consumption rates per point [s⁻¹]: hydrogen, (ε_pp/Q_pp^eff + ε_CNO/Q_CNO),
-/// and helium by the triple-α reaction, ε_3α/Q_He. Each is averaged over every
-/// mixed zone, which burns as one unit.
-pub fn burning_rates(model: &StarModel) -> (Vec<f64>, Vec<f64>) {
+/// Consumption rates per point [s⁻¹].
+#[derive(Clone, Debug, Default)]
+pub struct BurningRates {
+    /// Hydrogen, ε_pp/Q_pp^eff + ε_CNO/Q_CNO.
+    pub h: Vec<f64>,
+    /// Helium by the triple-α reaction, ε_3α/Q_He (= carbon production).
+    pub he: Vec<f64>,
+    /// Carbon by ¹²C(α,γ)¹⁶O, ε_Cα/Q_Cα.
+    pub c: Vec<f64>,
+}
+
+/// Consumption rates per point, each averaged over every mixed zone, which
+/// burns as one unit.
+pub fn burning_rates(model: &StarModel) -> BurningRates {
     let p = &model.profile;
-    let mut h: Vec<f64> = (0..p.len()).map(|k| p.eps_pp[k] / q_pp_eff(p.phi_at(k)) + p.eps_cno[k] / Q_CNO).collect();
-    let mut he: Vec<f64> = p.eps_3a.iter().map(|e| e / Q_HE).collect();
+    let n = p.len();
+    let mut r = BurningRates {
+        h: (0..n).map(|k| p.eps_pp[k] / q_pp_eff(p.phi_at(k)) + p.eps_cno[k] / Q_CNO).collect(),
+        he: p.eps_3a.iter().map(|e| e / Q_HE).collect(),
+        c: (0..n).map(|k| p.eps_ca_at(k) / Q_C_ALPHA).collect(),
+    };
     let dm = point_masses(&p.m);
     for (a, b) in mixed_runs(model) {
         let mass: f64 = dm[a..=b].iter().sum::<f64>().max(f64::MIN_POSITIVE);
-        for rate in [&mut h, &mut he] {
+        for rate in [&mut r.h, &mut r.he, &mut r.c] {
             let avg = (a..=b).map(|k| rate[k] * dm[k]).sum::<f64>() / mass;
-            rate[a..=b].iter_mut().for_each(|r| *r = avg);
+            rate[a..=b].iter_mut().for_each(|v| *v = avg);
         }
     }
-    (h, he)
+    r
 }
 
 /// Largest change of a mass fraction allowed in one step: min(dx_max, max(0.3 v, 10⁻⁵)).
@@ -371,10 +416,12 @@ fn fraction_limit(v: f64, dx_max: f64) -> f64 {
     dx_max.min((0.3 * v).max(1e-5))
 }
 
-/// Largest time step [s] keeping the hydrogen and helium changes per shell within limits.
+/// Largest time step [s] keeping the hydrogen, helium and carbon consumption
+/// per shell within limits.
 fn burn_limit_s(model: &StarModel, dx_max: f64) -> f64 {
-    let (h, he) = burning_rates(model);
+    let r = burning_rates(model);
     let p = &model.profile;
+    let x_c: Vec<f64> = (0..p.len()).map(|k| p.c_o_at(k).0).collect();
     let limit = |rates: &[f64], v: &[f64]| {
         rates
             .iter()
@@ -383,7 +430,17 @@ fn burn_limit_s(model: &StarModel, dx_max: f64) -> f64 {
             .map(|(rate, v)| fraction_limit(*v, dx_max) / rate)
             .fold(f64::INFINITY, f64::min)
     };
-    limit(&h, &p.x).min(limit(&he, &p.y))
+    limit(&r.h, &p.x).min(limit(&r.he, &p.y)).min(limit(&r.c, &x_c))
+}
+
+/// ∫X_C dm and ∫X_O dm of the produced carbon and oxygen [g].
+pub fn carbon_oxygen_mass(model: &StarModel) -> [f64; 2] {
+    let p = &model.profile;
+    let dm = point_masses(&p.m);
+    (0..p.len()).fold([0.0, 0.0], |acc, k| {
+        let (c, o) = p.c_o_at(k);
+        [acc[0] + dm[k] * c, acc[1] + dm[k] * o]
+    })
 }
 
 /// ∫X dm with the point masses of the composition step [g].
@@ -397,7 +454,7 @@ pub fn hydrogen_mass(model: &StarModel) -> f64 {
 pub fn q_h_eff(model: &StarModel) -> f64 {
     let p = &model.profile;
     let dm = point_masses(&p.m);
-    let (h, _) = burning_rates(model);
+    let h = burning_rates(model).h;
     let power: f64 = (0..p.len()).map(|k| dm[k] * (p.eps_pp[k] + p.eps_cno[k])).sum();
     let rate: f64 = (0..p.len()).map(|k| dm[k] * h[k]).sum();
     if rate > 0.0 { power / rate } else { Q_PP_I }
@@ -419,7 +476,7 @@ fn accumulate_run(old: &StarModel, new: &StarModel, comps: &[Composition], physi
         wind_hydrogen = x_s * lost;
         let e: Vec<f64> = (0..n)
             .map(|k| {
-                let c = Composition { x: p.x[k], y: p.y[k], z: p.z[k], x_cno: comps[k].x_cno };
+                let c = p.composition_at(k, old.params.f_cno);
                 physics.eos.eval(p.p[k], p.t[k], &c).u - G * p.m[k] / p.r[k]
             })
             .collect();
@@ -429,6 +486,24 @@ fn accumulate_run(old: &StarModel, new: &StarModel, comps: &[Composition], physi
     }
     // Hydrogen burnt: the loss of ∫X dm less what the wind carried off.
     run.fuel += (hydrogen_mass(old) - hydrogen_mass(new) - wind_hydrogen) * q_h_eff(old);
+    // Helium burning, per channel (plan 9.5): oxygen made is (4/3) × carbon
+    // burnt by ¹²C(α,γ); carbon made by triple-α is the gain of ∫X_C dm plus
+    // the carbon turned into oxygen. The wind carries the surface values.
+    let (c_s, o_s) = p.c_o_at(n - 1);
+    let [c_old, o_old] = carbon_oxygen_mass(old);
+    let [c_new, o_new] = carbon_oxygen_mass(new);
+    let oxygen_made = o_new - o_old + o_s * lost;
+    let carbon_made = c_new - c_old + c_s * lost + 0.75 * oxygen_made;
+    run.fuel_3a += carbon_made * Q_HE;
+    run.fuel_ca += 0.75 * oxygen_made * Q_C_ALPHA;
+    let g = &new.globals;
+    run.nuc_dt_h += g.e_nuc * (g.frac_pp + g.frac_cno) * dt_s;
+    // The helium channels integrate the rates the composition step used (those
+    // of the previous model): ε_Cα grows with X_C by up to 10% per step, and
+    // the rates of the new model would leave a lag of several per cent.
+    let g_old = &old.globals;
+    run.nuc_dt_3a += g_old.e_nuc * g_old.frac_3a * dt_s;
+    run.nuc_dt_ca += g_old.e_nuc * g_old.frac_ca * dt_s;
     // Composition term of ε_grav, −(∂h/∂X_i)_{P,T} dX_i/dt, evaluated at the
     // previous (P, T): Σ Δm [h(P, T, X_new) − h(P, T, X_old)], h = u + P/ρ.
     let dm = point_masses(&p.m);
@@ -438,7 +513,7 @@ fn accumulate_run(old: &StarModel, new: &StarModel, comps: &[Composition], physi
     };
     run.comp_term += (0..p.len())
         .map(|k| {
-            let c_old = Composition { x: p.x[k], y: p.y[k], z: p.z[k], x_cno: comps[k].x_cno };
+            let c_old = p.composition_at(k, old.params.f_cno);
             dm[k] * (h(k, &comps[k]) - h(k, &c_old))
         })
         .sum::<f64>();
@@ -528,45 +603,53 @@ pub fn advance_composition(model: &StarModel, dt_s: f64) -> Vec<Composition> {
     let p = &model.profile;
     let n = p.len();
     let (mut x, mut y, mut z) = (p.x.clone(), p.y.clone(), p.z.clone());
+    let (mut xc, mut xo): (Vec<f64>, Vec<f64>) = (0..n).map(|k| p.c_o_at(k)).unzip();
     let dm = point_masses(&p.m);
     for (a, b) in mixed_runs(model) {
         let mass: f64 = dm[a..=b].iter().sum::<f64>().max(f64::MIN_POSITIVE);
-        let avg = |v: &[f64]| (a..=b).map(|k| v[k] * dm[k]).sum::<f64>() / mass;
-        let (xa, ya, za) = (avg(&x), avg(&y), avg(&z));
-        for k in a..=b {
-            x[k] = xa;
-            y[k] = ya;
-            z[k] = za;
+        for v in [&mut x, &mut y, &mut z, &mut xc, &mut xo] {
+            let avg = (a..=b).map(|k| v[k] * dm[k]).sum::<f64>() / mass;
+            v[a..=b].iter_mut().for_each(|e| *e = avg);
         }
     }
-    let (h_rate, he_rate) = burning_rates(model);
+    let r = burning_rates(model);
     for k in 0..n {
-        let burnt_h = (h_rate[k] * dt_s).min(x[k]).max(0.0);
+        let burnt_h = (r.h[k] * dt_s).min(x[k]).max(0.0);
         x[k] -= burnt_h;
         y[k] += burnt_h;
-        let burnt_he = (he_rate[k] * dt_s).min(y[k]).max(0.0);
+        let burnt_he = (r.he[k] * dt_s).min(y[k]).max(0.0);
         y[k] -= burnt_he;
-        z[k] += burnt_he;
+        xc[k] += burnt_he;
+        // ¹²C + α → ¹⁶O: a gram of carbon takes ⅓ g of helium.
+        let burnt_c = (r.c[k] * dt_s).min(xc[k]).min(3.0 * y[k]).max(0.0);
+        xc[k] -= burnt_c;
+        y[k] -= burnt_c / 3.0;
+        xo[k] += 4.0 / 3.0 * burnt_c;
     }
-    // CNO catalysts keep their initial abundance (He-burning products are not CNO catalysts for H burning here).
-    let x_cno = model.params.f_cno * model.params.z;
-    (0..n)
-        .map(|k| {
-            let s = x[k] + y[k] + z[k];
-            Composition { x: x[k] / s, y: y[k] / s, z: z[k] / s, x_cno }
-        })
-        .collect()
+    let f_cno = model.params.f_cno;
+    (0..n).map(|k| normalised(x[k], y[k], z[k], xc[k], xo[k], f_cno)).collect()
 }
 
-/// Largest change of ln r, ln P, ln T over the star, and of ln L at the surface.
-fn max_change(a: &StarModel, b: &StarModel) -> f64 {
+/// Composition from (possibly slightly unnormalised) mass fractions, scaled
+/// to sum to 1, with the CNO catalysts f_CNO Z₀ + X_C.
+fn normalised(x: f64, y: f64, z: f64, x_c: f64, x_o: f64, f_cno: f64) -> Composition {
+    let v = [x, y, z, x_c, x_o].map(|v| v.max(0.0));
+    let s: f64 = v.iter().sum();
+    let [x, y, z, x_c, x_o] = v.map(|v| v / s);
+    Composition { x, y, z, x_cno: Composition::cno_catalysts(f_cno, z, x_c), x_c, x_o }
+}
+
+/// Largest change of ln r, ln P, ln T over the star, and of ln L at the
+/// surface, from the old solution `y_old` (on the new model's mesh) and
+/// luminosity `l_old` to the new model `b`.
+fn max_change(y_old: &[f64], l_old: f64, b: &StarModel) -> f64 {
     let mut d: f64 = 0.0;
-    for k in 0..a.profile.len() {
+    for k in 0..b.profile.len() {
         for j in [I_LNR, I_LNP, I_LNT] {
-            d = d.max((b.solution[k * NVAR + j] - a.solution[k * NVAR + j]).abs());
+            d = d.max((b.solution[k * NVAR + j] - y_old[k * NVAR + j]).abs());
         }
     }
-    d.max((b.globals.luminosity / a.globals.luminosity).ln().abs())
+    d.max((b.globals.luminosity / l_old).ln().abs())
 }
 
 /// Evolutionary phase from the model's state.
@@ -619,7 +702,7 @@ mod tests {
         let runs = mixed_runs(&m);
         let (a, b) = runs[0];
         assert_eq!(a, 0);
-        let (h, _) = burning_rates(&m);
+        let h = burning_rates(&m).h;
         let dt = 0.5 * m.profile.x[0] / h[0];
         let comps = advance_composition(&m, dt);
         for k in a..=b {

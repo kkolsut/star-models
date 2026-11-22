@@ -8,6 +8,8 @@
 //! * H⁻ (cool envelopes): κ_H⁻ = 2.5e-31 (Z / 0.02) ρ^½ T⁹
 //! * a small molecular floor κ_mol = 0.1 Z
 //!
+//! Z is everything heavier than helium, Z₀ + X_C + X_O (plan 9.5).
+//!
 //! Combination: κ = κ_mol + [1/κ_H⁻ + 1/(κ_es + κ_ff + κ_bf)]⁻¹, which stops
 //! the steep H⁻ term from running away at high temperature.
 //! Coefficients follow Carroll & Ostlie (2017), converted to CGS. The result is
@@ -22,12 +24,14 @@ pub struct AnalyticOpacity;
 impl AnalyticOpacity {
     /// Individual contributions (es, ff, bf, H⁻) for diagnostics.
     pub fn components(rho: f64, t: f64, c: &Composition) -> [f64; 4] {
+        // One Z for everything heavier than helium: Z₀ plus the produced C and O.
+        let z = c.z_all();
         let k_es = 0.2 * (1.0 + c.x);
         let t35 = t.powf(-3.5);
-        let k_ff = 3.68e22 * (1.0 - c.z) * (1.0 + c.x) * rho * t35;
+        let k_ff = 3.68e22 * (1.0 - z) * (1.0 + c.x) * rho * t35;
         let guillotine = 2.82 * (rho * (1.0 + c.x)).powf(0.2);
-        let k_bf = 4.34e25 / guillotine * c.z * (1.0 + c.x) * rho * t35;
-        let k_hm = 2.5e-31 * (c.z.max(1e-4) / 0.02) * rho.sqrt() * t.powi(9);
+        let k_bf = 4.34e25 / guillotine * z * (1.0 + c.x) * rho * t35;
+        let k_hm = 2.5e-31 * (z.max(1e-4) / 0.02) * rho.sqrt() * t.powi(9);
         [k_es, k_ff, k_bf, k_hm]
     }
 }
@@ -39,7 +43,7 @@ impl Opacity for AnalyticOpacity {
 
     fn kappa(&self, rho: f64, t: f64, c: &Composition) -> f64 {
         let [k_es, k_ff, k_bf, k_hm] = Self::components(rho, t, c);
-        let k_mol = 0.1 * c.z;
+        let k_mol = 0.1 * c.z_all();
         k_mol + 1.0 / (1.0 / k_hm + 1.0 / (k_es + k_ff + k_bf))
     }
 }

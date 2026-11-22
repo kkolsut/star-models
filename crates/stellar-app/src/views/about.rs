@@ -699,10 +699,10 @@ fn results(ui: &mut Ui, dark: bool) {
         ui,
         "Screening exponent:",
         "free electrons partly shield the charges of reacting nuclei, which speeds the reactions up by a factor \
-         f = exp(…) (see \"Microphysics\"). The formula used holds while the exponent is small (weak screening). The \
-         value shown is the largest exponent over the reactions that supply at least 1% of the nuclear energy, where \
-         they burn. Above 0.3 a warning says the rates are approximate; at the cap of 2 that they are unreliable. The \
-         ZAMS Sun has 0.23. Evolution runs also report the largest value of the run.",
+         f = exp(…) (see \"Microphysics\"). The value shown is the largest exponent over the reactions that supply \
+         at least 1% of the nuclear energy, where they burn. Above 0.3 screening is no longer weak and a warning says \
+         so: the rates still follow the all-regime prescription, but helium ignition is not validated. The ZAMS Sun \
+         has 0.18. Evolution runs also report the largest value of the run.",
     );
     term(
         ui,
@@ -924,13 +924,32 @@ fn microphysics(ui: &mut Ui, dark: bool) {
     math(ui, "nuc_cno", "CNO cycle: the slowest step, p + ¹⁴N, sets the rate");
     math(ui, "nuc_c", "");
     math(ui, "nuc_3a", "triple-α (Kippenhahn & Weigert 1990)");
-    p(ui, "Weak electron screening (Salpeter / Clayton):");
-    math(ui, "nuc_screen", "");
+    math(ui, "nuc_ca", "¹²C(α,γ)¹⁶O on the carbon made by helium burning (Caughlan & Fowler 1988)");
     p(
         ui,
-        "The charge products are Z₁Z₂ = 1 (p + p), 7 (p + ¹⁴N, the slowest CNO step), and 4 and 8 (α + α, α + ⁸Be). \
-         The exponent is capped at 2, since weak screening is only valid for small values. Every model reports its \
-         largest exponent, with a warning above 0.3 and at the cap (see \"Results\").",
+        "The rate multiplier f_Cα is 1 (CF88); MESA uses 1.7 with the same fit, which shows the present uncertainty. \
+         Carbon and oxygen made by helium burning are tracked separately from the initial metals Z; carbon mixed into \
+         hydrogen joins the CNO catalysts.",
+    );
+    p(
+        ui,
+        "Electron screening for all regimes (Chugunov & DeWitt 2009, with the electron factor of Potekhin & Chabrier \
+         2012; triple-α in two static stages):",
+    );
+    math(ui, "nuc_screen_cd", "");
+    p(
+        ui,
+        "f₀ is the free energy of a one-component plasma, t_ij a quantum correction, and the square root the \
+         screening by electrons, whose degeneracy comes from the EOS (classical with the ideal EOS). In the weak limit \
+         this is the Salpeter formula:",
+    );
+    math(ui, "nuc_screen", "weak limit");
+    p(
+        ui,
+        "The charge products are Z₁Z₂ = 1 (p + p), 7 (p + ¹⁴N, the slowest CNO step), 4 and 8 (α + α, α + ⁸Be) and \
+         12 (¹²C + α). The exponent is not capped. At the centre of the Sun the rates differ from the weak formula by \
+         −0.8% (pp) and −12% (CNO: nitrogen is already moderately coupled). Every model reports its largest exponent, \
+         with a warning above 0.3 (see \"Results\").",
     );
     muted(
         ui,
@@ -1185,7 +1204,12 @@ fn evolution(ui: &mut Ui, dark: bool) {
          and 25.03 MeV for the CNO cycle, after neutrino losses. The pp II branch deposits 2.1% less than pp I, so \
          Q_pp^eff falls with the pp II share F_II (see \"Microphysics\").",
     );
-    math(ui, "evo_burn_he", "helium burning (triple-α); its carbon counts as metals");
+    math(
+        ui,
+        "evo_burn_he",
+        "helium burning: triple-α makes carbon, ¹²C(α,γ) turns it into oxygen; both are tracked apart from the \
+         initial metals Z",
+    );
     math(ui, "evo_mix", "instant mixing");
     p(
         ui,
@@ -1768,15 +1792,15 @@ fn limitations(ui: &mut Ui, dark: bool) {
     );
     bullet(
         ui,
-        "Screening beyond the weak regime. The weak-screening formula is used with its exponent capped at 2; each \
-         model reports its largest exponent and warns above 0.3 and at the cap.",
+        "Helium ignition. Screening covers all regimes (Chugunov & DeWitt), but thermal-neutrino losses are \
+         missing, so runs with Fermi–Dirac electrons still stop when the core becomes degenerate; each model reports \
+         its largest screening exponent and warns above 0.3.",
     );
     sub(ui, "Planned");
     p(
         ui,
         "• Tabulated opacities and an EOS with ionisation and degeneracy, plugged into the existing physics interfaces. \
          This is the step that would make the solar model quantitative and allow the red giant branch.\n\
-         • Adaptive remeshing around burning shells.\n\
          • A web version.",
     );
     muted(
@@ -1893,6 +1917,13 @@ fn references(ui: &mut Ui, dark: bool) {
         "Clayton (1968),",
         "Principles of Stellar Evolution and Nucleosynthesis, McGraw-Hill: thermonuclear rates and weak screening.",
     );
+    term(
+        ui,
+        "Chugunov & DeWitt (2009),",
+        "Phys. Rev. C 80, 014611, and Potekhin & Chabrier (2012), A&A 538, A115: electron screening in all \
+         regimes, for ionic mixtures and with electron polarisation.",
+    );
+    term(ui, "Caughlan & Fowler (1988),", "At. Data Nucl. Data Tables 40, 283: the ¹²C(α,γ)¹⁶O rate.");
     term(ui, "Asplund, Grevesse, Sauval & Scott (2009),", "ARA&A 47, 481: the AGSS09 solar composition preset.");
     term(
         ui,

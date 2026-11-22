@@ -13,8 +13,9 @@
 //! the explicit map in (η, ln T) and the chain rule (no further root solve).
 //!
 //! *Composition.* Ions per atomic mass unit: X (hydrogen), Y/4, Z/⟨A⟩ (the
-//! metal mixture of [`crate::mixture`], GN93). Electrons of the metals: Z⟨Z/A⟩
-//! per atomic mass unit; with ionisation they are treated as a pool of bound
+//! metal mixture of [`crate::mixture`], GN93), X_C/12, X_O/16 (carbon and
+//! oxygen from helium burning, plan 9.5). Electrons of the metals and of C, O:
+//! Z⟨Z/A⟩ + (X_C + X_O)/2 per atomic mass unit; with ionisation they are treated as a pool of bound
 //! electrons that ionises with the hydrogen energy and weights (an
 //! approximation, stated: no metal ionisation stages are modelled, the metals
 //! neither supply spurious free electrons in the atmosphere nor go missing in
@@ -138,7 +139,7 @@ thread_local! {
     /// tolerance either way).
     static LAST_ETA: std::cell::Cell<LastEta> = const { std::cell::Cell::new(None) };
     /// The last few states (exact repeats of (P, T, X, Y, Z)).
-    static MEMO: std::cell::RefCell<Vec<([u64; 6], EosState)>> = const { std::cell::RefCell::new(Vec::new()) };
+    static MEMO: std::cell::RefCell<Vec<([u64; 7], EosState)>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
 /// Fermi–Dirac EOS (see the module documentation).
@@ -213,7 +214,9 @@ impl FermiDiracEos {
         let theta = kt / (M_E * C * C);
         let gas = electron_gas(eta, theta)?;
         let n_e = gas.n;
-        let za = GN93.z_over_a;
+        // Electrons of everything heavier than He per m_u at full ionisation:
+        // the metals Z₀ (GN93) and the produced C and O (plan 9.5).
+        let za = c.z * GN93.z_over_a + 0.5 * (c.x_c + c.x_o);
         let p_rad = A_RAD * t.powi(4) / 3.0;
 
         // Pressure-ionisation shift ψ = μ_PI/kT = −Q_n(n_e).
@@ -233,7 +236,7 @@ impl FermiDiracEos {
         };
         let x_pool = x_h;
         // Free electrons per m_u from He and the metal pool, b·m_u.
-        let nu_b = c.y / 4.0 * (x_he1 + 2.0 * x_he2) + c.z * za * x_pool;
+        let nu_b = c.y / 4.0 * (x_he1 + 2.0 * x_he2) + za * x_pool;
 
         // Hydrogen: atoms n0, protons r_H n0, molecules n0²/K_D.
         let (rho, n_h0, n_hp, n_h2) = if self.ionisation && self.molecules && c.x > 0.0 {
@@ -260,12 +263,12 @@ impl FermiDiracEos {
             return Err(FdError::OutOfDomain { eta, theta });
         }
         let n_he = c.y * rho / (4.0 * M_U);
-        let n_z = c.z * rho / (GN93.mean_a * M_U);
+        let n_z = (c.z / GN93.mean_a + c.x_c / 12.0 + c.x_o / 16.0) * rho / M_U;
         let n_heavy = n_h0 + n_hp + n_h2 + n_he + n_z;
 
         // Pressure-ionisation pressure and energy.
         let (p_pi, u_pi) = if self.pressure_ionisation {
-            let n_tot = rho / M_U * (c.x + c.y / 2.0 + c.z * za);
+            let n_tot = rho / M_U * c.electrons_per_mu();
             let (eta0, gas0) = invert_density_from(n_tot, theta, eta, Some(gas))?;
             let q0 = pols_q(n_tot, t, theta, eta0, &gas0);
             let q = pols_q(n_e, t, theta, eta, &gas);
@@ -282,7 +285,7 @@ impl FermiDiracEos {
         // ionised gas (without).
         let mut e = 1.5 * kt * n_heavy + gas.e + A_RAD * t.powi(4);
         if self.ionisation {
-            e += CHI_H * EV * (n_hp + c.z * za * rho / M_U * x_pool)
+            e += CHI_H * EV * (n_hp + za * rho / M_U * x_pool)
                 + n_he * (CHI_HE1 * EV * x_he1 + (CHI_HE1 + CHI_HE2) * EV * x_he2);
             if n_h2 > 0.0 {
                 let vib = K_B * THETA_VIB_H2 / ((THETA_VIB_H2 / t).exp() - 1.0);
@@ -307,9 +310,9 @@ impl FermiDiracEos {
         let lp = p.ln();
         let theta = K_B * t / (M_E * C * C);
         // Start from the fully ionised ideal gas.
-        let mu0 = 1.0 / (2.0 * c.x + 0.75 * c.y + c.z * (GN93.z_over_a + 1.0 / GN93.mean_a));
+        let mu0 = 1.0 / (c.ions_per_mu() + c.electrons_per_mu());
         let rho0 = (p - p_rad) * mu0 * M_U / (K_B * t);
-        let n0 = rho0 / M_U * (c.x + c.y / 2.0 + c.z * GN93.z_over_a);
+        let n0 = rho0 / M_U * c.electrons_per_mu();
         let flags = self.flags();
         let warm = LAST_ETA.with(|cell| {
             cell.get().and_then(|(f, lp0, lt0, x0, z0, eta0)| {
@@ -428,7 +431,15 @@ impl Eos for FermiDiracEos {
     fn try_eval(&self, p: f64, t: f64, comp: &Composition) -> Result<EosState, String> {
         // The finite-difference Jacobian repeats (P, T) whenever it perturbs
         // r or L: remember the last few states.
-        let key = [self.flags() as u64, p.to_bits(), t.to_bits(), comp.x.to_bits(), comp.y.to_bits(), comp.z.to_bits()];
+        let key = [
+            self.flags() as u64,
+            p.to_bits(),
+            t.to_bits(),
+            comp.x.to_bits(),
+            comp.y.to_bits(),
+            comp.z.to_bits(),
+            comp.x_c.to_bits(),
+        ];
         if let Some(s) = MEMO.with(|m| m.borrow().iter().find(|(k, _)| *k == key).map(|(_, s)| *s)) {
             return Ok(s);
         }
@@ -457,8 +468,8 @@ impl Paczynski {
     pub const K2: f64 = 1.231e15;
 
     fn mu(c: &Composition) -> (f64, f64) {
-        let mu_i = 1.0 / (c.x + c.y / 4.0 + c.z / GN93.mean_a);
-        let mu_e = 1.0 / (c.x + c.y / 2.0 + c.z * GN93.z_over_a);
+        let mu_i = 1.0 / c.ions_per_mu();
+        let mu_e = 1.0 / c.electrons_per_mu();
         (mu_i, mu_e)
     }
 
