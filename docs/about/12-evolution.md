@@ -1,6 +1,9 @@
 # 12. Evolution in time
 
-Starting from the ZAMS model, **Evolve** follows the star in time on the same mass mesh. The total mass
+Starting from the ZAMS model, **Evolve** follows the star in time. Before every step the mesh is
+refined where a burning shell or a composition step needs it, with the composition remapped so that
+every species is conserved; the checkbox *remesh during evolution* (on by default) turns this off and
+keeps the ZAMS mesh. The total mass
 is constant unless the wind is switched on (see [Mass loss](#mass-loss); off by default). Each time step
 has two parts:
 
